@@ -93,13 +93,15 @@ Full architecture documentation is in [`docs/architecture/`](docs/architecture/)
 
 ## Prerequisites
 
-- **Node.js** 20 or later
-- **npm** 10 or later
-- **PostgreSQL** 16 (for integration and API tests, and local development)
+- **Node.js** (LTS version recommended)
+- **npm** (bundled with Node.js)
+- **PostgreSQL** 16 or later (for integration and API tests, and local development)
 
 ---
 
 ## Getting Started
+
+> **Note:** The Node.js project files (`package.json`, `src/`, `db/`) are planned but not yet present in this repository. The steps below describe the intended setup workflow once the implementation is added. Until then, the [`docs/architecture/`](docs/architecture/) documents describe the full design and specification.
 
 1. **Clone the repository**
 
@@ -108,7 +110,7 @@ Full architecture documentation is in [`docs/architecture/`](docs/architecture/)
    cd Nova-Circle
    ```
 
-2. **Install dependencies**
+2. **Install dependencies** *(once `package.json` is present)*
 
    ```bash
    npm install
@@ -116,31 +118,25 @@ Full architecture documentation is in [`docs/architecture/`](docs/architecture/)
 
 3. **Configure environment variables**
 
-   Copy the example environment file and fill in the required values:
+   Create a `.env` file in the project root and define the required environment variables.
+
+   See [Environment Variables](#environment-variables) for details on the required keys and safe default values for local development.
+
+4. **Run database migrations** *(once `db/knexfile.ts` is present)*
 
    ```bash
-   cp .env.example .env
+   npx knex migrate:latest --knexfile db/knexfile.ts
    ```
 
-   See [Environment Variables](#environment-variables) for details.
-
-4. **Run database migrations**
-
-   ```bash
-   npm run migrate
-   ```
-
-5. **Build the project**
+5. **Build the project** *(once `package.json` is present)*
 
    ```bash
    npm run build
    ```
 
-6. **Start the development server** *(once a dev server script is available)*
+6. **Start the development server** *(once `package.json` is present)*
 
-   ```bash
-   npm run dev
-   ```
+   > A development server script (e.g., `npm run dev`) will be documented here once it is available in `package.json`.
 
 ---
 
@@ -151,19 +147,22 @@ Full architecture documentation is in [`docs/architecture/`](docs/architecture/)
 | `DATABASE_URL` | Yes | PostgreSQL connection string for the application database |
 | `TEST_DATABASE_URL` | For tests | PostgreSQL connection string used when `NODE_ENV=test` |
 
-No secrets or connection strings should be committed to source control. Refer to `.env.example` for the full list of required variables.
+No secrets or connection strings should be committed to source control. Add these variables to your local `.env` file (which is git-ignored) before running the application.
 
 ---
 
 ## Database Migrations
 
-Migrations are managed with [Knex](https://knexjs.org/). Configuration lives in `db/knexfile.ts`.
+> **Note:** The `db/` directory and Knex configuration are planned but not yet present in this repository.
+
+Migrations are intended to be managed with [Knex](https://knexjs.org/). Once `db/knexfile.ts` is present:
 
 ```bash
 # Apply all pending migrations
-npm run migrate
+npx knex migrate:latest --knexfile db/knexfile.ts
 
-# (See db/knexfile.ts for rollback and other migration commands)
+# Roll back the last batch of migrations
+npx knex migrate:rollback --knexfile db/knexfile.ts
 ```
 
 Every schema change must be accompanied by a migration committed in the same pull request.
@@ -172,7 +171,15 @@ Every schema change must be accompanied by a migration committed in the same pul
 
 ## Running Tests
 
-Nova-Circle uses [Vitest](https://vitest.dev/) with three test projects (unit, integration, and API):
+> **Note:** This repository does not yet include a `package.json`, Vitest configuration, or any runnable test scripts. There are currently no automated tests that can be run directly from this code snapshot.
+
+This project follows a test-first approach. When the Node.js tooling is introduced, the test setup is expected to include:
+
+- **Unit tests** — domain rules, policy logic, validation, invite seeding, draft issue generation
+- **Integration tests** — repositories, persistence, migrations, transaction boundaries
+- **API tests** — request validation, auth, response contracts, error safety, authorization enforcement
+
+Once a `package.json` and Vitest configuration are present, the intended commands will be:
 
 | Command | Description |
 |---|---|
@@ -181,7 +188,7 @@ Nova-Circle uses [Vitest](https://vitest.dev/) with three test projects (unit, i
 | `npm run test:integration` | Integration tests (requires `TEST_DATABASE_URL`) |
 | `npm run test:api` | API tests (no database, uses in-process Express) |
 
-Additional quality checks:
+Additional quality checks (once tooling is added):
 
 ```bash
 npm run lint        # ESLint
@@ -189,17 +196,21 @@ npm run typecheck   # TypeScript type check (tsc --noEmit)
 npm run build       # Compile TypeScript to dist/
 ```
 
-> CI tests never call external services (AI APIs, blob storage, Service Bus). All external dependencies are replaced with deterministic fakes via injected interfaces.
+> CI must never call external services (AI APIs, blob storage, Service Bus). When the test harness is added, all external dependencies will be exercised via deterministic fakes behind interfaces so tests remain fast, reliable, and privacy-preserving.
+
+See [`docs/architecture/testing.md`](docs/architecture/testing.md) for the full test strategy.
 
 ---
 
 ## CI/CD
 
-All automated testing and deployment is driven by **GitHub Actions**.
+All automated testing and deployment is intended to be driven by **GitHub Actions**.
 
-### Pull Request Pipeline
+> **Note:** The repository currently contains only a `create-milestone-issues.yml` workflow. The CI pipelines described below are planned but not yet implemented. See [`docs/architecture/ci-cd.md`](docs/architecture/ci-cd.md) for the full specification.
 
-Every PR targeting `main` must pass:
+### Planned Pull Request Pipeline
+
+Every PR targeting `main` will be required to pass:
 
 1. Install dependencies
 2. Lint
@@ -210,9 +221,9 @@ Every PR targeting `main` must pass:
 7. Authorization and privacy regression tests
 8. Migration dry-run
 
-### Main Branch Pipeline
+### Planned Main Branch Pipeline
 
-Every push to `main` additionally runs:
+Every push to `main` will additionally run:
 
 - Full test suite
 - Build validation
@@ -220,37 +231,41 @@ Every push to `main` additionally runs:
 - Container smoke test (health endpoint check)
 - Coverage report upload
 
-**CI failure is a merge blocker.** No PR may merge while any required check is failing.
-
-See [`docs/architecture/ci-cd.md`](docs/architecture/ci-cd.md) for the full pipeline specification.
+**Once CI is in place, CI failure will be a merge blocker.** No PR will be mergeable while any required check is failing.
 
 ---
 
 ## Project Structure
 
+The following shows the current repository layout alongside the planned source structure (not yet implemented):
+
 ```
 Nova-Circle/
-├── src/
-│   ├── modules/
-│   │   ├── identity-profile/
-│   │   ├── group-management/
-│   │   ├── group-membership/
-│   │   ├── event-management/
-│   │   ├── event-capture/
-│   │   ├── event-chat/
-│   │   ├── event-checklist/
-│   │   ├── event-location/
-│   │   ├── notifications/
-│   │   └── audit-security/
-│   ├── shared/          # Shared value types, result types, interfaces, test helpers
-│   └── infrastructure/  # Root DI container, shared DB connection, middleware
-├── db/
-│   └── knexfile.ts      # Knex migration configuration
 ├── docs/
 │   └── architecture/    # Architecture decision records and design documents
 ├── .github/
 │   └── workflows/       # GitHub Actions CI/CD pipeline definitions
-└── dist/                # Compiled output (git-ignored)
+├── .gitignore
+└── README.md
+
+# Planned (not yet present):
+# ├── src/
+# │   ├── modules/
+# │   │   ├── identity-profile/
+# │   │   ├── group-management/
+# │   │   ├── group-membership/
+# │   │   ├── event-management/
+# │   │   ├── event-capture/
+# │   │   ├── event-chat/
+# │   │   ├── event-checklist/
+# │   │   ├── event-location/
+# │   │   ├── notifications/
+# │   │   └── audit-security/
+# │   ├── shared/          # Shared value types, result types, interfaces, test helpers
+# │   └── infrastructure/  # Root DI container, shared DB connection, middleware
+# ├── db/
+# │   └── knexfile.ts      # Knex migration configuration
+# └── package.json
 ```
 
 ---
@@ -259,11 +274,11 @@ Nova-Circle/
 
 1. **Fork** the repository and create a feature branch from `main`.
 2. **Write tests first** — every feature, bug fix, authorization rule, and API endpoint requires automated tests. A change without tests does not meet the definition of done.
-3. **Run the full quality suite** before opening a PR:
+3. **Run the full quality suite** before opening a PR *(once Node.js tooling is added)*:
    ```bash
    npm run lint && npm run typecheck && npm test
    ```
-4. **Open a pull request** against `main`. CI must pass before a PR can be merged.
+4. **Open a pull request** against `main`. Once CI is in place, all checks must pass before a PR can be merged.
 5. **Reference the related issue** in your PR description.
 
 ### Definition of Done
