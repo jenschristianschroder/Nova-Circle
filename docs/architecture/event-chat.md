@@ -30,7 +30,7 @@ No API endpoint, query, or response schema may expose chat content or chat activ
 
 ### EventChatThread
 
-An `EventChatThread` is created automatically when an event is created or on first message, depending on product preference. There is one thread per event.
+An `EventChatThread` is created automatically when an event is created. There is exactly one thread per event, and the thread MUST exist before any `EventChatMessage` is persisted.
 
 | Field | Type | Notes |
 |---|---|---|
