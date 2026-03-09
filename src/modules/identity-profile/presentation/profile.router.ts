@@ -10,6 +10,9 @@ export function createProfileRouter(repo: UserProfileRepositoryPort): express.Ro
   const upsertProfile = new UpsertMyProfileUseCase(repo);
 
   router.get('/me', async (req: Request, res: Response) => {
+    // Defensive check: createAuthMiddleware always sets req.identity before this
+    // handler runs, but we guard here to satisfy TypeScript and provide a safe
+    // fallback if the middleware is ever misconfigured.
     const identity = req.identity;
     if (!identity) {
       res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
@@ -26,6 +29,7 @@ export function createProfileRouter(repo: UserProfileRepositoryPort): express.Ro
   });
 
   router.put('/me', async (req: Request, res: Response) => {
+    // Defensive check: see GET /me handler above.
     const identity = req.identity;
     if (!identity) {
       res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });

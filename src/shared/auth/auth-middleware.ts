@@ -12,12 +12,19 @@ import type { TokenValidatorPort } from './token-validator.port.js';
  * In all other modes a `TokenValidatorPort` must be provided; the middleware
  * validates the Bearer token from the Authorization header.
  *
+ * Throws during initialisation if a validator is not supplied outside test mode
+ * to prevent silent misconfiguration in production.
+ *
  * Returns 401 with a structured JSON body on any auth failure.
  */
 export function createAuthMiddleware(validator?: TokenValidatorPort): RequestHandler {
+  const isTestMode = process.env['NODE_ENV'] === 'test';
+  if (!isTestMode && !validator) {
+    throw new Error(
+      'createAuthMiddleware: a TokenValidatorPort is required when NODE_ENV is not "test".',
+    );
+  }
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const isTestMode = process.env['NODE_ENV'] === 'test';
-
     if (isTestMode) {
       const userId = req.headers['x-test-user-id'];
       const displayName = req.headers['x-test-display-name'];

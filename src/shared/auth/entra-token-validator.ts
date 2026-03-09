@@ -34,6 +34,8 @@ export class EntraTokenValidator implements TokenValidatorPort {
       audience: this.audience,
     });
 
+    // 'oid' is preferred over 'sub' for Azure tokens because it is stable across
+    // token refreshes and multi-tenant scenarios, whereas 'sub' is audience-scoped.
     const userId = payload['oid'] ?? payload['sub'];
     const displayName =
       payload['name'] ?? payload['preferred_username'] ?? payload['upn'] ?? 'unknown';
