@@ -122,6 +122,39 @@ module/
 
 ---
 
+## Roadmap
+
+| Milestone | Description | Status |
+|-----------|-------------|--------|
+| M1 – Foundation | Repo setup, CI, testing infrastructure, DB migrations, module skeletons | ✅ Complete |
+| M2 – Groups and membership | Users, groups, memberships, basic auth wiring | 🔄 In progress |
+| M3 – Private event MVP | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ⬜ Planned |
+| M4 – Event management | Edit, cancel, invitation changes, privacy and audit hardening | ⬜ Planned |
+| M5 – Event collaboration | Event-scoped location, checklist, and chat | ⬜ Planned |
+| M6 – Natural event capture | Text, voice, and image-based event capture via shared pipeline | ⬜ Planned |
+| M7 – UI polish | Theme support, palette support, accessibility, visual cleanup | ⬜ Planned |
+
+### Milestone 1 – Foundation ✅
+
+All foundation work is complete:
+
+- [x] Repo setup – directory structure, tooling, and coding conventions (TypeScript, ESLint, Prettier)
+- [x] CI – GitHub Actions pipeline (lint, typecheck, unit tests, integration tests, API tests, build)
+- [x] Testing infrastructure – Vitest 3 with unit / integration / API projects; `FakeClock`, `FakeIdentity`, `FakeEventBus`, `FakeStorage` test helpers
+- [x] Database and migrations – Knex 3 + PostgreSQL, migration tooling wired up and verified in CI
+- [x] Module skeletons – all 10 modules scaffolded with `domain/`, `application/`, `infrastructure/`, and `presentation/` layers
+
+### Milestone 2 – Groups and membership 🔄
+
+**Goal:** Implement user profiles, group management, group membership, and basic JWT-based auth wiring.
+
+- [ ] User domain – `UserProfile` entity, repository, and API
+- [ ] Group domain – `Group` entity, repository, and management API (owner/admin CRUD)
+- [ ] Membership domain – `GroupMember` entity, join / leave / remove flows, and membership API
+- [ ] Basic auth wiring – Entra ID / B2C JWT validation middleware and identity context injection
+
+---
+
 ## Architecture and conventions
 
 The `docs/architecture/` directory contains the authoritative architecture documentation:
