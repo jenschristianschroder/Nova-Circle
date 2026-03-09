@@ -21,7 +21,7 @@ jobs:
             const ISSUE_TITLE =
               'M2: Update tests based on milestone 2 progress – user, group, membership, and auth';
 
-            // ─── Ensure required labels exist ──────────────────────────────────────
+            // ─── Ensure required labels exist (true upsert) ────────────────────────
             const requiredLabels = [
               { name: 'testing',     color: 'e4e669', description: 'Test coverage and quality' },
               { name: 'milestone-2', color: '0075ca', description: 'Milestone 2 – Groups'      },
@@ -30,22 +30,29 @@ jobs:
               try {
                 await github.rest.issues.createLabel({ owner, repo, ...label });
               } catch (e) {
-                if (e.status !== 422) throw e; // 422 = already exists
+                if (e.status !== 422) throw e; // 422 = already exists – update if stale
+                const { data: existing } = await github.rest.issues.getLabel({
+                  owner, repo, name: label.name,
+                });
+                if (existing.color !== label.color || existing.description !== label.description) {
+                  await github.rest.issues.updateLabel({ owner, repo, ...label });
+                }
               }
             }
 
             // ─── Deduplication guard ───────────────────────────────────────────────
-            // Skip if a tracking issue with this title already exists
+            // Use the Search API (is:issue) to find an exact title match.
+            // This avoids the listForRepo pitfall of returning PRs alongside issues
+            // and eliminates the per_page cap that can miss older duplicates.
             {
-              const { data: existing } = await github.rest.issues.listForRepo({
-                owner,
-                repo,
-                labels: 'milestone-2',
-                state: 'all',
-                per_page: 50,
+              const q = `repo:${owner}/${repo} is:issue in:title "${ISSUE_TITLE}"`;
+              const { data: searchResult } = await github.rest.search.issuesAndPullRequests({
+                q,
+                per_page: 5,
               });
-              const targetTitle = ISSUE_TITLE;
-              const duplicate = existing.find(i => i.title === targetTitle);
+              const duplicate = searchResult.items.find(
+                i => !i.pull_request && i.title === ISSUE_TITLE,
+              );
               if (duplicate) {
                 console.log(`Issue already exists: #${duplicate.number} – skipping.`);
                 return;
