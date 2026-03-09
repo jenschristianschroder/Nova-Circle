@@ -8,7 +8,6 @@ on:
 
 permissions:
   issues: write
-  milestones: write
 
 jobs:
   create-issues:
