@@ -27,4 +27,14 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
     },
   },
+  {
+    // Relax rules that produce false positives in test files.
+    files: ['**/*.test.ts'],
+    rules: {
+      // vi.fn() mocks are accessed via expect(...) which triggers unbound-method
+      // but is safe and idiomatic in Vitest.
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
 );
+

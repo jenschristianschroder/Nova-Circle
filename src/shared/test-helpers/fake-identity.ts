@@ -1,12 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-
-/** Represents a resolved, trusted caller identity. */
-export interface IdentityContext {
-  /** Unique identifier for the caller (e.g. Azure object ID). */
-  readonly userId: string;
-  /** Display name used in audit logs (never trusted for authorization). */
-  readonly displayName: string;
-}
+import type { IdentityContext } from '../auth/identity-context.js';
+export type { IdentityContext } from '../auth/identity-context.js';
 
 /**
  * FakeIdentity – produces deterministic IdentityContext values for tests.
