@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
 
 /**
- * Initial schema migration – creates the knex_migrations tracking table.
+ * Initial schema migration – enables the pgcrypto extension for gen_random_uuid() support.
  * The actual domain schema will be added in subsequent migrations.
  * This migration exists to verify that the migration tooling is wired up correctly.
  */

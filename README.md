@@ -46,7 +46,7 @@ npm start            # Run compiled output
 npm run test              # Run all tests
 npm run test:unit         # Unit tests only (no database required)
 npm run test:integration  # Integration tests (requires TEST_DATABASE_URL)
-npm run test:api          # API tests (requires TEST_DATABASE_URL)
+npm run test:api          # API tests (no database required; run in-process with supertest)
 npm run test:coverage     # Tests with coverage report
 ```
 

@@ -14,7 +14,7 @@ describe('Database migrations', () => {
     ? 'TEST_DATABASE_URL is not set – skipping database integration tests'
     : undefined;
 
-  let db: Knex;
+  let db: Knex | undefined;
 
   beforeAll(async () => {
     if (skipReason) return;
@@ -27,20 +27,20 @@ describe('Database migrations', () => {
   });
 
   it.skipIf(skipReason !== undefined)('latest migration completes without error', async () => {
-    const [batchNo, appliedMigrations] = await db.migrate.currentVersion();
-    expect(typeof batchNo === 'number' || typeof batchNo === 'string').toBe(true);
-    expect(appliedMigrations).toBeDefined();
+    const currentVersion = await db!.migrate.currentVersion();
+    expect(typeof currentVersion).toBe('string');
+    expect(currentVersion.length).toBeGreaterThan(0);
   });
 
   it.skipIf(skipReason !== undefined)('can connect and execute a simple query', async () => {
-    const result = await db.raw<{ rows: Array<{ answer: number }> }>('SELECT 1 AS answer');
+    const result = await db!.raw<{ rows: Array<{ answer: number }> }>('SELECT 1 AS answer');
     expect(result.rows[0]?.answer).toBe(1);
   });
 
   it.skipIf(skipReason !== undefined)(
     'migration tracking table exists after running migrations',
     async () => {
-      const exists = await db.schema.hasTable('knex_migrations');
+      const exists = await db!.schema.hasTable('knex_migrations');
       expect(exists).toBe(true);
     },
   );
