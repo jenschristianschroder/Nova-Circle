@@ -1,0 +1,223 @@
+name: Create M2 Test Tracking Issue
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create M2 test tracking issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const ISSUE_TITLE =
+              'M2: Update tests based on milestone 2 progress – user, group, membership, and auth';
+
+            // ─── Ensure required labels exist (true upsert) ────────────────────────
+            const requiredLabels = [
+              { name: 'testing',     color: 'e4e669', description: 'Test coverage and quality' },
+              { name: 'milestone-2', color: '0075ca', description: 'Milestone 2 – Groups'      },
+            ];
+            for (const label of requiredLabels) {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, ...label });
+              } catch (e) {
+                if (e.status !== 422) throw e; // 422 = already exists – update if stale
+                const { data: existing } = await github.rest.issues.getLabel({
+                  owner, repo, name: label.name,
+                });
+                if (existing.color !== label.color || existing.description !== label.description) {
+                  await github.rest.issues.updateLabel({ owner, repo, ...label });
+                }
+              }
+            }
+
+            // ─── Deduplication guard ───────────────────────────────────────────────
+            // Use the Search API (is:issue) to find an exact title match.
+            // This avoids the listForRepo pitfall of returning PRs alongside issues
+            // and eliminates the per_page cap that can miss older duplicates.
+            {
+              const q = `repo:${owner}/${repo} is:issue in:title "${ISSUE_TITLE}"`;
+              const { data: searchResult } = await github.rest.search.issuesAndPullRequests({
+                q,
+                per_page: 5,
+              });
+              const duplicate = searchResult.items.find(
+                i => !i.pull_request && i.title === ISSUE_TITLE,
+              );
+              if (duplicate) {
+                console.log(`Issue already exists: #${duplicate.number} – skipping.`);
+                return;
+              }
+            }
+
+            // ─── Resolve milestone number ──────────────────────────────────────────
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner,
+              repo,
+              state: 'all',
+              per_page: 100,
+            });
+            const m2 = milestones.find(m => m.title === 'Milestone 2 – Groups and membership');
+            const milestoneNumber = m2 ? m2.number : undefined;
+
+            // ─── Issue body ────────────────────────────────────────────────────────
+            const body = `## Update tests for Milestone 2 progress
+
+As the four M2 sub-tasks (#15, #16, #17, #18) are implemented, this issue tracks all test work required to keep CI green and the authorization/privacy regression suite complete.
+
+### Background
+
+M1 established the test infrastructure (Vitest 3, FakeClock, FakeIdentity, FakeEventBus, FakeStorage, integration test DB wiring, CI jobs). M2 builds the first real domain modules. Every module added in M2 must be accompanied by its own unit, integration, API, and authorization tests before the sub-task is considered done.
+
+---
+
+## Test requirements per M2 sub-task
+
+### #15 – User domain (\`identity-profile\` module)
+
+**Unit tests** (\`*.unit.test.ts\`)
+- [ ] \`UserProfile\` entity – valid construction, field validation, update display name, update avatar URL
+- [ ] Builder: \`UserProfileBuilder\` (or factory function) for test data construction
+
+**Integration tests** (\`*.integration.test.ts\`)
+- [ ] Repository \`save()\` inserts a new \`user_profiles\` row correctly
+- [ ] Repository \`findById()\` retrieves a persisted profile
+- [ ] Repository \`update()\` persists field changes
+- [ ] Migration adds the \`user_profiles\` table (bootstrap from scratch)
+- [ ] Persistence round-trip: all fields survive insert + read without corruption
+
+**API tests** (\`*.api.test.ts\`)
+- [ ] \`GET /api/v1/me\` – 200 with the caller's profile when authenticated
+- [ ] \`GET /api/v1/me\` – 401 when no token is present
+- [ ] \`PUT /api/v1/me\` – 200 and updated profile when authenticated with valid body
+- [ ] \`PUT /api/v1/me\` – 400 for an invalid request body (e.g., blank display name)
+- [ ] \`PUT /api/v1/me\` – 401 when unauthenticated
+- [ ] Response body does not include stack traces or internal infrastructure details
+
+---
+
+### #16 – Group domain (\`group-management\` module)
+
+**Unit tests**
+- [ ] \`Group\` entity – valid construction, name validation, ownership
+- [ ] Builder: \`GroupBuilder\` for test data construction
+
+**Integration tests**
+- [ ] Repository \`create()\` inserts a \`groups\` row
+- [ ] Repository \`findById()\` retrieves a group
+- [ ] Repository \`update()\` persists name/description changes
+- [ ] Repository \`delete()\` removes the group
+- [ ] Migration adds the \`groups\` table
+
+**API tests**
+- [ ] \`POST /api/v1/groups\` – 201 and created group when authenticated; caller becomes owner
+- [ ] \`POST /api/v1/groups\` – 400 for missing or invalid name
+- [ ] \`POST /api/v1/groups\` – 401 when unauthenticated
+- [ ] \`GET /api/v1/groups/:id\` – 200 for a group member
+- [ ] \`GET /api/v1/groups/:id\` – 404 for a non-member (non-disclosure)
+- [ ] \`GET /api/v1/groups/:id\` – 401 when unauthenticated
+- [ ] \`PUT /api/v1/groups/:id\` – 200 when called by the group owner
+- [ ] \`PUT /api/v1/groups/:id\` – 403 when called by a plain member
+- [ ] \`PUT /api/v1/groups/:id\` – 401 when unauthenticated
+- [ ] \`DELETE /api/v1/groups/:id\` – 204 when called by the owner
+- [ ] \`DELETE /api/v1/groups/:id\` – 403 when called by a plain member
+- [ ] \`DELETE /api/v1/groups/:id\` – 401 when unauthenticated
+
+**Authorization tests**
+- [ ] Non-member cannot read group details (404, not 403, to avoid confirming existence)
+- [ ] Member can read but not update or delete
+- [ ] Only owner can update or delete
+
+---
+
+### #17 – Membership domain (\`group-membership\` module)
+
+**Unit tests**
+- [ ] \`GroupMember\` entity – valid construction, role assignment, \`joinedAt\` timestamp
+- [ ] Role hierarchy logic (e.g., owner > admin > member)
+- [ ] Builder: \`GroupMemberBuilder\` for test data construction
+
+**Integration tests**
+- [ ] Repository \`add()\` inserts a \`group_members\` row
+- [ ] Repository \`findByGroup()\` returns all members for a group
+- [ ] Repository \`remove()\` deletes the membership row
+- [ ] Migration adds the \`group_members\` table
+- [ ] Non-member queries return no results (isolation)
+
+**API tests**
+- [ ] \`POST /api/v1/groups/:id/members\` – 201 when called by owner/admin
+- [ ] \`POST /api/v1/groups/:id/members\` – 403 when called by a plain member
+- [ ] \`POST /api/v1/groups/:id/members\` – 401 when unauthenticated
+- [ ] \`DELETE /api/v1/groups/:id/members/:userId\` – 204 for owner/admin removing another member
+- [ ] \`DELETE /api/v1/groups/:id/members/:userId\` – 204 for self-removal (leave group)
+- [ ] \`DELETE /api/v1/groups/:id/members/:userId\` – 403 when a plain member removes another member
+- [ ] \`DELETE /api/v1/groups/:id/members/:userId\` – 401 when unauthenticated
+- [ ] \`GET /api/v1/groups/:id/members\` – 200 with member list for a group member
+- [ ] \`GET /api/v1/groups/:id/members\` – 404 for a non-member (non-disclosure; no count leaked)
+- [ ] \`GET /api/v1/groups/:id/members\` – 401 when unauthenticated
+
+**Privacy tests**
+- [ ] Non-member cannot list members
+- [ ] Non-member cannot infer member count or group existence from any response field
+
+---
+
+### #18 – Basic auth wiring (middleware)
+
+**Unit tests**
+- [ ] Token validator rejects a missing \`Authorization\` header
+- [ ] Token validator rejects an expired token
+- [ ] Token validator rejects a token with a wrong signature
+- [ ] Token validator extracts \`userId\` and claims from a valid fake token
+
+**API / integration tests**
+- [ ] Every M2 protected endpoint returns 401 when called without a token
+- [ ] Every M2 protected endpoint returns 401 with a malformed token
+- [ ] Valid token injects the correct identity context into the request handler
+- [ ] \`FakeIdentity\` helper works as a drop-in for all M2 API tests
+- [ ] 401 error response does not leak token validation internals (no stack traces, no library details)
+
+---
+
+## Cross-cutting requirements
+
+- All tests use \`FakeClock\`, \`FakeIdentity\`, \`FakeEventBus\`, and \`FakeStorage\` from \`src/shared/test-helpers/\` – never real external dependencies.
+- Test data is constructed via builder functions; no scattered inline object literals.
+- Integration tests require \`TEST_DATABASE_URL\` and skip gracefully when it is absent (following the pattern in \`src/infrastructure/migrations.integration.test.ts\`).
+- Each new migration must be validated in the existing \`Database migrations\` integration test suite.
+- CI must remain green on every PR that implements an M2 sub-task.
+
+### Acceptance criteria for this issue
+- [ ] All unit, integration, API, and authorization tests listed above are written and passing in CI
+- [ ] No protected M2 endpoint is reachable without a valid token
+- [ ] Non-members cannot discover group details or member lists
+- [ ] Every test uses deterministic fakes; no live DB or external service calls in unit or API tests
+
+### Relates to
+- #15 M2: User domain
+- #16 M2: Group domain
+- #17 M2: Membership domain
+- #18 M2: Basic auth wiring
+- #19 M2: Groups and membership (epic)`;
+
+            // ─── Create the issue ──────────────────────────────────────────────────
+            const { data: issue } = await github.rest.issues.create({
+              owner,
+              repo,
+              title: ISSUE_TITLE,
+              body,
+              labels: ['milestone-2', 'testing'],
+              ...(milestoneNumber !== undefined ? { milestone: milestoneNumber } : {}),
+            });
+
+            console.log(`Created issue #${issue.number}: ${issue.title}`);
+            console.log(`URL: ${issue.html_url}`);
