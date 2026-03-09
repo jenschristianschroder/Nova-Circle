@@ -113,21 +113,45 @@ module/
 
 ---
 
+## Key design principles
+
+- **Group membership alone never grants event access.** Event visibility is controlled exclusively by explicit `EventInvitation` records created at event creation time.
+- **Inaccessible events are never disclosed.** Titles, counts, summaries, and hints about events a user cannot access must not appear in any response.
+- **Authorization is enforced in application and domain logic**, not only at route or middleware level.
+- **All services are stateless and container-friendly**, targeting Azure Container Apps with managed identity.
+
+---
+
 ## Architecture and conventions
 
-See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for the full architecture reference, access-control rules, testing requirements, and coding conventions.
+The `docs/architecture/` directory contains the authoritative architecture documentation:
+
+| Document | Contents |
+|---|---|
+| [docs/architecture/overview.md](docs/architecture/overview.md) | System architecture, module boundaries, deployment model, security and privacy rules |
+| [docs/architecture/access-control.md](docs/architecture/access-control.md) | Full authorization model, event visibility rules, invitation seeding, authorization test matrix |
+| [docs/architecture/event-management.md](docs/architecture/event-management.md) | Event domain, lifecycle, invitation seeding |
+| [docs/architecture/event-capture.md](docs/architecture/event-capture.md) | Text/voice/image capture pipeline, AI adapter boundary, draft flow |
+| [docs/architecture/event-chat.md](docs/architecture/event-chat.md) | Event-scoped chat design and authorization |
+| [docs/architecture/event-checklist.md](docs/architecture/event-checklist.md) | Event-scoped checklist design and authorization |
+| [docs/architecture/event-location.md](docs/architecture/event-location.md) | Event-scoped location design and privacy rules |
+| [docs/architecture/testing.md](docs/architecture/testing.md) | Full test strategy, deterministic design, CI integration |
+| [docs/architecture/ci-cd.md](docs/architecture/ci-cd.md) | GitHub Actions pipelines, quality gates, merge blockers |
+| [docs/architecture/module-template.md](docs/architecture/module-template.md) | Template for new module documentation |
+
+For AI-assisted development conventions (coding style, test patterns, module conventions), see [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
 ---
 
 ## CI
 
-Every pull request runs the full CI pipeline:
+Every pull request runs the full CI pipeline defined in [docs/architecture/ci-cd.md](docs/architecture/ci-cd.md):
 
 1. **Lint** – ESLint + Prettier format check
 2. **Typecheck** – TypeScript strict mode, no compile errors
 3. **Unit tests** – fast, isolated, no database
 4. **Integration tests** – database migrations + persistence layer (PostgreSQL)
-5. **API tests** – HTTP endpoint contracts (PostgreSQL)
+5. **API tests** – HTTP endpoint contracts (in-process with supertest)
 6. **Build** – `tsc` compiles cleanly
 
 The build must be green before merging.
