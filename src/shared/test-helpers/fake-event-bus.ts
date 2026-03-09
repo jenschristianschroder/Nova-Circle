@@ -18,21 +18,24 @@ import type { DomainEvent, EventBusPort } from '../event-bus.js';
 export class FakeEventBus implements EventBusPort {
   private readonly events: DomainEvent[] = [];
 
-  /** Captures the event in memory. Never throws. */
+  /** Captures a deep-frozen snapshot of the event so mutations after publish cannot affect assertions. */
   publish(event: DomainEvent): Promise<void> {
-    this.events.push(event);
+    this.events.push(structuredClone(event));
     return Promise.resolve();
   }
 
   /**
-   * Returns all captured events of the given type, cast to `T`.
-   * Pass the event's `type` discriminant string (e.g. `'EventCreated'`).
+   * Returns all captured events of the given type as `T`.
+   *
+   * The `type` parameter is tied to `T['type']` so callers cannot request a
+   * mismatched combination of event type and generic (e.g. `published<GroupCreated>('MemberAdded')`
+   * will not compile).
    */
-  published<T extends DomainEvent>(type: string): T[] {
-    return this.events.filter((e) => e.type === type) as T[];
+  published<T extends DomainEvent>(type: T['type']): T[] {
+    return this.events.filter((event): event is T => event.type === type);
   }
 
-  /** Returns every captured event regardless of type. */
+  /** Returns a shallow copy of all captured events regardless of type. */
   all(): DomainEvent[] {
     return [...this.events];
   }

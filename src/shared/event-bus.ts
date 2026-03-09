@@ -20,7 +20,9 @@ export interface DomainEvent {
 export interface EventBusPort {
   /**
    * Publishes a single domain event.
-   * Implementations must be idempotent where the broker supports deduplication.
+   * Implementations should avoid publishing duplicate messages where practical
+   * and may rely on broker-level deduplication when a suitable identifier is
+   * available in the event payload or envelope.
    */
   publish(event: DomainEvent): Promise<void>;
 }
