@@ -33,8 +33,8 @@ describe('Database migrations', () => {
   });
 
   it.skipIf(skipReason !== undefined)('can connect and execute a simple query', async () => {
-    const result = await db.raw<{ rows: Array<{ answer: string }> }>('SELECT 1 AS answer');
-    expect(result.rows[0]?.answer).toBe('1');
+    const result = await db.raw<{ rows: Array<{ answer: number }> }>('SELECT 1 AS answer');
+    expect(result.rows[0]?.answer).toBe(1);
   });
 
   it.skipIf(skipReason !== undefined)(
