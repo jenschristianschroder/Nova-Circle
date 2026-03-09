@@ -106,7 +106,7 @@ If the transaction fails, no event or invitations are persisted. There is no par
 
 The `UpdateEventCommand` flow:
 
-1. Verify the caller has `EventInvitation` access or is the creator.
+1. Verify the caller is the event creator, OR has an active `EventInvitation` for the event AND holds `admin`/`owner` role in the group.
 2. Verify the event is in state `scheduled`.
 3. Apply field updates (title, description, startAt, endAt).
 4. Validate updated field constraints.
