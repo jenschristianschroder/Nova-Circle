@@ -54,7 +54,7 @@ jobs:
         run: npm ci
 
       - name: Run unit tests
-        run: npm run test:unit -- --reporter=verbose --reporter=junit --outputFile=./test-results/unit.xml
+        run: npm run test:unit -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/unit.xml
 
       - name: Upload test results
         if: always()
@@ -102,7 +102,7 @@ jobs:
         run: npm run migrate
 
       - name: Run integration tests
-        run: npm run test:integration -- --reporter=verbose --reporter=junit --outputFile=./test-results/integration.xml
+        run: npm run test:integration -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/integration.xml
 
       - name: Upload test results
         if: always()
@@ -150,7 +150,7 @@ jobs:
         run: npm run migrate
 
       - name: Run API tests
-        run: npm run test:api -- --reporter=verbose --reporter=junit --outputFile=./test-results/api.xml
+        run: npm run test:api -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/api.xml
 
       - name: Upload test results
         if: always()
