@@ -1,0 +1,320 @@
+name: Create Milestone Issues
+
+on:
+  push:
+    branches:
+      - copilot/create-issues-and-sub-issues
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  milestones: write
+
+jobs:
+  create-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create milestones and issues
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // ─── Deduplication guard ───────────────────────────────────────────────
+            // Skip if epic issues already exist (prevents duplicates on re-runs)
+            {
+              const { data: existing } = await github.rest.issues.listForRepo({
+                owner, repo, labels: 'epic', state: 'all', per_page: 1
+              });
+              if (existing.length > 0) {
+                console.log('Epic issues already exist – skipping creation to prevent duplicates.');
+                return;
+              }
+            }
+
+            // ─── Helper ────────────────────────────────────────────────────────────
+
+            async function createMilestone(title, description, dueOn) {
+              try {
+                const { data } = await github.rest.issues.createMilestone({
+                  owner, repo, title, description,
+                  ...(dueOn ? { due_on: dueOn } : {})
+                });
+                console.log(`Created milestone: ${title} (#${data.number})`);
+                return data.number;
+              } catch (e) {
+                if (e.status === 422) {
+                  // already exists – look it up
+                  const { data: list } = await github.rest.issues.listMilestones({ owner, repo, state: 'all', per_page: 100 });
+                  const found = list.find(m => m.title === title);
+                  if (found) {
+                    console.log(`Milestone already exists: ${title} (#${found.number})`);
+                    return found.number;
+                  }
+                }
+                throw e;
+              }
+            }
+
+            async function createIssue(title, body, milestoneNumber, labels = []) {
+              const { data } = await github.rest.issues.create({
+                owner, repo, title, body,
+                milestone: milestoneNumber,
+                labels,
+              });
+              console.log(`Created issue: ${title} (#${data.number})`);
+              return data.number;
+            }
+
+            // ─── Labels ────────────────────────────────────────────────────────────
+
+            const labelDefs = [
+              { name: 'epic',         color: '6e40c9', description: 'Parent milestone epic'        },
+              { name: 'milestone-1',  color: '0075ca', description: 'Milestone 1 – Foundation'    },
+              { name: 'milestone-2',  color: '0075ca', description: 'Milestone 2 – Groups'        },
+              { name: 'milestone-3',  color: '0075ca', description: 'Milestone 3 – Private event MVP' },
+              { name: 'milestone-4',  color: '0075ca', description: 'Milestone 4 – Event mgmt'   },
+              { name: 'milestone-5',  color: '0075ca', description: 'Milestone 5 – Collaboration' },
+              { name: 'milestone-6',  color: '0075ca', description: 'Milestone 6 – Event capture' },
+              { name: 'milestone-7',  color: '0075ca', description: 'Milestone 7 – UI polish'     },
+            ];
+
+            for (const l of labelDefs) {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, ...l });
+              } catch (e) {
+                if (e.status !== 422) throw e; // 422 = already exists
+              }
+            }
+
+            // ─── Milestone definitions ──────────────────────────────────────────────
+
+            const milestones = [
+              { title: 'Milestone 1 – Foundation',              description: 'Repo setup, CI, testing infrastructure, DB migrations, module skeletons'                 },
+              { title: 'Milestone 2 – Groups and membership',   description: 'Users, groups, memberships, basic auth wiring'                                            },
+              { title: 'Milestone 3 – Private event MVP',       description: 'Event creation, invite-all, remove invitees, explicit invitations, access-controlled list' },
+              { title: 'Milestone 4 – Event management',        description: 'Edit, cancel, invitation changes, privacy and audit hardening'                             },
+              { title: 'Milestone 5 – Event collaboration',     description: 'Event-scoped location, checklist, and chat'                                                },
+              { title: 'Milestone 6 – Natural event capture',   description: 'Text, voice, and image-based event capture via shared pipeline'                           },
+              { title: 'Milestone 7 – UI polish',               description: 'Theme support, palette support, accessibility, visual cleanup'                             },
+            ];
+
+            const msNumbers = {};
+            for (let i = 0; i < milestones.length; i++) {
+              msNumbers[i + 1] = await createMilestone(milestones[i].title, milestones[i].description);
+            }
+
+            // ─── Issue definitions ─────────────────────────────────────────────────
+            // Each entry: { ms, title, body, children: [{title, body}] }
+
+            const epicDefs = [
+              // ── M1 ──────────────────────────────────────────────────────────────
+              {
+                ms: 1,
+                title: 'M1: Foundation',
+                epicBody: `## Foundation\n\nEstablish the foundational infrastructure needed before any feature work begins.\n\n### Scope\n- Repository structure and conventions\n- Continuous integration pipeline\n- Test infrastructure (unit, integration, API)\n- Database bootstrap and migration tooling\n- Module skeleton scaffolding\n\n### Acceptance criteria\n- CI is green on every PR\n- Tests can run in isolation and in CI\n- Migrations bootstrap the schema from scratch\n- Module skeleton follows the agreed directory layout\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M1: Repo setup – directory structure, tooling, conventions',
+                    body: `### Goal\nEstablish the canonical repository layout, linting, formatting, and editor conventions so all subsequent work starts from a clean, consistent baseline.\n\n### Acceptance criteria\n- [ ] Module directory structure created under \`src/modules/\`\n- [ ] Linting and formatting configured and passing\n- [ ] \`.editorconfig\` / \`.gitignore\` in place\n- [ ] README documents local dev setup\n\n### Depends on\n_Nothing – first task_`,
+                  },
+                  {
+                    title: 'M1: CI – GitHub Actions pipeline for lint, typecheck, and tests',
+                    body: `### Goal\nSet up GitHub Actions so that lint, type-checking, unit tests, integration tests, and API tests run automatically on every pull request.\n\n### Acceptance criteria\n- [ ] Workflow triggers on pull_request and push to main\n- [ ] Lint step fails the build on violations\n- [ ] Type-check / compile step runs\n- [ ] Unit, integration, and API test steps run\n- [ ] Test results are reported in CI\n- [ ] Build must be green before merge\n\n### Depends on\n- M1: Repo setup`,
+                  },
+                  {
+                    title: 'M1: Testing infrastructure – test runner, helpers, and patterns',
+                    body: `### Goal\nInstall and configure the test runner; establish deterministic test patterns (builders, fake clock, fake identity, fake storage) that all subsequent modules will follow.\n\n### Acceptance criteria\n- [ ] Test runner configured\n- [ ] Example unit test, integration test, and API test in place\n- [ ] Fake / mock adapters pattern documented\n- [ ] Deterministic clock helper available\n\n### Depends on\n- M1: Repo setup`,
+                  },
+                  {
+                    title: 'M1: Database and migrations – schema bootstrap and migration tooling',
+                    body: `### Goal\nChoose and wire up the database driver and migration tool. The schema must bootstrap from scratch in CI and in local dev.\n\n### Acceptance criteria\n- [ ] Migration tool configured\n- [ ] Initial empty migration in place\n- [ ] \`npm run migrate\` (or equivalent) boots schema from scratch\n- [ ] Migration step runs in CI\n- [ ] Connection uses managed identity / env-var config (no hardcoded credentials)\n\n### Depends on\n- M1: Repo setup`,
+                  },
+                  {
+                    title: 'M1: Module skeletons – scaffold each module with domain/application/infrastructure/presentation layers',
+                    body: `### Goal\nCreate empty-but-valid skeleton directories and entry-point files for each planned module so that future work has a clear home.\n\n**Modules to scaffold:**\n\`identity-profile\`, \`group-management\`, \`group-membership\`, \`event-management\`, \`event-capture\`, \`event-chat\`, \`event-checklist\`, \`event-location\`, \`notifications\`, \`audit-security\`\n\n### Acceptance criteria\n- [ ] Each module has \`domain/\`, \`application/\`, \`infrastructure/\`, \`presentation/\` sub-directories\n- [ ] Each module has a minimal index / barrel file\n- [ ] CI passes on the scaffolded code\n\n### Depends on\n- M1: Repo setup\n- M1: CI`,
+                  },
+                ],
+              },
+
+              // ── M2 ──────────────────────────────────────────────────────────────
+              {
+                ms: 2,
+                title: 'M2: Groups and membership',
+                epicBody: `## Groups and membership\n\nImplement the user identity, group, and membership domains with basic authentication wiring.\n\n### Scope\n- User domain model and persistence\n- Group domain model and persistence\n- GroupMember domain model and persistence\n- Auth token validation at the edge\n\n### Acceptance criteria\n- Users can be created and looked up\n- Groups can be created with an owner\n- Members can be added and removed\n- All operations require a valid identity token\n- Authorization and privacy tests pass\n\n### Depends on\nMilestone 1 – Foundation must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M2: User domain – UserProfile model, repository, and API',
+                    body: `### Goal\nImplement the \`identity-profile\` module: \`User\` / \`UserProfile\` domain model, repository interface, persistence, and a minimal profile API.\n\n### Acceptance criteria\n- [ ] \`UserProfile\` entity with id, display name, avatar\n- [ ] Repository interface and concrete implementation\n- [ ] Migration adds the \`user_profiles\` table\n- [ ] API: \`GET /api/v1/me\` returns the caller's profile\n- [ ] API: \`PUT /api/v1/me\` updates the caller's profile\n- [ ] Unit tests for domain rules\n- [ ] Integration tests for persistence\n- [ ] API tests for endpoints\n\n### Depends on\n- M1: Database and migrations\n- M1: Testing infrastructure`,
+                  },
+                  {
+                    title: 'M2: Group domain – Group model, repository, and management API',
+                    body: `### Goal\nImplement the \`group-management\` module: \`Group\` domain entity, repository, and a CRUD API for owners.\n\n### Acceptance criteria\n- [ ] \`Group\` entity with id, name, description, owner\n- [ ] Repository interface and implementation\n- [ ] Migration adds the \`groups\` table\n- [ ] API: \`POST /api/v1/groups\` – create group (caller becomes owner)\n- [ ] API: \`GET /api/v1/groups/:id\` – get group (members only)\n- [ ] API: \`PUT /api/v1/groups/:id\` – update group (owner/admin only)\n- [ ] API: \`DELETE /api/v1/groups/:id\` – delete group (owner only)\n- [ ] Authorization tests: non-member cannot read, non-owner cannot update/delete\n\n### Depends on\n- M2: User domain`,
+                  },
+                  {
+                    title: 'M2: Membership domain – GroupMember model, join/leave/remove, and membership API',
+                    body: `### Goal\nImplement the \`group-membership\` module: \`GroupMember\` entity, invite / join / leave / remove flows, and a membership API.\n\n### Acceptance criteria\n- [ ] \`GroupMember\` entity with userId, groupId, role, joinedAt\n- [ ] Repository interface and implementation\n- [ ] Migration adds the \`group_members\` table\n- [ ] API: \`POST /api/v1/groups/:id/members\` – invite member (owner/admin)\n- [ ] API: \`DELETE /api/v1/groups/:id/members/:userId\` – remove member (owner/admin or self)\n- [ ] API: \`GET /api/v1/groups/:id/members\` – list members (members only)\n- [ ] Authorization tests covering all roles\n- [ ] Privacy: non-members cannot list members or see member counts\n\n### Depends on\n- M2: Group domain`,
+                  },
+                  {
+                    title: 'M2: Basic auth wiring – token validation middleware and identity context',
+                    body: `### Goal\nWire up token validation so that every request that needs an authenticated user rejects unauthenticated calls with 401 and injects the caller's identity into the request context.\n\n### Acceptance criteria\n- [ ] Auth middleware validates Entra ID / B2C JWT tokens\n- [ ] Unauthenticated requests to protected endpoints return 401\n- [ ] Identity context (userId, claims) injected into handler context\n- [ ] Fake identity helper available for tests\n- [ ] Integration tests confirm middleware behaviour\n\n### Depends on\n- M1: Testing infrastructure\n- M2: User domain`,
+                  },
+                ],
+              },
+
+              // ── M3 ──────────────────────────────────────────────────────────────
+              {
+                ms: 3,
+                title: 'M3: Private event MVP',
+                epicBody: `## Private event MVP\n\nImplement the core private-event lifecycle: create, seed invites from current membership snapshot, allow pre-save invite edits, persist explicit invitations, and enforce access-controlled event visibility.\n\n### Scope\n- Event creation with invite-all-current-members default\n- Pre-save invitee removal\n- Explicit \`EventInvitation\` persistence\n- Visible-events-only list (group membership alone does NOT grant access)\n- Event detail access control\n\n### Acceptance criteria\n- All privacy and authorization tests pass\n- New members cannot see historic events\n- Non-invited group members cannot see events\n- Inaccessible events are not leaked in any response\n\n### Depends on\nMilestone 2 – Groups and membership must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M3: Event domain – Event entity, repository, and migration',
+                    body: `### Goal\nCreate the \`Event\` domain entity and persistence layer inside the \`event-management\` module.\n\n### Acceptance criteria\n- [ ] \`Event\` entity: id, groupId, creatorId, title, description, startAt, endAt, status (draft/published/cancelled)\n- [ ] Repository interface and implementation\n- [ ] Migration adds the \`events\` table\n- [ ] Unit tests for domain invariants\n- [ ] Integration tests for repository\n\n### Depends on\n- M2: Group domain`,
+                  },
+                  {
+                    title: 'M3: Default invite-all-current-members – snapshot group membership at event creation',
+                    body: `### Goal\nWhen a user starts creating an event in a group, pre-populate the invite list with a snapshot of all current group members. This snapshot is a starting point only—it must not be persisted as live membership access.\n\n### Acceptance criteria\n- [ ] Create-event flow fetches current group members\n- [ ] All current members are added as default invitees\n- [ ] The list is a point-in-time snapshot (not a live membership query)\n- [ ] Members joining the group later are NOT automatically included in existing events\n- [ ] Unit tests for snapshot logic\n\n### Depends on\n- M3: Event domain\n- M2: Membership domain`,
+                  },
+                  {
+                    title: 'M3: Remove invitees before save – creator can edit invite list pre-save',
+                    body: `### Goal\nBefore saving a new event, the creator must be able to remove individual invitees from the default list.\n\n### Acceptance criteria\n- [ ] API or UI allows removing invitees from the pending invite list\n- [ ] Removed invitees are excluded from the saved \`EventInvitation\` rows\n- [ ] Creator cannot remove themselves\n- [ ] Unit tests for removal logic\n\n### Depends on\n- M3: Default invite-all-current-members`,
+                  },
+                  {
+                    title: 'M3: Explicit event invitations – EventInvitation entity and persistence',
+                    body: `### Goal\nPersist one \`EventInvitation\` row per invited user when an event is saved. Event access is controlled by these rows for the entire event lifetime.\n\n### Acceptance criteria\n- [ ] \`EventInvitation\` entity: id, eventId, userId, status (invited/accepted/declined/tentative/removed), invitedAt\n- [ ] Invitation rows are saved transactionally with the event\n- [ ] Repository interface and implementation\n- [ ] Migration adds the \`event_invitations\` table\n- [ ] Integration tests for transactional save\n\n### Depends on\n- M3: Remove invitees before save`,
+                  },
+                  {
+                    title: 'M3: Visible-events-only list – group event list returns only accessible events',
+                    body: `### Goal\nThe group event list endpoint must return only events the calling user is explicitly invited to. It must not leak titles, counts, or any metadata for inaccessible events.\n\n### Acceptance criteria\n- [ ] \`GET /api/v1/groups/:id/events\` filters by \`EventInvitation\` for the caller\n- [ ] No inaccessible event appears in the response\n- [ ] Response does not contain a count, hint, or summary of hidden events\n- [ ] Authorization tests: non-invited group member gets empty or filtered list\n- [ ] Newly joined member does not see historic events\n\n### Depends on\n- M3: Explicit event invitations\n- M2: Membership domain`,
+                  },
+                  {
+                    title: 'M3: Event detail access control – enforce invitation check on event read',
+                    body: `### Goal\nThe event detail endpoint must return 404 (not 403) for users who are not invited, so that inaccessible event existence is not disclosed.\n\n### Acceptance criteria\n- [ ] \`GET /api/v1/events/:id\` returns 404 if caller has no active invitation\n- [ ] Returns full event detail if caller is invited or is the creator\n- [ ] Authorization tests covering: creator, invited member, non-invited member, former member\n- [ ] No information leakage in 404 response\n\n### Depends on\n- M3: Explicit event invitations`,
+                  },
+                ],
+              },
+
+              // ── M4 ──────────────────────────────────────────────────────────────
+              {
+                ms: 4,
+                title: 'M4: Event management complete',
+                epicBody: `## Event management complete\n\nRound out the event lifecycle: editing, cancellation, invitation management after save, and privacy/audit hardening.\n\n### Scope\n- Edit event (creator / admin)\n- Cancel event\n- Post-save invitation changes (add/remove invitees)\n- Privacy and audit hardening across all event operations\n\n### Depends on\nMilestone 3 – Private event MVP must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M4: Edit event – update title, description, times (creator/admin only)',
+                    body: `### Goal\nAllow the event creator or a group admin to edit event fields after the event has been saved.\n\n### Acceptance criteria\n- [ ] \`PATCH /api/v1/events/:id\` allows editing title, description, startAt, endAt\n- [ ] Only creator or group admin can edit\n- [ ] Editing does not alter the existing invitation list\n- [ ] Audit log entry created on edit\n- [ ] Authorization tests: non-creator, non-admin cannot edit\n- [ ] Unit tests for edit domain rules\n\n### Depends on\n- M3: Event detail access control`,
+                  },
+                  {
+                    title: 'M4: Cancel event – soft-cancel with status change',
+                    body: `### Goal\nAllow the event creator or a group admin to cancel an event. Cancelled events remain accessible to previously invited users but are clearly marked as cancelled.\n\n### Acceptance criteria\n- [ ] \`POST /api/v1/events/:id/cancel\` transitions event status to \`cancelled\`\n- [ ] Only creator or group admin can cancel\n- [ ] Invited users can still read cancelled event detail\n- [ ] Cancelled events appear in the event list with cancelled status\n- [ ] Audit log entry created on cancel\n- [ ] Authorization tests\n\n### Depends on\n- M4: Edit event`,
+                  },
+                  {
+                    title: 'M4: Invitation changes – add and remove invitees after event save',
+                    body: `### Goal\nAllow the event creator or group admin to add new invitees or remove existing ones after the event has been saved.\n\n### Acceptance criteria\n- [ ] \`POST /api/v1/events/:id/invitations\` – add invitee (creator/admin only)\n- [ ] \`DELETE /api/v1/events/:id/invitations/:userId\` – remove invitee (creator/admin only)\n- [ ] Removed invitees immediately lose access (status → \`removed\`)\n- [ ] Added invitees immediately gain access (status → \`invited\`)\n- [ ] Audit log entry created on each change\n- [ ] Authorization and privacy tests\n\n### Depends on\n- M3: Explicit event invitations`,
+                  },
+                  {
+                    title: 'M4: Privacy and audit hardening – audit log, structured errors, data minimization review',
+                    body: `### Goal\nAudit sensitive operations, review all event endpoints for data minimization, ensure errors never leak private data, and add a regression test suite for information-disclosure scenarios.\n\n### Acceptance criteria\n- [ ] Audit log table and \`AuditEvent\` entity created\n- [ ] All sensitive operations emit audit entries (event create/edit/cancel, invitation add/remove, group ownership/admin changes)\n- [ ] All error responses reviewed – no stack traces, internal IDs, or private data\n- [ ] Data-minimization review: response DTOs contain only necessary fields\n- [ ] Hidden-event non-disclosure regression tests\n- [ ] No group-level exposure of event-scoped data\n\n### Depends on\n- M4: Cancel event\n- M4: Invitation changes`,
+                  },
+                ],
+              },
+
+              // ── M5 ──────────────────────────────────────────────────────────────
+              {
+                ms: 5,
+                title: 'M5: Event collaboration',
+                epicBody: `## Event collaboration\n\nAdd event-scoped collaboration features: location, checklist, and chat. All three are strictly scoped to the event and inherit event access control.\n\n### Scope\n- Event location (physical / virtual / hybrid)\n- Event checklist (lightweight task list)\n- Event chat (text-only, event-scoped)\n\n### Critical rule\nNone of these features may be visible at group level. They inherit event access: if a user cannot see the event they cannot see its location, checklist, or chat.\n\n### Depends on\nMilestone 3 – Private event MVP must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M5: Event location – physical, virtual, and hybrid event locations',
+                    body: `### Goal\nImplement the \`event-location\` module to store and return event location data, strictly scoped to the event.\n\n### Acceptance criteria\n- [ ] \`EventLocation\` entity: eventId, displayText, structuredAddress, coordinates, virtualUrl, locationType (physical/virtual/hybrid)\n- [ ] Repository and migration\n- [ ] \`GET /api/v1/events/:id/location\` – returns location (invited users only)\n- [ ] \`PUT /api/v1/events/:id/location\` – set/update location (creator/admin only)\n- [ ] No location data returned in group-level event list\n- [ ] Authorization tests: non-invited user gets 404\n- [ ] Privacy: home addresses handled carefully (not logged broadly)\n\n### Depends on\n- M3: Event detail access control`,
+                  },
+                  {
+                    title: 'M5: Event checklist – lightweight event-scoped task list',
+                    body: `### Goal\nImplement the \`event-checklist\` module: a lightweight checklist scoped to a single event.\n\n### Acceptance criteria\n- [ ] \`EventChecklistItem\` entity: id, eventId, text, isDone, assigneeId (optional), dueDate (optional), order\n- [ ] Repository and migration\n- [ ] \`GET /api/v1/events/:id/checklist\` – list items (invited users only)\n- [ ] \`POST /api/v1/events/:id/checklist\` – add item (invited users)\n- [ ] \`PATCH /api/v1/events/:id/checklist/:itemId\` – update item (invited users)\n- [ ] \`DELETE /api/v1/events/:id/checklist/:itemId\` – delete item (creator/admin or item author)\n- [ ] No checklist rollup at group level\n- [ ] Authorization tests\n\n### Depends on\n- M3: Event detail access control`,
+                  },
+                  {
+                    title: 'M5: Event chat – text-only event-scoped chat',
+                    body: `### Goal\nImplement the \`event-chat\` module: a text-only chat thread scoped to a single event.\n\n### Acceptance criteria\n- [ ] \`EventChatMessage\` entity: id, eventId, authorId, text, createdAt, deletedAt (soft delete)\n- [ ] Repository and migration\n- [ ] \`GET /api/v1/events/:id/chat\` – list messages with pagination (invited users only)\n- [ ] \`POST /api/v1/events/:id/chat\` – send message (invited users)\n- [ ] \`DELETE /api/v1/events/:id/chat/:messageId\` – soft-delete (author or admin)\n- [ ] No chat preview or content at group level\n- [ ] Authorization tests: non-invited user gets 404\n- [ ] Soft-delete: deleted messages return placeholder, not content\n\n### Depends on\n- M3: Event detail access control`,
+                  },
+                ],
+              },
+
+              // ── M6 ──────────────────────────────────────────────────────────────
+              {
+                ms: 6,
+                title: 'M6: Natural event capture',
+                epicBody: `## Natural event capture\n\nImplement the \`event-capture\` module: a shared pipeline that accepts text, voice, or image input and produces either a saved event or a structured draft with issue codes.\n\n### Scope\n- Text-based event capture (first)\n- Voice-based event capture (transcription → shared pipeline)\n- Image-based event capture (extraction → shared pipeline)\n\n### Architecture rule\nAll three input types share one downstream pipeline: normalize → extract → validate → persist event or draft. Business logic must not be duplicated across input types.\n\n### Depends on\nMilestone 3 – Private event MVP must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M6: Text event capture – shared pipeline for natural language event creation',
+                    body: `### Goal\nImplement the core event-capture pipeline accepting typed natural language. This pipeline is the single canonical path that voice and image capture also feed into.\n\n### Pipeline stages\n1. Accept raw text input\n2. Normalize / clean input\n3. Extract candidate fields (title, date/time, description) via deterministic parsing first, AI adapter for messy input\n4. Validate business rules (time range, group access, required fields)\n5. Create event (if valid) or draft with structured issue codes (if invalid/incomplete)\n\n### Acceptance criteria\n- [ ] \`POST /api/v1/capture/text\` accepts \`{ groupId, text }\`\n- [ ] Complete input creates a published event\n- [ ] Incomplete input creates a \`EventDraft\` with structured issue codes (e.g. \`missing_title\`, \`ambiguous_date\`)\n- [ ] AI / NLP adapter is behind an interface and fully mockable in tests\n- [ ] No low-confidence fields are silently guessed\n- [ ] Unit tests for each pipeline stage\n- [ ] Integration tests for full happy path and draft path\n\n### Depends on\n- M3: Explicit event invitations`,
+                  },
+                  {
+                    title: 'M6: Voice event capture – speech-to-text transcription feeding the shared pipeline',
+                    body: `### Goal\nAdd voice input support: transcribe audio to text and pass it into the same event-capture pipeline used by text input.\n\n### Acceptance criteria\n- [ ] \`POST /api/v1/capture/voice\` accepts an audio file or base64 blob\n- [ ] Speech-to-text adapter transcribes audio to text\n- [ ] Transcribed text is passed to the existing text-capture pipeline unchanged\n- [ ] Speech-to-text adapter is behind an interface and mockable in CI\n- [ ] No separate business-logic path for voice vs text\n- [ ] Unit tests for the transcription adapter interface\n- [ ] Integration tests confirm voice input produces the same event/draft outcomes as equivalent text\n\n### Depends on\n- M6: Text event capture`,
+                  },
+                  {
+                    title: 'M6: Image event capture – multimodal extraction feeding the shared pipeline',
+                    body: `### Goal\nAdd image input support: extract event candidate fields from an uploaded image and pass structured candidates into the shared event-capture pipeline.\n\n### Acceptance criteria\n- [ ] \`POST /api/v1/capture/image\` accepts an image upload\n- [ ] Image is securely stored (blob storage adapter)\n- [ ] Multimodal extraction adapter extracts candidate fields from the image\n- [ ] Extracted candidates are passed to the shared normalization and validation pipeline\n- [ ] Extraction adapter is behind an interface and mockable in CI\n- [ ] Traceability: extraction artifact linked to draft/event\n- [ ] No separate business-logic path for image vs text\n- [ ] Unit and integration tests\n\n### Depends on\n- M6: Text event capture`,
+                  },
+                ],
+              },
+
+              // ── M7 ──────────────────────────────────────────────────────────────
+              {
+                ms: 7,
+                title: 'M7: UI polish',
+                epicBody: `## UI polish\n\nRefine the user interface: implement full theme support (light/dark mode), a curated set of colour palettes using centralized semantic design tokens, accessibility compliance, and visual cleanup.\n\n### Scope\n- Light and dark mode\n- Curated colour palettes via semantic design tokens\n- Accessibility (WCAG 2.1 AA contrast, keyboard nav, screen reader)\n- Visual cleanup and layout consistency\n\n### Depends on\nMilestone 2 and Milestone 3 must be substantially complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M7: Theme support – light and dark mode via semantic design tokens',
+                    body: `### Goal\nImplement light and dark mode using a centralized semantic token system. No colours should be hardcoded in components.\n\n### Acceptance criteria\n- [ ] Semantic design token file defines all colours as named tokens (e.g. \`surface.background\`, \`content.primary\`)\n- [ ] Light and dark variants defined for every token\n- [ ] Theme switcher allows user to choose light / dark / system\n- [ ] User preference persisted across sessions\n- [ ] No hardcoded colour values in any component\n- [ ] Visual regression or snapshot tests for both themes\n\n### Depends on\n- M2: User domain (for preference persistence)`,
+                  },
+                  {
+                    title: 'M7: Palette support – curated colour palettes selectable by user',
+                    body: `### Goal\nOffer a small set of curated, pre-approved colour palettes that the user can choose from, in addition to light/dark mode.\n\n### Acceptance criteria\n- [ ] At least 3 curated palettes defined\n- [ ] All palettes meet WCAG 2.1 AA contrast requirements in both light and dark mode\n- [ ] Palette selection stored in user preferences\n- [ ] Palette applied globally via the same semantic token system used for theme support\n- [ ] No palette leaks hardcoded colours into components\n\n### Depends on\n- M7: Theme support`,
+                  },
+                  {
+                    title: 'M7: Accessibility – WCAG 2.1 AA contrast, keyboard navigation, screen reader support',
+                    body: `### Goal\nEnsure the application meets WCAG 2.1 Level AA accessibility requirements.\n\n### Acceptance criteria\n- [ ] All colour combinations meet AA contrast ratios (4.5:1 for normal text, 3:1 for large text / UI components)\n- [ ] All interactive elements are keyboard-focusable and have visible focus indicators\n- [ ] All images, icons, and non-text content have \`alt\` text or \`aria-label\`\n- [ ] Screen reader tested on at least one major screen reader (VoiceOver or NVDA)\n- [ ] Automated accessibility audit tool (e.g. axe) integrated into CI\n- [ ] No critical or serious accessibility violations\n\n### Depends on\n- M7: Theme support\n- M7: Palette support`,
+                  },
+                  {
+                    title: 'M7: Visual cleanup – layout consistency, typography, spacing, and calm UX audit',
+                    body: `### Goal\nConduct a visual audit of all screens and clean up inconsistent spacing, typography, layout, and any overly decorative or animation-heavy elements.\n\n### Acceptance criteria\n- [ ] Consistent spacing scale applied across all screens\n- [ ] Typography scale defined and applied consistently\n- [ ] No flashy animations or highly decorative elements\n- [ ] All screens reviewed for clarity and task-focus\n- [ ] Visual regression tests (screenshot comparisons) added for key screens\n\n### Depends on\n- M7: Accessibility`,
+                  },
+                ],
+              },
+            ];
+
+            // ─── Create all issues ──────────────────────────────────────────────────
+
+            for (const epic of epicDefs) {
+              const msNum = msNumbers[epic.ms];
+              const milestoneLabel = `milestone-${epic.ms}`;
+
+              // Create child issues first
+              const childNumbers = [];
+              for (const child of epic.children) {
+                const num = await createIssue(child.title, child.body, msNum, [milestoneLabel]);
+                childNumbers.push(num);
+              }
+
+              // Build tasklist for epic body
+              const tasklist = childNumbers.map(n => `- [ ] #${n}`).join('\n');
+              const epicBodyWithTasks = epic.epicBody.replace(
+                '<!-- tasklist will be updated after child issues are created -->',
+                tasklist
+              );
+
+              // Create the epic issue
+              const epicNum = await createIssue(epic.title, epicBodyWithTasks, msNum, ['epic', milestoneLabel]);
+
+              console.log(`\nMilestone ${epic.ms} epic: #${epicNum}`);
+              console.log(`Child issues: ${childNumbers.join(', ')}`);
+            }
+
+            console.log('\nAll milestones and issues created successfully!');
