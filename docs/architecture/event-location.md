@@ -104,7 +104,7 @@ A group `admin` who has no `EventInvitation` for the event has no access to the 
 
 ### Read Location
 
-Returns the location record for the event. If no location has been set, returns `404 Not Found` (or a structured empty response, per product preference).
+Returns the location record for the event. If no location has been set, returns `200 OK` with a structured empty payload (for example, `"location": null`). `404 Not Found` is returned only when the event does not exist or the caller is not authorized to access it.
 
 Response includes all non-null location fields. Structured fields (street address, coordinates) and `virtualMeetingUrl` are included for authorized callers.
 
@@ -180,7 +180,7 @@ Using `404 Not Found` for "event exists but caller has no access" prevents confi
 - `EventLocation` is stored in the relational database.
 - `eventId` has a unique constraint (one location per event).
 - Schema changes are applied via migrations run in CI.
-- Coordinates are stored as `decimal(9,6)` (precision sufficient for roughly 10 cm, adequate for venue-level location without excessive precision).
+- Coordinates are stored as `decimal(9,6)` (precision of approximately 11 cm at the equator (0.000001°), adequate for venue-level location without excessive precision).
 
 ---
 

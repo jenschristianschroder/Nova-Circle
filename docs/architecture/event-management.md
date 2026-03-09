@@ -255,7 +255,7 @@ Using `404 Not Found` for "event exists but caller has no access" prevents confi
 - `CreateEventCommand` fails if `startAt >= endAt`.
 - `CreateEventCommand` fails if `groupId` does not correspond to a group the caller is a member of.
 - Invitation state transition rules: valid and invalid transitions.
-- `CancelEventCommand` rejects callers without creator or admin/owner role.
+- `CancelEventCommand` rejects callers who are not the creator and not a group `admin`/`owner` with an active `EventInvitation`, including `admin`/`owner` callers without an active invitation.
 
 ### Integration Tests
 

@@ -215,7 +215,7 @@ Deployment to Azure is triggered from the `main` branch pipeline after all tests
 
 At a minimum, any future deployment step must:
 
-- Only deploy artefacts built in the same CI run that passed all tests.
+- Only deploy artifacts built in the same CI run that passed all tests.
 - Use system-assigned managed identity for Azure resource access.
 - Not expose secrets in workflow logs.
 - Apply database migrations before the new application version starts serving traffic.

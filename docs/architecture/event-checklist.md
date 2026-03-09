@@ -7,7 +7,7 @@ The `event-checklist` module provides a lightweight task list scoped exclusively
 This module does **not**:
 
 - Provide group-level or cross-event checklists.
-- Aggregate, summarise, or roll up checklist completion data at the group level.
+- Aggregate, summarize, or roll up checklist completion data at the group level.
 - Implement full project management features (no subtasks, no dependency chains, no time tracking).
 
 ---

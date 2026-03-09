@@ -83,10 +83,11 @@ All list endpoints that return events must filter to only events the requesting 
 
 When a user creates an event in a group:
 
-1. The system queries **all current `GroupMember` records** for that group at the moment of creation.
-2. These members are pre-populated as the default invite list.
-3. The creator may remove any members from the list before saving.
-4. When the event is saved, explicit `EventInvitation` rows are written transactionally with the `Event` row.
+1. The system queries **all current `GroupMember` records for that group except the creator** at the moment of creation.
+2. These non-creator members are pre-populated as the default invite list.
+3. The creator may remove any of these members from the list before saving.
+4. Separately, the creator always has an `EventInvitation` row for the event; this row is inserted independently of the snapshot list to avoid unique-constraint violations with the snapshot invites.
+5. When the event is saved, all explicit `EventInvitation` rows (including the creator's) are written transactionally with the `Event` row.
 
 After save, the invite list is fixed. It is not derived from live group membership. Subsequent group membership changes do not affect the invitation list of an existing event.
 

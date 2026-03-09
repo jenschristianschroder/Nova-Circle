@@ -166,7 +166,7 @@ Every protected capability must be tested against this actor set:
 | `unauthenticated` | 401 | 401 | 401 | 401 |
 | `other_group_member` | ❌ | ❌ | ❌ | ❌ |
 
-✅ = succeeds, ❌ = `404 Not Found` (non-disclosure) except where `403 Forbidden` is more appropriate for an operation the caller can confirm exists (e.g., attempting to edit an event they can view), 401 = `401 Unauthorized`
+✅ = succeeds, ❌ = `404 Not Found` (non-disclosure) for actors with no event visibility; `active_invitee` receives `403 Forbidden` for Edit and Cancel operations because they can confirm the event exists (they can view it), 401 = `401 Unauthorized`
 
 The same matrix must be applied for each collaboration module (chat, checklist, location) with the same actor set.
 
