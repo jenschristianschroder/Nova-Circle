@@ -74,6 +74,15 @@ Business rules must not depend directly on:
 - storage adapters
 - UI code
 
+## UI design philosophy
+The UI must be simple, calm, aesthetic, and practical. Avoid flashy, highly decorative, or animation-heavy design. Prefer clean layouts, restrained styling, clear typography, and focused screens.
+
+## Theme support
+Support light and dark mode plus a small set of predefined curated color palettes. Use centralized semantic design tokens. Do not hardcode colors in components. Ensure all palettes meet accessibility contrast requirements.
+
+### UX preference
+Design should be simple and to the point. Optimize for clarity, privacy, and task completion rather than visual spectacle.
+
 ### Stateless services
 Generated backend services should be stateless unless persistence is explicitly required.
 
