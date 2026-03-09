@@ -1,9 +1,6 @@
 name: Create Milestone Issues
 
 on:
-  push:
-    branches:
-      - copilot/create-issues-and-sub-issues
   workflow_dispatch:
 
 permissions:
