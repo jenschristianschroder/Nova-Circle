@@ -54,7 +54,15 @@ jobs:
         run: npm ci
 
       - name: Run unit tests
-        run: npm run test:unit
+        run: npm run test:unit -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/unit.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit
+          path: test-results/unit.xml
+          if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────────────────────────────
   # Integration tests – requires PostgreSQL
@@ -94,7 +102,15 @@ jobs:
         run: npm run migrate
 
       - name: Run integration tests
-        run: npm run test:integration
+        run: npm run test:integration -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/integration.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-integration
+          path: test-results/integration.xml
+          if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────────────────────────────
   # API tests – requires PostgreSQL
@@ -134,7 +150,15 @@ jobs:
         run: npm run migrate
 
       - name: Run API tests
-        run: npm run test:api
+        run: npm run test:api -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/api.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-api
+          path: test-results/api.xml
+          if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────────────────────────────
   # Build – validates that TypeScript compiles cleanly
