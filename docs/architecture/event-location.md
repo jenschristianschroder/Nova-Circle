@@ -106,7 +106,7 @@ A group `admin` who has no `EventInvitation` for the event has no access to the 
 
 Returns the location record for the event. If no location has been set, returns `404 Not Found` (or a structured empty response, per product preference).
 
-Response includes all non-null location fields. Structured fields (street address, coordinates) and `virtualMeetingUrl` are included for authorised callers.
+Response includes all non-null location fields. Structured fields (street address, coordinates) and `virtualMeetingUrl` are included for authorized callers.
 
 ### Set or Update Location
 
@@ -156,11 +156,11 @@ All endpoints require authentication. Event access is verified before any data i
 |---|---|
 | Unauthenticated | `401 Unauthorized` |
 | Event not found or caller has no event access | `404 Not Found` |
-| Caller authenticated but not authorised for the operation | `403 Forbidden` |
+| Caller authenticated but not authorized for the operation | `403 Forbidden` |
 | Validation failure | `400 Bad Request` with structured error body |
 | Server error | `500 Internal Server Error` (safe message only) |
 
-Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of the event or its location to unauthorised callers.
+Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of the event or its location to unauthorized callers.
 
 ---
 

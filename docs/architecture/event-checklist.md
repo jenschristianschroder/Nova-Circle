@@ -183,11 +183,11 @@ All endpoints require authentication. Event access is verified before any data i
 |---|---|
 | Unauthenticated | `401 Unauthorized` |
 | Event not found or caller has no event access | `404 Not Found` |
-| Caller authenticated but not authorised for the operation | `403 Forbidden` |
+| Caller authenticated but not authorized for the operation | `403 Forbidden` |
 | Validation failure | `400 Bad Request` |
 | Server error | `500 Internal Server Error` (safe message only) |
 
-Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of the event or its checklist to unauthorised callers.
+Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of the event or its checklist to unauthorized callers.
 
 ---
 

@@ -147,7 +147,8 @@ Every protected capability must be tested against this actor set:
 | `removed_invitee` | A user whose invitation has been set to `removed` |
 | `non_invited_member` | A current group member who was never invited to this event |
 | `new_member` | A user who joined the group after the event was created |
-| `former_member` | A user who has left or been removed from the group |
+| `former_member` | A user who has left or been removed from the group; their invitations are transitioned to `removed` at departure time per the default product policy |
+| `group_admin_no_invitation` | A group `admin` or `owner` who has no `EventInvitation` for this event; group role does not grant event access |
 | `unauthenticated` | A caller with no valid token |
 | `other_group_member` | An authenticated user who is a member of a different group |
 
@@ -161,10 +162,11 @@ Every protected capability must be tested against this actor set:
 | `non_invited_member` | ❌ | ❌ | ❌ | ❌ |
 | `new_member` | ❌ | ❌ | ❌ | ❌ |
 | `former_member` | ❌ | ❌ | ❌ | ❌ |
+| `group_admin_no_invitation` | ❌ | ❌ | ❌ | ❌ |
 | `unauthenticated` | 401 | 401 | 401 | 401 |
 | `other_group_member` | ❌ | ❌ | ❌ | ❌ |
 
-✅ = succeeds, ❌ = `403 Forbidden` or `404 Not Found` per policy, 401 = `401 Unauthorized`
+✅ = succeeds, ❌ = `404 Not Found` (non-disclosure) except where `403 Forbidden` is more appropriate for an operation the caller can confirm exists (e.g., attempting to edit an event they can view), 401 = `401 Unauthorized`
 
 The same matrix must be applied for each collaboration module (chat, checklist, location) with the same actor set.
 

@@ -6,7 +6,7 @@ Sections marked `[REQUIRED]` must be completed before the module documentation i
 
 ---
 
-# [Module Name]
+## [Module Name]
 
 > One sentence describing the module's primary responsibility.
 
@@ -16,7 +16,7 @@ Describe in concrete terms what this module owns. Be explicit about:
 
 - The domain entities and aggregates this module owns.
 - The operations this module is responsible for.
-- The authorisation decisions this module makes.
+- The authorization decisions this module makes.
 
 Then state explicitly what this module does **not** do. This negative scope is as important as the positive scope.
 
@@ -149,7 +149,7 @@ State the authentication requirement for all endpoints (always required unless d
 |---|---|
 | Unauthenticated | `401 Unauthorized` |
 | Resource not found or caller has no access | `404 Not Found` |
-| Authorised but not permitted for this operation | `403 Forbidden` |
+| Authorized but not permitted for this operation | `403 Forbidden` |
 | Validation failure | `400 Bad Request` |
 | Server error | `500 Internal Server Error` |
 
@@ -198,6 +198,8 @@ These tests are mandatory. Use the standard actor set from [testing.md](testing.
 | `removed_invitee` | [operation] | ❌ `404 Not Found` |
 | `non_invited_member` | [operation] | ❌ `404 Not Found` |
 | `new_member` | [operation] | ❌ `404 Not Found` |
+| `former_member` | [operation] | ❌ `404 Not Found` |
+| `group_admin_no_invitation` | [operation] | ❌ `404 Not Found` |
 | `unauthenticated` | [operation] | ❌ `401 Unauthorized` |
 | `other_group_member` | [operation] | ❌ `404 Not Found` |
 

@@ -21,8 +21,8 @@ A `GroupMember` record ties a `UserId` to a `GroupId` with one of the following 
 | Role | Capabilities |
 |---|---|
 | `owner` | Full group administration: rename group, change settings, promote/demote admins, remove members, delete group |
-| `admin` | Manage members: add, remove, change roles up to `admin`; manage events in the group |
-| `member` | View permitted event list, respond to event invitations, create events |
+| `admin` | Manage members: add, remove, change roles up to `admin`; manage events where they are the creator or have an explicit `EventInvitation` (group role alone does not grant access to events they are not invited to) |
+| `member` | View events they created or are explicitly invited to, respond to event invitations, create events |
 
 Group role escalation (promoting a member to `admin`, or an `admin` to `owner`) is an audited operation.
 
@@ -75,7 +75,7 @@ Inaccessible events must not be disclosed in any form. The following leakage vec
 - Returning hints such as "and 3 more events" that imply the existence of hidden events.
 - Returning chat previews, checklist summaries, or location details for inaccessible events.
 
-All list endpoints that return events must filter to only events the requesting user is explicitly authorised to see, before applying pagination or any other transformation.
+All list endpoints that return events must filter to only events the requesting user is explicitly authorized to see, before applying pagination or any other transformation.
 
 ---
 
@@ -103,13 +103,18 @@ When a new user joins a group after an event has been created:
 When a group `admin` or `owner` removes a member:
 
 - Their `GroupMember` record is deleted or marked inactive.
-- Their existing `EventInvitation` records are **not** automatically removed.
-- Product policy must be applied explicitly: if the policy is "removed group members lose event access", the application must transition their invitation state to `removed` at removal time.
-- Do not leave access ambiguous.
+- The application **must** transition all of the removed member's `EventInvitation` records within the group to state `removed` at the same time.
+- This is the default product policy. Access must not be left ambiguous.
 
 ### Effect of a Member Leaving a Group
 
-Same rules as removal apply. A member who voluntarily leaves a group has their `GroupMember` record updated. Existing `EventInvitation` records must be handled according to the product's access policy, applied explicitly.
+When a member voluntarily leaves a group:
+
+- Their `GroupMember` record is updated to reflect the departure.
+- The application **must** transition all of their `EventInvitation` records within the group to state `removed` at the same time.
+- This is the default product policy. Access must not be left ambiguous.
+
+After either removal or departure, the former member's invitation state is `removed`, which permanently revokes event access under the standard access rules.
 
 ---
 
@@ -178,10 +183,11 @@ Attempting a privileged operation without the required role must return `403 For
 |---|---|
 | Create event | Any group `member`, `admin`, or `owner` |
 | View event | Creator or active invitee (see visibility model above) |
-| Update event details | Creator, or group `admin`/`owner` if policy allows |
-| Cancel event | Creator, or group `admin`/`owner` |
-| Manage invitations | Creator, or group `admin`/`owner` |
-| Delete event | Creator, or group `owner` |
+| Update event details | Creator, or group `admin`/`owner` who also has an active `EventInvitation` for the event |
+| Cancel event | Creator, or group `admin`/`owner` who also has an active `EventInvitation` for the event |
+| Manage invitations | Creator, or group `admin`/`owner` who also has an active `EventInvitation` for the event |
+
+Hard deletion of events is not supported. Cancelled events are retained in the database for audit purposes. A group `admin` or `owner` who has no `EventInvitation` for an event has no access to that event, regardless of their group role.
 
 ---
 
@@ -208,7 +214,7 @@ Attempting a privileged operation without the required role must return `403 For
 **Expected result:**
 - Carol's `EventInvitation` for "Book Club" is transitioned to `removed`.
 - Carol can no longer access the event, its chat, checklist, or location.
-- Carol's requests to these endpoints return `403 Forbidden` or `404 Not Found` (whichever is policy-appropriate for non-disclosure).
+- Carol's requests to these endpoints return `404 Not Found` (resource existence is not confirmed to unauthorized callers).
 
 ### Example 3: Non-Invited Member Cannot See Event
 
@@ -234,10 +240,10 @@ The following test cases are **mandatory** for every protected capability.
 | Removed invitee (`removed` state) | ❌ No access |
 | Current group member with no invitation | ❌ No access |
 | New group member (joined after event creation) | ❌ No access |
-| Former group member (left or removed from group) | ❌ No access (subject to invitation state) |
-| Group `admin` or `owner` (no explicit invitation) | ❌ No access unless policy grants explicit override |
+| Former group member (invitation transitioned to `removed` at departure) | ❌ No access |
+| Group `admin` or `owner` (no explicit invitation) | ❌ No access (group role does not override invitation requirement) |
 | Unauthenticated caller | ❌ `401 Unauthorized` |
-| Authenticated user from different group | ❌ `403 Forbidden` or `404 Not Found` |
+| Authenticated user from different group | ❌ `404 Not Found` (non-disclosure of resource existence) |
 
 All of these test cases must be implemented as automated tests that run in CI. See [testing.md](testing.md) for test implementation guidance.
 

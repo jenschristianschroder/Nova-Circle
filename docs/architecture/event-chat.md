@@ -8,7 +8,7 @@ This module does **not**:
 
 - Provide group-level chat.
 - Surface any chat data (messages, counts, previews) outside the event detail view.
-- Allow attachments unless explicitly authorised by a future product decision.
+- Allow attachments unless explicitly authorized by a future product decision.
 - Hard-delete messages immediately (soft delete only).
 
 ---
@@ -157,11 +157,11 @@ List endpoint supports cursor-based pagination. Parameters:
 |---|---|
 | Unauthenticated | `401 Unauthorized` |
 | Event or thread not found, or caller has no event access | `404 Not Found` |
-| Caller authenticated but not authorised for the operation | `403 Forbidden` |
+| Caller authenticated but not authorized for the operation | `403 Forbidden` |
 | Validation failure | `400 Bad Request` |
 | Server error | `500 Internal Server Error` (safe message only) |
 
-Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of the event or thread to unauthorised callers.
+Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of the event or thread to unauthorized callers.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Nova-Circle is a privacy-first, security-first mobile and web application for friends, families, and other private groups to organise events. The architecture is designed so that no user ever sees data they are not explicitly authorised to see, and so that the system can be maintained, tested, and extended without compromising those guarantees.
+Nova-Circle is a privacy-first, security-first mobile and web application for friends, families, and other private groups to organize events. The architecture is designed so that no user ever sees data they are not explicitly authorized to see, and so that the system can be maintained, tested, and extended without compromising those guarantees.
 
 ---
 
@@ -11,10 +11,10 @@ Nova-Circle is a privacy-first, security-first mobile and web application for fr
 When every architectural decision is made, the following priorities apply in order:
 
 1. **Correctness** — the system must do what it says it does.
-2. **Privacy** — users must never see data they are not explicitly authorised to see.
+2. **Privacy** — users must never see data they are not explicitly authorized to see.
 3. **Security** — the system must resist abuse at every layer.
 4. **Maintainability** — the code must be readable and safe to change.
-5. **Explicit access control** — authorisation must be asserted in application/domain logic, not inferred from relationships.
+5. **Explicit access control** — authorization must be asserted in application/domain logic, not inferred from relationships.
 6. **Testability** — every rule must be verifiable by an automated test.
 7. **Operational simplicity** — prefer solutions that are easy to operate and monitor.
 
@@ -139,7 +139,7 @@ Event access is controlled exclusively by explicit `EventInvitation` records per
 
 Group-level views show only:
 
-- The list of events the requesting user is explicitly authorised to see.
+- The list of events the requesting user is explicitly authorized to see.
 - Event summaries (title, time, RSVP status) for those events.
 
 Group-level views must **never** show:

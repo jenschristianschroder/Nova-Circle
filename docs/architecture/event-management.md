@@ -91,12 +91,12 @@ The `CreateEventCommand` flow:
 1. Validate the caller is an authenticated group member of `groupId`.
 2. Validate all required fields (`title`, `startAt`, `endAt`).
 3. Validate `startAt < endAt`.
-4. Query all current `GroupMember` records for `groupId` — this is the **invitation snapshot**.
-5. Remove any members the creator has explicitly excluded.
+4. Query all current `GroupMember` records for `groupId`, **excluding the creator** — this is the **invitation snapshot** for other members.
+5. Remove any members the creator has explicitly excluded from the snapshot.
 6. Begin a database transaction:
    a. Insert the `Event` row.
-   b. Insert one `EventInvitation` row per remaining member (state = `invited`).
-   c. Insert an `EventInvitation` row for the creator (state = `accepted`).
+   b. Insert one `EventInvitation` row per remaining snapshot member (state = `invited`).
+   c. Insert one `EventInvitation` row for the creator (state = `accepted`). The creator is always inserted separately in step (c) and must not be present in the snapshot from step 4, to avoid a unique-constraint violation.
 7. Commit the transaction.
 8. Publish a domain event `EventCreated` (picked up by `notifications` and `audit-security`).
 
@@ -119,18 +119,20 @@ Updating an event does **not** automatically add or remove invitations. Invitati
 
 The `CancelEventCommand` flow:
 
-1. Verify the caller is the creator, or has `admin`/`owner` role in the group (if policy allows).
+1. Verify the caller is the event creator, OR has an active `EventInvitation` for the event AND holds `admin`/`owner` role in the group.
 2. Transition event `status` to `cancelled`.
 3. Persist the change.
 4. Publish `EventCancelled` domain event (triggers notifications to all active invitees).
+
+A group `admin` or `owner` who has no `EventInvitation` for the event does not have cancellation rights. There is no elevated role-only override; any future policy that grants such an override must be explicitly documented and covered by non-disclosure-preserving authorization tests.
 
 ### Managing Invitations
 
 Invitations are managed through explicit commands:
 
-- `InviteUserToEventCommand` — adds a new `EventInvitation` (state = `invited`) for a user. Caller must be creator or group `admin`/`owner`.
-- `RemoveEventInvitationCommand` — transitions an existing `EventInvitation` to state `removed`. Caller must be creator or group `admin`/`owner`.
-- `RespondToEventInvitationCommand` — transitions the caller's own invitation to `accepted`, `declined`, or `tentative`.
+- `InviteUserToEventCommand` — adds a new `EventInvitation` (state = `invited`) for a user. Caller must be the event creator or a group `admin`/`owner` **who also has an active `EventInvitation` for the event**. There is no role-only override for events the caller is not invited to.
+- `RemoveEventInvitationCommand` — transitions an existing `EventInvitation` to state `removed`. Caller must be the event creator or a group `admin`/`owner` **who also has an active `EventInvitation` for the event**. There is no role-only override for events the caller is not invited to.
+- `RespondToEventInvitationCommand` — transitions the caller's own invitation to `accepted`, `declined`, or `tentative`. Group `admin`/`owner` roles do not permit responding on behalf of other users.
 
 ---
 
@@ -157,8 +159,7 @@ At event creation, the invitation snapshot is taken from live `GroupMember` reco
 | Member exists at creation time | Added to default invite list |
 | Creator removes member before save | Member excluded from invite list |
 | Member joins group after creation | Not in invite list; must be explicitly added |
-| Member leaves group after creation | Their invitation is not automatically removed (handled by membership policy) |
-| Member is removed from group | Application must apply access policy explicitly (e.g., transition to `removed`) |
+| Member leaves or is removed from group after creation | Their invitations are transitioned to `removed` at departure time (default policy) |
 
 The snapshot is not stored as a separate record. The persisted `EventInvitation` rows ARE the snapshot. There is no second source of truth.
 
@@ -226,11 +227,11 @@ All endpoints require authentication. Authorization is verified in application l
 |---|---|
 | Unauthenticated | `401 Unauthorized` |
 | Event exists but caller has no access | `404 Not Found` (do not confirm existence) |
-| Caller authenticated but not authorised for the operation | `403 Forbidden` |
+| Caller authenticated but not authorized for the operation | `403 Forbidden` |
 | Validation failure | `400 Bad Request` with structured error body |
 | Server error | `500 Internal Server Error` with safe, opaque message |
 
-Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of events to unauthorised callers.
+Using `404 Not Found` for "event exists but caller has no access" prevents confirming the existence of events to unauthorized callers.
 
 ---
 
@@ -272,6 +273,8 @@ See [access-control.md](access-control.md) for the full test matrix. At minimum:
 - Removed invitee cannot view event.
 - Non-invited group member cannot view event.
 - New member (joined after creation) cannot view event.
+- Former group member (invitation transitioned to `removed` at departure) cannot view event.
+- Group `admin`/`owner` with no `EventInvitation` cannot view event.
 - Unauthenticated caller receives `401`.
 - Caller from a different group receives `404`.
 
