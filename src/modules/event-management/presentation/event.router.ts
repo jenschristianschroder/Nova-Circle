@@ -5,6 +5,7 @@ import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { UpdateEventData } from '../domain/event.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import { CreateEventUseCase } from '../application/create-event.usecase.js';
 import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
@@ -36,6 +37,7 @@ export function createEventRouter(
   eventRepo: EventRepositoryPort,
   invitationRepo: EventInvitationRepositoryPort,
   memberRepo: GroupMemberRepositoryPort,
+  auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router({ mergeParams: true });
 
@@ -116,6 +118,17 @@ export function createEventRouter(
         endAt: parsedEndAt,
         ...(resolvedExclude !== null ? { excludeUserIds: resolvedExclude } : {}),
       });
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'event.created',
+          resourceType: 'event',
+          resourceId: event.id,
+          groupId,
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for event.created:', auditErr);
+      }
       res.status(201).json(event);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
@@ -303,6 +316,17 @@ export function createEventRouter(
 
     try {
       await cancelEvent.execute(identity, groupId, eventId);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'event.cancelled',
+          resourceType: 'event',
+          resourceId: eventId,
+          groupId,
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for event.cancelled:', auditErr);
+      }
       res.status(204).send();
     } catch (err: unknown) {
       if (isNotFoundError(err)) {

@@ -11,10 +11,12 @@ export class CreateGroupUseCase {
   ): Promise<Group> {
     const trimmed = input.name.trim();
     if (trimmed.length === 0) {
-      throw new Error('Group name must not be empty');
+      throw Object.assign(new Error('Group name must not be empty'), { code: 'VALIDATION_ERROR' });
     }
     if (trimmed.length > 100) {
-      throw new Error('Group name must not exceed 100 characters');
+      throw Object.assign(new Error('Group name must not exceed 100 characters'), {
+        code: 'VALIDATION_ERROR',
+      });
     }
 
     return this.creator.createGroupWithOwner({
