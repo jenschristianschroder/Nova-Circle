@@ -46,7 +46,7 @@ npm start            # Run compiled output
 npm run test              # Run all tests
 npm run test:unit         # Unit tests only (no database required)
 npm run test:integration  # Integration tests (requires TEST_DATABASE_URL)
-npm run test:api          # API tests (no database required; run in-process with supertest)
+npm run test:api          # API tests (requires TEST_DATABASE_URL; run in-process with supertest)
 npm run test:coverage     # Tests with coverage report
 ```
 
@@ -128,7 +128,7 @@ module/
 |-----------|-------------|--------|
 | M1 – Foundation | Repo setup, CI, testing infrastructure, DB migrations, module skeletons | ✅ Complete |
 | M2 – Groups and membership | Users, groups, memberships, basic auth wiring | ✅ Complete |
-| M3 – Private event MVP | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ⬜ Planned |
+| M3 – Private event MVP | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ✅ Complete |
 | M4 – Event management | Edit, cancel, invitation changes, privacy and audit hardening | ⬜ Planned |
 | M5 – Event collaboration | Event-scoped location, checklist, and chat | ⬜ Planned |
 | M6 – Natural event capture | Text, voice, and image-based event capture via shared pipeline | ⬜ Planned |
@@ -154,6 +154,19 @@ All M2 work is complete:
 - [x] Basic auth wiring – Entra ID JWT validation middleware and `IdentityContext` injection; test-mode synthetic-header support
 - [x] Database migrations – `user_profiles`, `groups`, and `group_members` tables with proper constraints and FK cascade rules
 - [x] Security hardening – non-members receive `NOT_FOUND` (not `FORBIDDEN`) for group operations to prevent existence disclosure; atomic group creation seeds caller as owner in a single transaction
+
+### Milestone 3 – Private event MVP ✅
+
+All M3 work is complete:
+
+- [x] Event domain – `Event` entity (id, groupId, title, description, startAt, endAt, status, createdBy) and `EventInvitation` entity (id, eventId, userId, status: `invited` / `accepted` / `declined` / `tentative` / `removed`)
+- [x] Create event – `POST /api/v1/groups/:groupId/events`: caller must be a group member; all current group members are seeded as invitees by default; creator can exclude specific members via `excludeUserIds`; event and invitations are persisted atomically in a single transaction
+- [x] List events – `GET /api/v1/groups/:groupId/events`: returns only events the caller has an active `EventInvitation` for; inaccessible events are never disclosed
+- [x] Get event – `GET /api/v1/groups/:groupId/events/:eventId`: returns event detail; responds `404` if the caller has no active invitation (preventing existence disclosure)
+- [x] Cancel event – `DELETE /api/v1/groups/:groupId/events/:eventId`: creator or group `admin`/`owner` with an active invitation may cancel; sets `status` to `cancelled`; returns `204`
+- [x] Explicit invitation model – group membership alone never grants event access after save; access is controlled exclusively by `EventInvitation` rows
+- [x] Privacy enforcement – non-invited callers always receive `404 Not Found` (not `403 Forbidden`) to prevent event-existence disclosure
+- [x] Database migration – `20260310000005_event_management.ts`: creates `events` and `event_invitations` tables with proper constraints, FK cascade rules, and status `CHECK` constraints
 
 ---
 
