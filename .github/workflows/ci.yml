@@ -14,7 +14,7 @@ jobs:
   # Lint – format check and ESLint
   # ──────────────────────────────────────────────────────────────────────────
   lint:
-    name: Lint
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
   # Typecheck – TypeScript compilation without emitting output
   # ──────────────────────────────────────────────────────────────────────────
   typecheck:
-    name: Typecheck
+    name: typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -184,7 +184,7 @@ jobs:
   # are immediately visible and cannot be obscured by unrelated test failures.
   # ──────────────────────────────────────────────────────────────────────────
   auth-privacy-tests:
-    name: Auth & privacy tests
+    name: auth-privacy-tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -215,7 +215,7 @@ jobs:
   # applied to an empty schema.
   # ──────────────────────────────────────────────────────────────────────────
   migration-check:
-    name: Migration check
+    name: migration-check
     runs-on: ubuntu-latest
     services:
       postgres:
