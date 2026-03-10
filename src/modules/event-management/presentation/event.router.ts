@@ -4,6 +4,7 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
 import { CreateEventUseCase } from '../application/create-event.usecase.js';
 import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
@@ -31,13 +32,14 @@ export function createEventRouter(
   eventRepo: EventRepositoryPort,
   invitationRepo: EventInvitationRepositoryPort,
   memberRepo: GroupMemberRepositoryPort,
+  auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router({ mergeParams: true });
 
   const createEvent = new CreateEventUseCase(eventCreator, memberRepo);
   const getEvent = new GetEventUseCase(eventRepo, invitationRepo);
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
-  const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
+  const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
   // POST /api/v1/groups/:groupId/events
   router.post('/', async (req: Request, res: Response) => {
@@ -178,6 +180,46 @@ export function createEventRouter(
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
+
+  // POST /api/v1/groups/:groupId/events/:eventId/cancel
+  router.post('/:eventId/cancel', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const eventId = req.params['eventId'] as string;
+    if (!isValidUuid(eventId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    try {
+      await cancelEvent.execute(identity, groupId, eventId);
+      res.status(204).send();
+    } catch (err: unknown) {
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isConflictError(err)) {
+        res.status(409).json({ error: 'Event is already cancelled', code: 'CONFLICT' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });

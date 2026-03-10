@@ -2,12 +2,14 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
 
 export class CancelEventUseCase {
   constructor(
     private readonly eventRepo: EventRepositoryPort,
     private readonly invitationRepo: EventInvitationRepositoryPort,
     private readonly memberRepo: GroupMemberRepositoryPort,
+    private readonly auditLog: AuditLogPort,
   ) {}
 
   async execute(caller: IdentityContext, groupId: string, eventId: string): Promise<void> {
@@ -40,5 +42,13 @@ export class CancelEventUseCase {
     }
 
     await this.eventRepo.cancel(eventId);
+
+    await this.auditLog.write({
+      action: 'event.cancelled',
+      actorId: caller.userId,
+      resourceType: 'event',
+      resourceId: eventId,
+      groupId,
+    });
   }
 }
