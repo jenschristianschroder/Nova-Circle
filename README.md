@@ -159,11 +159,11 @@ All M2 work is complete:
 
 All M3 work is complete:
 
-- [x] Event domain – `Event` entity (id, groupId, title, description, startAt, endAt, status, createdBy) and `EventInvitation` entity (id, eventId, userId, status: `invited` / `accepted` / `declined` / `tentative` / `removed`)
+- [x] Event domain – `Event` entity (id, groupId, title, description, startAt, endAt, status, createdBy, createdAt, updatedAt) and `EventInvitation` entity (id, eventId, userId, status: `invited` / `accepted` / `declined` / `tentative` / `removed`, invitedAt, respondedAt)
 - [x] Create event – `POST /api/v1/groups/:groupId/events`: caller must be a group member; all current group members are seeded as invitees by default; creator can exclude specific members via `excludeUserIds`; event and invitations are persisted atomically in a single transaction
 - [x] List events – `GET /api/v1/groups/:groupId/events`: returns only events the caller has an active `EventInvitation` for; inaccessible events are never disclosed
 - [x] Get event – `GET /api/v1/groups/:groupId/events/:eventId`: returns event detail; responds `404` if the caller has no active invitation (preventing existence disclosure)
-- [x] Cancel event – `DELETE /api/v1/groups/:groupId/events/:eventId`: creator or group `admin`/`owner` with an active invitation may cancel; sets `status` to `cancelled`; returns `204`
+- [x] Cancel event – `DELETE /api/v1/groups/:groupId/events/:eventId`: event creator with an active invitation, or any group `admin`/`owner` in the event's group (invited or not), may cancel; non-admin callers still require an active invitation to avoid existence disclosure; sets `status` to `cancelled`; returns `204`
 - [x] Explicit invitation model – group membership alone never grants event access after save; access is controlled exclusively by `EventInvitation` rows
 - [x] Privacy enforcement – non-invited callers always receive `404 Not Found` (not `403 Forbidden`) to prevent event-existence disclosure
 - [x] Database migration – `20260310000005_event_management.ts`: creates `events` and `event_invitations` tables with proper constraints, FK cascade rules, and status `CHECK` constraints
