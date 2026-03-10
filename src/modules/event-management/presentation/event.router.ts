@@ -44,7 +44,7 @@ export function createEventRouter(
   const createEvent = new CreateEventUseCase(eventCreator, memberRepo);
   const getEvent = new GetEventUseCase(eventRepo, invitationRepo);
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
-  const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+  const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
   const updateEvent = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
   const listInvitees = new ListEventInviteesUseCase(eventRepo, invitationRepo);
   const addInvitee = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
@@ -316,6 +316,17 @@ export function createEventRouter(
 
     try {
       await cancelEvent.execute(identity, groupId, eventId);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'event.cancelled',
+          resourceType: 'event',
+          resourceId: eventId,
+          groupId,
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for event.cancelled:', auditErr);
+      }
       res.status(204).send();
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
