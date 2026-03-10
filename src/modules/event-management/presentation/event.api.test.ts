@@ -443,9 +443,7 @@ describe('Events API', () => {
 
   describe('POST /api/v1/groups/:groupId/events/:eventId/cancel', () => {
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
-      const res = await request(app).post(
-        `/api/v1/groups/${groupId}/events/some-id/cancel`,
-      );
+      const res = await request(app).post(`/api/v1/groups/${groupId}/events/some-id/cancel`);
       expect(res.status).toBe(401);
     });
 
@@ -516,26 +514,23 @@ describe('Events API', () => {
       },
     );
 
-    it.skipIf(skipReason !== undefined)(
-      'returns 409 when event is already cancelled',
-      async () => {
-        const createRes = await request(app)
-          .post(`/api/v1/groups/${groupId}/events`)
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ title: 'Double Cancel', startAt: '2026-12-04T12:00:00Z' });
-        const eventId = (createRes.body as { id: string }).id;
+    it.skipIf(skipReason !== undefined)('returns 409 when event is already cancelled', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Double Cancel', startAt: '2026-12-04T12:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
 
-        await request(app)
-          .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
-          .set(testAuthHeaders(owner.userId, owner.displayName));
+      await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
 
-        const res = await request(app)
-          .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
-          .set(testAuthHeaders(owner.userId, owner.displayName));
-        expect(res.status).toBe(409);
-        expect((res.body as { code: string }).code).toBe('CONFLICT');
-      },
-    );
+      const res = await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
+      expect(res.status).toBe(409);
+      expect((res.body as { code: string }).code).toBe('CONFLICT');
+    });
 
     it.skipIf(skipReason !== undefined)(
       'returns 403 for invited member who is not creator or admin',
