@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
-import type { Event } from '../domain/event.js';
+import type { Event, UpdateEventData } from '../domain/event.js';
 
 interface EventRow {
   id: string;
@@ -59,5 +59,24 @@ export class KnexEventRepository implements EventRepositoryPort {
     await this.db('events')
       .where({ id: eventId })
       .update({ status: 'cancelled', updated_at: new Date() });
+  }
+
+  async update(eventId: string, data: UpdateEventData): Promise<Event> {
+    const patch: Record<string, unknown> = { updated_at: new Date() };
+    if (data.title !== undefined) patch['title'] = data.title;
+    if (data.description !== undefined) patch['description'] = data.description;
+    if (data.startAt !== undefined) patch['start_at'] = data.startAt;
+    if (data.endAt !== undefined) patch['end_at'] = data.endAt;
+
+    const rows = await this.db<EventRow>('events')
+      .where({ id: eventId })
+      .update(patch)
+      .returning('*');
+
+    const row = rows[0];
+    if (!row) {
+      throw new Error('No event was updated: event not found with the provided ID');
+    }
+    return toEvent(row);
   }
 }

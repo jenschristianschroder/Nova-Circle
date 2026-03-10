@@ -4,10 +4,12 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/domain/audit-log.js';
 import { CreateEventUseCase } from '../application/create-event.usecase.js';
 import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
 import { CancelEventUseCase } from '../application/cancel-event.usecase.js';
+import { EditEventUseCase } from '../application/edit-event.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 
 function isNotFoundError(err: unknown): boolean {
@@ -31,6 +33,7 @@ export function createEventRouter(
   eventRepo: EventRepositoryPort,
   invitationRepo: EventInvitationRepositoryPort,
   memberRepo: GroupMemberRepositoryPort,
+  auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router({ mergeParams: true });
 
@@ -38,6 +41,7 @@ export function createEventRouter(
   const getEvent = new GetEventUseCase(eventRepo, invitationRepo);
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
+  const editEvent = new EditEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
   // POST /api/v1/groups/:groupId/events
   router.post('/', async (req: Request, res: Response) => {
@@ -218,6 +222,88 @@ export function createEventRouter(
       }
       if (isConflictError(err)) {
         res.status(409).json({ error: 'Event is already cancelled', code: 'CONFLICT' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
+
+  // PATCH /api/v1/groups/:groupId/events/:eventId
+  router.patch('/:eventId', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const eventId = req.params['eventId'] as string;
+    if (!isValidUuid(eventId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const { title, description, startAt, endAt } = req.body as {
+      title?: unknown;
+      description?: unknown;
+      startAt?: unknown;
+      endAt?: unknown;
+    };
+
+    if (title !== undefined && typeof title !== 'string') {
+      res.status(400).json({ error: 'title must be a string', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    if (description !== undefined && description !== null && typeof description !== 'string') {
+      res.status(400).json({ error: 'description must be a string or null', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    if (startAt !== undefined && (typeof startAt !== 'string' || isNaN(Date.parse(startAt)))) {
+      res
+        .status(400)
+        .json({ error: 'startAt must be a valid ISO date string', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    if (endAt !== undefined && endAt !== null) {
+      if (typeof endAt !== 'string' || isNaN(Date.parse(endAt))) {
+        res
+          .status(400)
+          .json({ error: 'endAt must be a valid ISO date string or null', code: 'VALIDATION_ERROR' });
+        return;
+      }
+    }
+
+    // After the guards above each field is narrowed to its expected type.
+    // TypeScript narrows the unknown types through the guard returns above.
+    try {
+      const event = await editEvent.execute(identity, groupId, eventId, {
+        ...(title !== undefined ? { title } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(startAt !== undefined ? { startAt: new Date(startAt) } : {}),
+        ...(endAt !== undefined
+          ? { endAt: endAt === null ? null : new Date(endAt) }
+          : {}),
+      });
+      res.json(event);
+    } catch (err: unknown) {
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });

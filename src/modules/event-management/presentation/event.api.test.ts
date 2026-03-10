@@ -436,4 +436,145 @@ describe('Events API', () => {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // PATCH /api/v1/groups/:groupId/events/:eventId
+  // ---------------------------------------------------------------------------
+
+  describe('PATCH /api/v1/groups/:groupId/events/:eventId', () => {
+    it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
+      const res = await request(app).patch(`/api/v1/groups/${groupId}/events/some-id`);
+      expect(res.status).toBe(401);
+    });
+
+    it.skipIf(skipReason !== undefined)('creator can update title and description', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Original Title', startAt: '2027-01-01T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Updated Title', description: 'A new description' });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        id: eventId,
+        title: 'Updated Title',
+        description: 'A new description',
+      });
+    });
+
+    it.skipIf(skipReason !== undefined)('creator can update startAt and endAt', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Time Update Event', startAt: '2027-02-01T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ startAt: '2027-02-01T11:00:00Z', endAt: '2027-02-01T12:00:00Z' });
+
+      expect(res.status).toBe(200);
+      expect(new Date((res.body as { startAt: string }).startAt).toISOString()).toBe(
+        '2027-02-01T11:00:00.000Z',
+      );
+    });
+
+    it.skipIf(skipReason !== undefined)(
+      'edit does not alter the existing invitation list',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Invite Stable Event', startAt: '2027-03-01T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Member was auto-invited at creation.
+        const beforeMemberRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(beforeMemberRes.status).toBe(200);
+
+        // Owner edits the event.
+        await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Invite Stable Event – Edited' });
+
+        // Member still has access after edit.
+        const afterMemberRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(afterMemberRes.status).toBe(200);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 403 for invited member who is not creator or admin',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'No Edit Event', startAt: '2027-04-01T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName))
+          .send({ title: 'Hijacked Title' });
+
+        expect(res.status).toBe(403);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for non-invited user (no existence disclosure)',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Secret Edit Event', startAt: '2027-05-01T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(outsider.userId, outsider.displayName))
+          .send({ title: 'Outsider Edit' });
+
+        expect(res.status).toBe(404);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 for invalid startAt value',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Bad Date Event', startAt: '2027-06-01T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ startAt: 'not-a-date' });
+
+        expect(res.status).toBe(400);
+        expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)('returns 404 for invalid UUID eventId', async () => {
+      const res = await request(app)
+        .patch(`/api/v1/groups/${groupId}/events/not-a-uuid`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Whatever' });
+      expect(res.status).toBe(404);
+    });
+  });
 });
