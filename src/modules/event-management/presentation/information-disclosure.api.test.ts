@@ -114,26 +114,23 @@ describe('Information-disclosure regression tests', () => {
       },
     );
 
-    it.skipIf(skipReason !== undefined)(
-      '404 for outsider contains no event content',
-      async () => {
-        const eventRes = await request(app)
-          .post(`/api/v1/groups/${groupId}/events`)
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ title: 'Owner Only Event', startAt: '2026-12-02T10:00:00Z' });
-        const eventId = (eventRes.body as { id: string }).id;
+    it.skipIf(skipReason !== undefined)('404 for outsider contains no event content', async () => {
+      const eventRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Owner Only Event', startAt: '2026-12-02T10:00:00Z' });
+      const eventId = (eventRes.body as { id: string }).id;
 
-        const res = await request(app)
-          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
-          .set(testAuthHeaders(outsider.userId, outsider.displayName));
+      const res = await request(app)
+        .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(outsider.userId, outsider.displayName));
 
-        expect(res.status).toBe(404);
-        expect(Object.keys(res.body as object).sort()).toEqual(['code', 'error']);
-        const bodyStr = JSON.stringify(res.body);
-        expect(bodyStr).not.toContain(eventId);
-        expect(bodyStr).not.toContain('Owner Only Event');
-      },
-    );
+      expect(res.status).toBe(404);
+      expect(Object.keys(res.body as object).sort()).toEqual(['code', 'error']);
+      const bodyStr = JSON.stringify(res.body);
+      expect(bodyStr).not.toContain(eventId);
+      expect(bodyStr).not.toContain('Owner Only Event');
+    });
 
     it.skipIf(skipReason !== undefined)(
       '403 on cancel does not include event content',
@@ -329,25 +326,22 @@ describe('Information-disclosure regression tests', () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('No group-level exposure of event-scoped data', () => {
-    it.skipIf(skipReason !== undefined)(
-      'GET /groups/:id does not include event data',
-      async () => {
-        const res = await request(app)
-          .get(`/api/v1/groups/${groupId}`)
-          .set(testAuthHeaders(owner.userId, owner.displayName));
+    it.skipIf(skipReason !== undefined)('GET /groups/:id does not include event data', async () => {
+      const res = await request(app)
+        .get(`/api/v1/groups/${groupId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
 
-        expect(res.status).toBe(200);
+      expect(res.status).toBe(200);
 
-        // Group response must only contain group-level fields.
-        const body = res.body as Record<string, unknown>;
-        expect(body).not.toHaveProperty('events');
-        expect(body).not.toHaveProperty('eventCount');
-        expect(body).not.toHaveProperty('recentEvents');
-        expect(body).not.toHaveProperty('chat');
-        expect(body).not.toHaveProperty('checklist');
-        expect(body).not.toHaveProperty('location');
-      },
-    );
+      // Group response must only contain group-level fields.
+      const body = res.body as Record<string, unknown>;
+      expect(body).not.toHaveProperty('events');
+      expect(body).not.toHaveProperty('eventCount');
+      expect(body).not.toHaveProperty('recentEvents');
+      expect(body).not.toHaveProperty('chat');
+      expect(body).not.toHaveProperty('checklist');
+      expect(body).not.toHaveProperty('location');
+    });
 
     it.skipIf(skipReason !== undefined)(
       'GET /groups/:id/members does not include event data',

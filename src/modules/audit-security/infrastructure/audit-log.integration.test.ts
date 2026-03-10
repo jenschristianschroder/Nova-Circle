@@ -131,20 +131,22 @@ describe('KnexAuditLogRepository', () => {
     },
   );
 
-  it.skipIf(skipReason !== undefined)('allows null groupId for non-group-scoped entries', async () => {
-    await repo.record({
-      actorId: ACTOR_5,
-      action: 'event.created',
-      resourceType: 'event',
-      resourceId: RESOURCE_5,
-      groupId: null,
-    });
+  it.skipIf(skipReason !== undefined)(
+    'allows null groupId for non-group-scoped entries',
+    async () => {
+      await repo.record({
+        actorId: ACTOR_5,
+        action: 'event.created',
+        resourceType: 'event',
+        resourceId: RESOURCE_5,
+        groupId: null,
+      });
 
-    const rows = await db('audit_log')
-      .where({ actor_id: ACTOR_5, resource_id: RESOURCE_5 })
-      .select('group_id');
+      const rows = await db('audit_log')
+        .where({ actor_id: ACTOR_5, resource_id: RESOURCE_5 })
+        .select('group_id');
 
-    expect((rows[0] as { group_id: string | null }).group_id).toBeNull();
-  });
+      expect((rows[0] as { group_id: string | null }).group_id).toBeNull();
+    },
+  );
 });
-

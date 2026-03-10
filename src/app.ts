@@ -82,4 +82,3 @@ export function createApp(deps?: AppDependencies): express.Application {
 
   return app;
 }
-

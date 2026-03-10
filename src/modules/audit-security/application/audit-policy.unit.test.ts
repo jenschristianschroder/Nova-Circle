@@ -188,4 +188,3 @@ describe('Audit entry privacy rules', () => {
     expect(meta?.['role']).toBe('member');
   });
 });
-
