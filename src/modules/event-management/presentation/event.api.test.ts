@@ -235,7 +235,7 @@ describe('Events API', () => {
       expect(res.status).toBe(401);
     });
 
-    it.skipIf(skipReason !== undefined)('returns event detail for invited user', async () => {
+    it.skipIf(skipReason !== undefined)('returns event detail for creator', async () => {
       const createRes = await request(app)
         .post(`/api/v1/groups/${groupId}/events`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
@@ -250,19 +250,80 @@ describe('Events API', () => {
     });
 
     it.skipIf(skipReason !== undefined)(
-      'returns 404 for non-invited user (no existence disclosure)',
+      'returns event detail for invited member (not creator)',
       async () => {
+        // owner creates event – member is auto-invited as a current group member
         const createRes = await request(app)
           .post(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ title: 'Secret Event', startAt: '2026-10-02T12:00:00Z' });
+          .send({ title: 'Shared Detail Event', startAt: '2026-10-03T12:00:00Z' });
         const eventId = (createRes.body as { id: string }).id;
 
-        // Outsider gets 404 (not 403).
         const res = await request(app)
           .get(`/api/v1/groups/${groupId}/events/${eventId}`)
-          .set(testAuthHeaders(outsider.userId, outsider.displayName));
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ id: eventId });
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for non-invited member (no existence disclosure)',
+      async () => {
+        // owner creates event excluding member so member has no invitation
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({
+            title: 'Secret Event',
+            startAt: '2026-10-02T12:00:00Z',
+            excludeUserIds: [member.userId],
+          });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Group member with no invitation gets 404 (not 403).
+        const res = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
         expect(res.status).toBe(404);
+        expect(res.body).toMatchObject({ code: 'NOT_FOUND' });
+
+        // Outsider also gets 404 (not 403).
+        const outsiderRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(outsider.userId, outsider.displayName));
+        expect(outsiderRes.status).toBe(404);
+        expect(outsiderRes.body).toMatchObject({ code: 'NOT_FOUND' });
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for former member whose invitation was removed (no existence disclosure)',
+      async () => {
+        // owner creates event – member is auto-invited
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Former Member Event', startAt: '2026-10-04T12:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Verify member can initially access the event.
+        const beforeRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(beforeRes.status).toBe(200);
+
+        // Simulate invitation removal (e.g. member left or was removed from event).
+        await db('event_invitations')
+          .where({ event_id: eventId, user_id: member.userId })
+          .update({ status: 'removed' });
+
+        // Former member now gets 404 (not 403).
+        const afterRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(afterRes.status).toBe(404);
+        expect(afterRes.body).toMatchObject({ code: 'NOT_FOUND' });
       },
     );
 

@@ -215,6 +215,19 @@ describe('GetEventUseCase', () => {
     });
   });
 
+  it('throws NOT_FOUND for former member with removed invitation (no existence disclosure)', async () => {
+    // hasAccess returns false when invitation status is 'removed', so former members
+    // are treated identically to non-invited users: they receive NOT_FOUND.
+    const event = makeEvent();
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
+    const useCase = new GetEventUseCase(eventRepo, invitationRepo);
+
+    await expect(useCase.execute(memberUser, 'event-1')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
   it('throws NOT_FOUND when event does not exist', async () => {
     const useCase = new GetEventUseCase(makeEventRepo(), makeInvitationRepo());
     await expect(useCase.execute(creator, 'no-such-event')).rejects.toMatchObject({
