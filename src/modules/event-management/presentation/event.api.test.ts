@@ -479,39 +479,49 @@ describe('Events API', () => {
       expect(res.status).toBe(403);
     });
 
-    it.skipIf(skipReason !== undefined)('non-invited user gets 404 (no existence disclosure)', async () => {
-      const createRes = await request(app)
-        .post(`/api/v1/groups/${groupId}/events`)
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ title: 'Secret Event', startAt: '2026-12-03T10:00:00Z', excludeUserIds: [member.userId] });
-      const eventId = (createRes.body as { id: string }).id;
+    it.skipIf(skipReason !== undefined)(
+      'non-invited user gets 404 (no existence disclosure)',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({
+            title: 'Secret Event',
+            startAt: '2026-12-03T10:00:00Z',
+            excludeUserIds: [member.userId],
+          });
+        const eventId = (createRes.body as { id: string }).id;
 
-      const res = await request(app)
-        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
-        .set(testAuthHeaders(outsider.userId, outsider.displayName))
-        .send({ title: 'Snooped' });
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(outsider.userId, outsider.displayName))
+          .send({ title: 'Snooped' });
 
-      expect(res.status).toBe(404);
-    });
+        expect(res.status).toBe(404);
+      },
+    );
 
-    it.skipIf(skipReason !== undefined)('returns 409 when trying to edit a cancelled event', async () => {
-      const createRes = await request(app)
-        .post(`/api/v1/groups/${groupId}/events`)
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ title: 'Cancel Then Edit', startAt: '2026-12-04T10:00:00Z' });
-      const eventId = (createRes.body as { id: string }).id;
+    it.skipIf(skipReason !== undefined)(
+      'returns 409 when trying to edit a cancelled event',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Cancel Then Edit', startAt: '2026-12-04T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
 
-      await request(app)
-        .delete(`/api/v1/groups/${groupId}/events/${eventId}`)
-        .set(testAuthHeaders(owner.userId, owner.displayName));
+        await request(app)
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
 
-      const res = await request(app)
-        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ title: 'Too Late' });
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Too Late' });
 
-      expect(res.status).toBe(409);
-    });
+        expect(res.status).toBe(409);
+      },
+    );
 
     it.skipIf(skipReason !== undefined)('returns 400 for empty title', async () => {
       const createRes = await request(app)
@@ -548,7 +558,11 @@ describe('Events API', () => {
       const createRes = await request(app)
         .post(`/api/v1/groups/${groupId}/events`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ title: 'Null Desc Event', startAt: '2026-12-07T10:00:00Z', description: 'Initial desc' });
+        .send({
+          title: 'Null Desc Event',
+          startAt: '2026-12-07T10:00:00Z',
+          description: 'Initial desc',
+        });
       const eventId = (createRes.body as { id: string }).id;
 
       const res = await request(app)
@@ -567,8 +581,7 @@ describe('Events API', () => {
 
   describe('GET /api/v1/groups/:groupId/events/:eventId/invitations', () => {
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
-      const res = await request(app)
-        .get(`/api/v1/groups/${groupId}/events/some-id/invitations`);
+      const res = await request(app).get(`/api/v1/groups/${groupId}/events/some-id/invitations`);
       expect(res.status).toBe(401);
     });
 
@@ -667,19 +680,22 @@ describe('Events API', () => {
       expect(res.status).toBe(409);
     });
 
-    it.skipIf(skipReason !== undefined)('returns 400 when target is not a group member', async () => {
-      const createRes = await request(app)
-        .post(`/api/v1/groups/${groupId}/events`)
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ title: 'Non-Member Invite Event', startAt: '2027-02-03T10:00:00Z' });
-      const eventId = (createRes.body as { id: string }).id;
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 when target is not a group member',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Non-Member Invite Event', startAt: '2027-02-03T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
 
-      const res = await request(app)
-        .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ userId: outsider.userId });
-      expect(res.status).toBe(400);
-    });
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ userId: outsider.userId });
+        expect(res.status).toBe(400);
+      },
+    );
 
     it.skipIf(skipReason !== undefined)('non-creator invited member gets 403', async () => {
       const createRes = await request(app)
@@ -716,8 +732,9 @@ describe('Events API', () => {
 
   describe('DELETE /api/v1/groups/:groupId/events/:eventId/invitations/:userId', () => {
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
-      const res = await request(app)
-        .delete(`/api/v1/groups/${groupId}/events/some-id/invitations/${member.userId}`);
+      const res = await request(app).delete(
+        `/api/v1/groups/${groupId}/events/some-id/invitations/${member.userId}`,
+      );
       expect(res.status).toBe(401);
     });
 
