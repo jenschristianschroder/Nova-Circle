@@ -55,20 +55,30 @@ export class KnexEventInvitationRepository implements EventInvitationRepositoryP
 
   /**
    * Creates a new invitation or reactivates a previously removed one.
-   * The unique constraint on (event_id, user_id) is handled via upsert.
+   * The ON CONFLICT DO UPDATE only fires when the existing status is 'removed',
+   * so an active invitation (invited/accepted/declined/tentative) is never
+   * silently clobbered.  If the conflict row is not removed the query returns
+   * no rows, which the caller treats as a conflict.
    */
   async add(eventId: string, userId: string): Promise<EventInvitation> {
     const now = new Date();
 
-    const rows = await this.db<EventInvitationRow>('event_invitations')
-      .insert({ event_id: eventId, user_id: userId, status: 'invited', invited_at: now })
-      .onConflict(['event_id', 'user_id'])
-      .merge({ status: 'invited', invited_at: now })
-      .returning('*');
+    // Positional params map to the three `?` placeholders in order: eventId, userId, now.
+    const result = await this.db.raw<{ rows: EventInvitationRow[] }>(
+      `INSERT INTO event_invitations (event_id, user_id, status, invited_at, responded_at)
+       VALUES (?, ?, 'invited', ?, NULL)
+       ON CONFLICT (event_id, user_id) DO UPDATE
+         SET status = 'invited', invited_at = EXCLUDED.invited_at, responded_at = NULL
+         WHERE event_invitations.status = 'removed'
+       RETURNING *`,
+      [eventId, userId, now],
+    );
 
-    const row = rows[0];
+    const row = result.rows[0];
     if (!row) {
-      throw new Error('Failed to add invitee: database returned no row');
+      // A non-removed invitation already exists — the caller's use case should
+      // have caught this, but guard here as a safety net.
+      throw new Error('Active invitation already exists for this event and user');
     }
     return toEventInvitation(row);
   }

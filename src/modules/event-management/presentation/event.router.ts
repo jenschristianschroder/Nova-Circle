@@ -2,6 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
+import type { UpdateEventData } from '../domain/event.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import { CreateEventUseCase } from '../application/create-event.usecase.js';
@@ -224,6 +225,14 @@ export function createEventRouter(
       return;
     }
 
+    if (description !== undefined && description !== null && typeof description !== 'string') {
+      res.status(400).json({
+        error: 'description must be a string or null when provided',
+        code: 'VALIDATION_ERROR',
+      });
+      return;
+    }
+
     if (startAt !== undefined && (typeof startAt !== 'string' || isNaN(Date.parse(startAt)))) {
       res
         .status(400)
@@ -241,11 +250,12 @@ export function createEventRouter(
     }
 
     try {
-      const patch: Record<string, unknown> = {};
-      if (title !== undefined) patch['title'] = title;
-      if (description !== undefined) patch['description'] = typeof description === 'string' ? description : null;
-      if (startAt !== undefined) patch['startAt'] = new Date(startAt);
-      if (endAt !== undefined) patch['endAt'] = endAt !== null ? new Date(endAt) : null;
+      const patch: UpdateEventData = {
+        ...(title !== undefined ? { title } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(startAt !== undefined ? { startAt: new Date(startAt) } : {}),
+        ...(endAt !== undefined ? { endAt: endAt !== null ? new Date(endAt) : null } : {}),
+      };
 
       const event = await updateEvent.execute(identity, groupId, eventId, patch);
       res.json(event);

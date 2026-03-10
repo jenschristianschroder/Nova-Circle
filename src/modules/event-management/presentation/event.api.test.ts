@@ -527,6 +527,38 @@ describe('Events API', () => {
 
       expect(res.status).toBe(400);
     });
+
+    it.skipIf(skipReason !== undefined)('returns 400 for non-string description', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Desc Validation Event', startAt: '2026-12-06T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ description: 12345 });
+
+      expect(res.status).toBe(400);
+      expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+    });
+
+    it.skipIf(skipReason !== undefined)('allows clearing description with null', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Null Desc Event', startAt: '2026-12-07T10:00:00Z', description: 'Initial desc' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ description: null });
+
+      expect(res.status).toBe(200);
+      expect((res.body as { description: null }).description).toBeNull();
+    });
   });
 
   // ---------------------------------------------------------------------------
