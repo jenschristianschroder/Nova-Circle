@@ -47,12 +47,16 @@ describe('EntraTokenValidator', () => {
   describe('constructor', () => {
     it('throws when AZURE_TENANT_ID is missing', () => {
       delete process.env['AZURE_TENANT_ID'];
-      expect(() => new EntraTokenValidator()).toThrow('AZURE_TENANT_ID environment variable is required');
+      expect(() => new EntraTokenValidator()).toThrow(
+        'AZURE_TENANT_ID environment variable is required',
+      );
     });
 
     it('throws when AZURE_CLIENT_ID is missing', () => {
       delete process.env['AZURE_CLIENT_ID'];
-      expect(() => new EntraTokenValidator()).toThrow('AZURE_CLIENT_ID environment variable is required');
+      expect(() => new EntraTokenValidator()).toThrow(
+        'AZURE_CLIENT_ID environment variable is required',
+      );
     });
 
     it('does not throw when both environment variables are set', () => {

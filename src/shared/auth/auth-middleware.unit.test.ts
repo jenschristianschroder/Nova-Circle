@@ -53,9 +53,7 @@ describe('createAuthMiddleware – test mode (NODE_ENV=test)', () => {
 
   it('returns 401 when X-Test-User-Id header is absent', async () => {
     const app = buildTestApp(createAuthMiddleware());
-    const res = await request(app)
-      .get('/protected')
-      .set('X-Test-Display-Name', 'Alice');
+    const res = await request(app).get('/protected').set('X-Test-Display-Name', 'Alice');
 
     expect(res.status).toBe(401);
     expect(res.body).toMatchObject({ code: 'UNAUTHORIZED' });
@@ -63,9 +61,7 @@ describe('createAuthMiddleware – test mode (NODE_ENV=test)', () => {
 
   it('returns 401 when X-Test-Display-Name header is absent', async () => {
     const app = buildTestApp(createAuthMiddleware());
-    const res = await request(app)
-      .get('/protected')
-      .set('X-Test-User-Id', 'user-abc');
+    const res = await request(app).get('/protected').set('X-Test-User-Id', 'user-abc');
 
     expect(res.status).toBe(401);
     expect(res.body).toMatchObject({ code: 'UNAUTHORIZED' });
@@ -125,9 +121,7 @@ describe('createAuthMiddleware – with TokenValidatorPort', () => {
     const validator = makeValidator(identity);
     const app = buildTestApp(createAuthMiddleware(validator));
 
-    const res = await request(app)
-      .get('/protected')
-      .set('Authorization', 'Bearer valid.jwt.token');
+    const res = await request(app).get('/protected').set('Authorization', 'Bearer valid.jwt.token');
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(identity);
@@ -162,9 +156,7 @@ describe('createAuthMiddleware – with TokenValidatorPort', () => {
     const validator = makeValidator(identity);
     const app = buildTestApp(createAuthMiddleware(validator));
 
-    const res = await request(app)
-      .get('/protected')
-      .set('Authorization', 'Basic dXNlcjpwYXNz');
+    const res = await request(app).get('/protected').set('Authorization', 'Basic dXNlcjpwYXNz');
 
     expect(res.status).toBe(401);
     expect(validator.validate).not.toHaveBeenCalled();
@@ -175,9 +167,7 @@ describe('createAuthMiddleware – with TokenValidatorPort', () => {
     const validator = makeValidator(identity);
     const app = buildTestApp(createAuthMiddleware(validator));
 
-    await request(app)
-      .get('/protected')
-      .set('Authorization', 'Bearer my-specific-token');
+    await request(app).get('/protected').set('Authorization', 'Bearer my-specific-token');
 
     expect(validator.validate).toHaveBeenCalledWith('my-specific-token');
   });
