@@ -55,18 +55,12 @@ export class KnexEventRepository implements EventRepositoryPort {
     return rows.map(toEvent);
   }
 
-  async cancel(eventId: string): Promise<void> {
-    await this.db('events')
-      .where({ id: eventId })
-      .update({ status: 'cancelled', updated_at: new Date() });
-  }
-
-  async update(eventId: string, data: UpdateEventData): Promise<Event> {
+  async update(eventId: string, data: UpdateEventData): Promise<Event | null> {
     const patch: Record<string, unknown> = { updated_at: new Date() };
     if (data.title !== undefined) patch['title'] = data.title;
     if (data.description !== undefined) patch['description'] = data.description;
     if (data.startAt !== undefined) patch['start_at'] = data.startAt;
-    if (data.endAt !== undefined) patch['end_at'] = data.endAt;
+    if ('endAt' in data) patch['end_at'] = data.endAt ?? null;
 
     const rows = await this.db<EventRow>('events')
       .where({ id: eventId })
@@ -74,11 +68,12 @@ export class KnexEventRepository implements EventRepositoryPort {
       .returning('*');
 
     const row = rows[0];
-    if (!row) {
-      throw Object.assign(new Error('No event was updated: event not found with the provided ID'), {
-        code: 'NOT_FOUND',
-      });
-    }
-    return toEvent(row);
+    return row ? toEvent(row) : null;
+  }
+
+  async cancel(eventId: string): Promise<void> {
+    await this.db('events')
+      .where({ id: eventId })
+      .update({ status: 'cancelled', updated_at: new Date() });
   }
 }

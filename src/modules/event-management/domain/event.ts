@@ -24,6 +24,7 @@ export interface CreateEventData {
   readonly inviteeIds: ReadonlyArray<string>;
 }
 
+/** Partial update data for an event. Only provided fields are changed. */
 export interface UpdateEventData {
   readonly title?: string;
   readonly description?: string | null;
