@@ -38,7 +38,8 @@ export class KnexGroupCreationService implements CreateGroupWithOwnerPort {
         .returning('*');
 
       const groupRow = groupRows[0];
-      if (!groupRow) throw new Error('Failed to retrieve inserted group: database returned no row after insert');
+      if (!groupRow)
+        throw new Error('Failed to retrieve inserted group: database returned no row after insert');
 
       await trx('group_members').insert({
         group_id: groupRow.id,

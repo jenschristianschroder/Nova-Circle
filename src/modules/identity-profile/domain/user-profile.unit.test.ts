@@ -37,9 +37,7 @@ describe('UpsertMyProfileUseCase validation', () => {
     const repo = makeRepo(makeProfile({ displayName: 'Alice' }));
     const useCase = new UpsertMyProfileUseCase(repo);
     await useCase.execute(identity, { displayName: '  Alice  ' });
-    expect(repo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ displayName: 'Alice' }),
-    );
+    expect(repo.upsert).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Alice' }));
   });
 
   it('rejects empty displayName', async () => {
@@ -75,8 +73,6 @@ describe('UpsertMyProfileUseCase validation', () => {
     const repo = makeRepo(makeProfile());
     const useCase = new UpsertMyProfileUseCase(repo);
     await useCase.execute(identity, { displayName: 'Alice' });
-    expect(repo.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: identity.userId }),
-    );
+    expect(repo.upsert).toHaveBeenCalledWith(expect.objectContaining({ userId: identity.userId }));
   });
 });

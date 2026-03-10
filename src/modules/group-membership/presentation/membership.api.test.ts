@@ -48,12 +48,12 @@ describe('Membership API', () => {
       expect(res.status).toBe(401);
     });
 
-    it.skipIf(skipReason !== undefined)('returns 403 for non-member', async () => {
+    it.skipIf(skipReason !== undefined)('returns 404 for non-member', async () => {
       const groupId = await createGroup(owner.userId, owner.displayName);
       const res = await request(app)
         .get(`/api/v1/groups/${groupId}/members`)
         .set(testAuthHeaders(outsider.userId, outsider.displayName));
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(404);
     });
 
     it.skipIf(skipReason !== undefined)('returns members list for member', async () => {

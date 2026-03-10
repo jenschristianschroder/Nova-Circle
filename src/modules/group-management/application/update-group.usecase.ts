@@ -9,11 +9,7 @@ export class UpdateGroupUseCase {
     private readonly membership: MembershipCheckerPort,
   ) {}
 
-  async execute(
-    identity: IdentityContext,
-    groupId: string,
-    data: UpdateGroupData,
-  ): Promise<Group> {
+  async execute(identity: IdentityContext, groupId: string, data: UpdateGroupData): Promise<Group> {
     const role = await this.membership.getRole(groupId, identity.userId);
     if (role !== 'owner' && role !== 'admin') {
       throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });

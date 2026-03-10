@@ -3,12 +3,7 @@ import type { Knex } from 'knex';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable('group_members', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
-    table
-      .uuid('group_id')
-      .notNullable()
-      .references('id')
-      .inTable('groups')
-      .onDelete('CASCADE');
+    table.uuid('group_id').notNullable().references('id').inTable('groups').onDelete('CASCADE');
     table
       .uuid('user_id')
       .notNullable()

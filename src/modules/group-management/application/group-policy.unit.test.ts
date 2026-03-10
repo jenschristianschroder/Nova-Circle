@@ -120,16 +120,16 @@ describe('UpdateGroupUseCase', () => {
 
   it('rejects member from updating', async () => {
     const useCase = new UpdateGroupUseCase(makeGroupRepo(), makeMembership('member'));
-    await expect(useCase.execute(identity, 'group-1', { name: 'New Name' })).rejects.toMatchObject(
-      { code: 'FORBIDDEN' },
-    );
+    await expect(useCase.execute(identity, 'group-1', { name: 'New Name' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('rejects non-member from updating', async () => {
     const useCase = new UpdateGroupUseCase(makeGroupRepo(), makeMembership(null));
-    await expect(useCase.execute(identity, 'group-1', { name: 'New Name' })).rejects.toMatchObject(
-      { code: 'FORBIDDEN' },
-    );
+    await expect(useCase.execute(identity, 'group-1', { name: 'New Name' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 });
 

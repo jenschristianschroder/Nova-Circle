@@ -91,7 +91,9 @@ describe('RemoveMemberUseCase', () => {
   it('allows member to remove self', async () => {
     const self = FakeIdentity.user('self');
     const repo = makeRepo({
-      findByGroupAndUser: vi.fn().mockResolvedValue(makeMember({ userId: self.userId, role: 'member' })),
+      findByGroupAndUser: vi
+        .fn()
+        .mockResolvedValue(makeMember({ userId: self.userId, role: 'member' })),
     });
     const useCase = new RemoveMemberUseCase(repo);
     await useCase.execute(self, 'group-1', self.userId);

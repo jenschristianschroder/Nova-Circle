@@ -7,4 +7,3 @@ export { UpdateGroupUseCase } from './application/update-group.usecase.js';
 export { DeleteGroupUseCase } from './application/delete-group.usecase.js';
 export { KnexGroupRepository } from './infrastructure/knex-group.repository.js';
 export { createGroupRouter } from './presentation/group.router.js';
-

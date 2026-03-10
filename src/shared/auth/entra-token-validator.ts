@@ -22,9 +22,7 @@ export class EntraTokenValidator implements TokenValidatorPort {
     this.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
     this.audience = clientId;
 
-    const jwksUri = new URL(
-      `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`,
-    );
+    const jwksUri = new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`);
     this.jwks = createRemoteJWKSet(jwksUri);
   }
 
@@ -44,8 +42,7 @@ export class EntraTokenValidator implements TokenValidatorPort {
       throw new Error('Token payload missing required oid/sub claim');
     }
 
-    const resolvedDisplayName =
-      typeof displayName === 'string' ? displayName : 'unknown';
+    const resolvedDisplayName = typeof displayName === 'string' ? displayName : 'unknown';
 
     return {
       userId,

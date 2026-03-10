@@ -93,17 +93,23 @@ export function createGroupRouter(
 
     // Validate types to avoid silently ignoring invalid input.
     if (name !== undefined && typeof name !== 'string') {
-      res.status(400).json({ error: 'name must be a string when provided', code: 'VALIDATION_ERROR' });
+      res
+        .status(400)
+        .json({ error: 'name must be a string when provided', code: 'VALIDATION_ERROR' });
       return;
     }
     if (description !== undefined && typeof description !== 'string' && description !== null) {
-      res.status(400).json({ error: 'description must be a string or null when provided', code: 'VALIDATION_ERROR' });
+      res.status(400).json({
+        error: 'description must be a string or null when provided',
+        code: 'VALIDATION_ERROR',
+      });
       return;
     }
 
     const updateData: { name?: string; description?: string | null } = {};
     if (typeof name === 'string') updateData.name = name;
-    if (description === null || typeof description === 'string') updateData.description = description;
+    if (description === null || typeof description === 'string')
+      updateData.description = description;
 
     try {
       const group = await updateGroup.execute(identity, groupId, updateData);
