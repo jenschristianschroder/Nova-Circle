@@ -74,6 +74,11 @@ export function createMembershipRouter(
       return;
     }
 
+    if (!isValidUuid(userId)) {
+      res.status(400).json({ error: 'userId must be a valid UUID', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
     const resolvedRole: 'admin' | 'member' =
       role === 'admin' || role === 'member' ? role : 'member';
 
@@ -119,6 +124,10 @@ export function createMembershipRouter(
     }
 
     const targetUserId = req.params['userId'] as string;
+    if (!isValidUuid(targetUserId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
 
     try {
       await removeMember.execute(identity, groupId, targetUserId);

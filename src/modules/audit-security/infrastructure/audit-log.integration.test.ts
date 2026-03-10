@@ -7,6 +7,23 @@ const skipReason = !process.env['TEST_DATABASE_URL']
   ? 'TEST_DATABASE_URL is not set – skipping audit log integration tests'
   : undefined;
 
+// Fixed UUIDs used across all tests in this file to avoid FK-related issues
+// (audit_log columns are typed as uuid so non-UUID strings are rejected by PostgreSQL).
+const ACTOR_1 = '10000000-0000-4000-8000-000000000001';
+const ACTOR_2 = '10000000-0000-4000-8000-000000000002';
+const ACTOR_3 = '10000000-0000-4000-8000-000000000003';
+const ACTOR_4 = '10000000-0000-4000-8000-000000000004';
+const ACTOR_5 = '10000000-0000-4000-8000-000000000005';
+
+const RESOURCE_1 = '20000000-0000-4000-8000-000000000001';
+const RESOURCE_2 = '20000000-0000-4000-8000-000000000002';
+const RESOURCE_4 = '20000000-0000-4000-8000-000000000004';
+const RESOURCE_5 = '20000000-0000-4000-8000-000000000005';
+
+const GROUP_1 = '30000000-0000-4000-8000-000000000001';
+const GROUP_2 = '30000000-0000-4000-8000-000000000002';
+const GROUP_3 = '30000000-0000-4000-8000-000000000003';
+
 describe('KnexAuditLogRepository', () => {
   let db: Knex;
   let repo: KnexAuditLogRepository;
@@ -24,38 +41,38 @@ describe('KnexAuditLogRepository', () => {
 
   it.skipIf(skipReason !== undefined)('records an audit entry in the database', async () => {
     await repo.record({
-      actorId: 'user-audit-test-1',
+      actorId: ACTOR_1,
       action: 'event.created',
       resourceType: 'event',
-      resourceId: 'event-audit-test-1',
-      groupId: 'group-audit-test-1',
+      resourceId: RESOURCE_1,
+      groupId: GROUP_1,
     });
 
     const rows = await db('audit_log')
-      .where({ actor_id: 'user-audit-test-1', resource_id: 'event-audit-test-1' })
+      .where({ actor_id: ACTOR_1, resource_id: RESOURCE_1 })
       .select('*');
 
     expect(rows).toHaveLength(1);
     const row = rows[0] as Record<string, unknown>;
     expect(row['action']).toBe('event.created');
     expect(row['resource_type']).toBe('event');
-    expect(row['group_id']).toBe('group-audit-test-1');
+    expect(row['group_id']).toBe(GROUP_1);
     expect(row['metadata']).toBeNull();
     expect(row['occurred_at']).toBeInstanceOf(Date);
   });
 
   it.skipIf(skipReason !== undefined)('records an audit entry with safe metadata', async () => {
     await repo.record({
-      actorId: 'user-audit-test-2',
+      actorId: ACTOR_2,
       action: 'member.added',
       resourceType: 'member',
-      resourceId: 'target-user-audit-2',
-      groupId: 'group-audit-test-2',
+      resourceId: RESOURCE_2,
+      groupId: GROUP_2,
       metadata: { role: 'admin' },
     });
 
     const rows = await db('audit_log')
-      .where({ actor_id: 'user-audit-test-2', resource_id: 'target-user-audit-2' })
+      .where({ actor_id: ACTOR_2, resource_id: RESOURCE_2 })
       .select('*');
 
     expect(rows).toHaveLength(1);
@@ -74,15 +91,15 @@ describe('KnexAuditLogRepository', () => {
     'records a group.deleted audit entry without metadata',
     async () => {
       await repo.record({
-        actorId: 'user-audit-test-3',
+        actorId: ACTOR_3,
         action: 'group.deleted',
         resourceType: 'group',
-        resourceId: 'group-audit-test-3',
-        groupId: 'group-audit-test-3',
+        resourceId: GROUP_3,
+        groupId: GROUP_3,
       });
 
       const rows = await db('audit_log')
-        .where({ actor_id: 'user-audit-test-3', resource_id: 'group-audit-test-3' })
+        .where({ actor_id: ACTOR_3, resource_id: GROUP_3 })
         .select('*');
 
       expect(rows).toHaveLength(1);
@@ -97,15 +114,15 @@ describe('KnexAuditLogRepository', () => {
     async () => {
       const before = new Date();
       await repo.record({
-        actorId: 'user-audit-test-4',
+        actorId: ACTOR_4,
         action: 'event.cancelled',
         resourceType: 'event',
-        resourceId: 'event-audit-test-4',
+        resourceId: RESOURCE_4,
       });
       const after = new Date();
 
       const rows = await db('audit_log')
-        .where({ actor_id: 'user-audit-test-4', resource_id: 'event-audit-test-4' })
+        .where({ actor_id: ACTOR_4, resource_id: RESOURCE_4 })
         .select('occurred_at');
 
       const row = rows[0] as { occurred_at: Date };
@@ -116,17 +133,18 @@ describe('KnexAuditLogRepository', () => {
 
   it.skipIf(skipReason !== undefined)('allows null groupId for non-group-scoped entries', async () => {
     await repo.record({
-      actorId: 'user-audit-test-5',
+      actorId: ACTOR_5,
       action: 'event.created',
       resourceType: 'event',
-      resourceId: 'event-audit-test-5',
+      resourceId: RESOURCE_5,
       groupId: null,
     });
 
     const rows = await db('audit_log')
-      .where({ actor_id: 'user-audit-test-5', resource_id: 'event-audit-test-5' })
+      .where({ actor_id: ACTOR_5, resource_id: RESOURCE_5 })
       .select('group_id');
 
     expect((rows[0] as { group_id: string | null }).group_id).toBeNull();
   });
 });
+

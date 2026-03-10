@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { AuditLogPort } from '../domain/audit-log.port.js';
 import type { RecordAuditEntryData, AuditAction } from '../domain/audit-event.js';
+import { KnexAuditLogRepository } from '../infrastructure/knex-audit-log.repository.js';
+import type { Knex } from 'knex';
 
 /**
  * Audit policy unit tests.
@@ -10,6 +12,7 @@ import type { RecordAuditEntryData, AuditAction } from '../domain/audit-event.js
  * - RecordAuditEntryData contains only safe, non-sensitive fields
  * - AuditAction literals are correctly defined
  * - Audit entries do not include display names or email addresses
+ * - KnexAuditLogRepository is fault-tolerant (record() never rejects)
  */
 
 function makeAuditLog(
@@ -104,6 +107,30 @@ describe('AuditLogPort', () => {
   });
 });
 
+describe('KnexAuditLogRepository fault tolerance', () => {
+  it('record() resolves even when the DB insert rejects', async () => {
+    // Build a minimal fake Knex instance whose table() returns a chainable that
+    // rejects on .insert(). This proves KnexAuditLogRepository swallows the error
+    // as required by the AuditLogPort contract.
+    const fakeInsert = vi.fn().mockRejectedValue(new Error('DB unavailable'));
+    const fakeChain = { insert: fakeInsert };
+    const fakeDb = vi.fn().mockReturnValue(fakeChain) as unknown as Knex;
+
+    const repo = new KnexAuditLogRepository(fakeDb);
+
+    await expect(
+      repo.record({
+        actorId: 'actor-id',
+        action: 'event.created',
+        resourceType: 'event',
+        resourceId: 'event-id',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(fakeInsert).toHaveBeenCalledOnce();
+  });
+});
+
 describe('Audit entry privacy rules', () => {
   it('actorId is an opaque identifier – not a display name', () => {
     // This test documents that actorId must be a user ID (UUID-like),
@@ -161,3 +188,4 @@ describe('Audit entry privacy rules', () => {
     expect(meta?.['role']).toBe('member');
   });
 });
+

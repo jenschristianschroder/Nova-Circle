@@ -10,7 +10,7 @@ import { KnexGroupMemberRepository } from './modules/group-membership/infrastruc
 import { KnexEventCreationService } from './modules/event-management/infrastructure/knex-event-creation.service.js';
 import { KnexEventRepository } from './modules/event-management/infrastructure/knex-event.repository.js';
 import { KnexEventInvitationRepository } from './modules/event-management/infrastructure/knex-event-invitation.repository.js';
-import { KnexAuditLogRepository } from './modules/audit-security/index.js';
+import { KnexAuditLogRepository } from './modules/audit-security/infrastructure/knex-audit-log.repository.js';
 import { createProfileRouter } from './modules/identity-profile/presentation/profile.router.js';
 import { createGroupRouter } from './modules/group-management/presentation/group.router.js';
 import { createMembershipRouter } from './modules/group-membership/presentation/membership.router.js';
