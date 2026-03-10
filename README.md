@@ -127,7 +127,7 @@ module/
 | Milestone | Description | Status |
 |-----------|-------------|--------|
 | M1 – Foundation | Repo setup, CI, testing infrastructure, DB migrations, module skeletons | ✅ Complete |
-| M2 – Groups and membership | Users, groups, memberships, basic auth wiring | 🔄 In progress |
+| M2 – Groups and membership | Users, groups, memberships, basic auth wiring | ✅ Complete |
 | M3 – Private event MVP | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ⬜ Planned |
 | M4 – Event management | Edit, cancel, invitation changes, privacy and audit hardening | ⬜ Planned |
 | M5 – Event collaboration | Event-scoped location, checklist, and chat | ⬜ Planned |
@@ -144,14 +144,16 @@ All foundation work is complete:
 - [x] Database and migrations – Knex 3 + PostgreSQL, migration tooling wired up and verified in CI
 - [x] Module skeletons – all 10 modules scaffolded with `domain/`, `application/`, `infrastructure/`, and `presentation/` layers
 
-### Milestone 2 – Groups and membership 🔄
+### Milestone 2 – Groups and membership ✅
 
-**Goal:** Implement user profiles, group management, group membership, and basic JWT-based auth wiring.
+All M2 work is complete:
 
-- [ ] User domain – `UserProfile` entity, repository, and API
-- [ ] Group domain – `Group` entity, repository, and management API (owner/admin CRUD)
-- [ ] Membership domain – `GroupMember` entity, join / leave / remove flows, and membership API
-- [ ] Basic auth wiring – Entra ID / B2C JWT validation middleware and identity context injection
+- [x] User domain – `UserProfile` entity, repository, and API (`GET /api/v1/me`, `PUT /api/v1/me`)
+- [x] Group domain – `Group` entity, repository, and management API – create, get (member-only), update (owner/admin), delete (owner)
+- [x] Membership domain – `GroupMember` entity with `owner` / `admin` / `member` roles; add, list, and remove flows with fine-grained authorization
+- [x] Basic auth wiring – Entra ID JWT validation middleware and `IdentityContext` injection; test-mode synthetic-header support
+- [x] Database migrations – `user_profiles`, `groups`, and `group_members` tables with proper constraints and FK cascade rules
+- [x] Security hardening – non-members receive `NOT_FOUND` (not `FORBIDDEN`) for group operations to prevent existence disclosure; atomic group creation seeds caller as owner in a single transaction
 
 ---
 
