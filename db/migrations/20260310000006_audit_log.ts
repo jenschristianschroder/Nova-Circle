@@ -11,6 +11,7 @@ export async function up(knex: Knex): Promise<void> {
     table.jsonb('metadata').nullable();
     table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(knex.fn.now());
 
+    table.index('action');
     table.index('actor_id');
     table.index('resource_id');
     table.index('group_id');

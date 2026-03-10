@@ -55,7 +55,7 @@ export class KnexEventInvitationRepository implements EventInvitationRepositoryP
         .update({ status: 'invited', responded_at: null })
         .returning('*');
       if (!updated) {
-        throw new Error('Failed to update invitation');
+        throw new Error('Failed to update invitation: no matching record found');
       }
       return toEventInvitation(updated);
     }
@@ -75,8 +75,11 @@ export class KnexEventInvitationRepository implements EventInvitationRepositoryP
   }
 
   async removeInvitee(eventId: string, userId: string): Promise<void> {
-    await this.db<EventInvitationRow>('event_invitations')
+    const count = await this.db<EventInvitationRow>('event_invitations')
       .where({ event_id: eventId, user_id: userId })
       .update({ status: 'removed' });
+    if (count === 0) {
+      throw new Error('Failed to remove invitation: no matching record found');
+    }
   }
 }
