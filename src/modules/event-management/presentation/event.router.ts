@@ -71,12 +71,25 @@ export function createEventRouter(
       return;
     }
 
+    if (typeof endAt === 'string' && endAt.length > 0 && isNaN(Date.parse(endAt))) {
+      res.status(400).json({ error: 'endAt must be a valid ISO date string', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
     const parsedEndAt: Date | null =
       typeof endAt === 'string' && endAt.length > 0 ? new Date(endAt) : null;
 
     const resolvedExclude = Array.isArray(excludeUserIds)
       ? (excludeUserIds as unknown[]).filter((v): v is string => typeof v === 'string')
       : null;
+
+    if (resolvedExclude !== null) {
+      const hasInvalidId = resolvedExclude.some((id) => !isValidUuid(id));
+      if (hasInvalidId) {
+        res.status(400).json({ error: 'excludeUserIds must contain only valid UUIDs', code: 'VALIDATION_ERROR' });
+        return;
+      }
+    }
 
     try {
       const event = await createEvent.execute(identity, {
@@ -135,6 +148,12 @@ export function createEventRouter(
       return;
     }
 
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
       res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
@@ -143,6 +162,11 @@ export function createEventRouter(
 
     try {
       const event = await getEvent.execute(identity, eventId);
+      // Ensure the event belongs to the group in the URL.
+      if (event.groupId !== groupId) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
       res.json(event);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
@@ -161,6 +185,12 @@ export function createEventRouter(
       return;
     }
 
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
       res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
@@ -168,7 +198,7 @@ export function createEventRouter(
     }
 
     try {
-      await cancelEvent.execute(identity, eventId);
+      await cancelEvent.execute(identity, groupId, eventId);
       res.status(204).send();
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
