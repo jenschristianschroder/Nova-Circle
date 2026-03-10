@@ -17,6 +17,8 @@ export class KnexAuditLogRepository implements AuditLogPort {
         metadata: entry.metadata ?? null,
       });
     } catch (error) {
+      // Audit logging must be tolerant of transient failures: log and continue.
+      // Only safe, non-sensitive fields are included in the log message.
       console.error('Failed to record audit log entry', {
         actorId: entry.actorId,
         action: entry.action,
