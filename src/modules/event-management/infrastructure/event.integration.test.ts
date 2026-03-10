@@ -129,24 +129,21 @@ describe('Event infrastructure integration', () => {
     expect(updated?.status).toBe('cancelled');
   });
 
-  it.skipIf(skipReason !== undefined)(
-    'new group member cannot see historic events',
-    async () => {
-      // Create event BEFORE MEMBER_ID is added to the group.
-      // (MEMBER_ID is not in inviteeIds for this event.)
-      const event = await eventCreator.createEventWithInvitations({
-        groupId,
-        title: 'Historic Event',
-        description: null,
-        startAt: new Date('2026-10-01T10:00:00Z'),
-        endAt: null,
-        createdBy: CREATOR_ID,
-        inviteeIds: [CREATOR_ID],
-      });
+  it.skipIf(skipReason !== undefined)('new group member cannot see historic events', async () => {
+    // Create event BEFORE MEMBER_ID is added to the group.
+    // (MEMBER_ID is not in inviteeIds for this event.)
+    const event = await eventCreator.createEventWithInvitations({
+      groupId,
+      title: 'Historic Event',
+      description: null,
+      startAt: new Date('2026-10-01T10:00:00Z'),
+      endAt: null,
+      createdBy: CREATOR_ID,
+      inviteeIds: [CREATOR_ID],
+    });
 
-      // OUTSIDER_ID was never invited.
-      const events = await eventRepo.listByGroupForUser(groupId, OUTSIDER_ID);
-      expect(events.some((e) => e.id === event.id)).toBe(false);
-    },
-  );
+    // OUTSIDER_ID was never invited.
+    const events = await eventRepo.listByGroupForUser(groupId, OUTSIDER_ID);
+    expect(events.some((e) => e.id === event.id)).toBe(false);
+  });
 });

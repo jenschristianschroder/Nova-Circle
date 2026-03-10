@@ -67,12 +67,16 @@ export function createEventRouter(
     }
 
     if (typeof startAt !== 'string' || isNaN(Date.parse(startAt))) {
-      res.status(400).json({ error: 'startAt must be a valid ISO date string', code: 'VALIDATION_ERROR' });
+      res
+        .status(400)
+        .json({ error: 'startAt must be a valid ISO date string', code: 'VALIDATION_ERROR' });
       return;
     }
 
     if (typeof endAt === 'string' && endAt.length > 0 && isNaN(Date.parse(endAt))) {
-      res.status(400).json({ error: 'endAt must be a valid ISO date string', code: 'VALIDATION_ERROR' });
+      res
+        .status(400)
+        .json({ error: 'endAt must be a valid ISO date string', code: 'VALIDATION_ERROR' });
       return;
     }
 
@@ -86,7 +90,10 @@ export function createEventRouter(
     if (resolvedExclude !== null) {
       const hasInvalidId = resolvedExclude.some((id) => !isValidUuid(id));
       if (hasInvalidId) {
-        res.status(400).json({ error: 'excludeUserIds must contain only valid UUIDs', code: 'VALIDATION_ERROR' });
+        res.status(400).json({
+          error: 'excludeUserIds must contain only valid UUIDs',
+          code: 'VALIDATION_ERROR',
+        });
         return;
       }
     }

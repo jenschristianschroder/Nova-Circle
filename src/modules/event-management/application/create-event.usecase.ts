@@ -54,9 +54,7 @@ export class CreateEventUseCase {
     // The creator is always invited regardless of excludeUserIds.
     excludeSet.delete(caller.userId);
 
-    const inviteeIds = currentMembers
-      .map((m) => m.userId)
-      .filter((uid) => !excludeSet.has(uid));
+    const inviteeIds = currentMembers.map((m) => m.userId).filter((uid) => !excludeSet.has(uid));
 
     // Ensure creator is in the list even if they were not in the member snapshot (edge case).
     if (!inviteeIds.includes(caller.userId)) {

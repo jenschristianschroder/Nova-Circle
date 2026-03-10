@@ -103,10 +103,7 @@ describe('CreateEventUseCase', () => {
   });
 
   it('seeds all current group members as invitees', async () => {
-    const members = [
-      makeMember(creator.userId, 'owner'),
-      makeMember(memberUser.userId, 'member'),
-    ];
+    const members = [makeMember(creator.userId, 'owner'), makeMember(memberUser.userId, 'member')];
     const memberRepo = makeMemberRepo({
       isMember: vi.fn().mockResolvedValue(true),
       listByGroup: vi.fn().mockResolvedValue(members),
@@ -116,18 +113,14 @@ describe('CreateEventUseCase', () => {
 
     await useCase.execute(creator, validCommand);
 
-    const call = (
-      eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0] as { inviteeIds: string[] };
+    const call = (eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as { inviteeIds: string[] };
     expect(call.inviteeIds).toContain(creator.userId);
     expect(call.inviteeIds).toContain(memberUser.userId);
   });
 
   it('allows creator to exclude members before save', async () => {
-    const members = [
-      makeMember(creator.userId, 'owner'),
-      makeMember(memberUser.userId, 'member'),
-    ];
+    const members = [makeMember(creator.userId, 'owner'), makeMember(memberUser.userId, 'member')];
     const memberRepo = makeMemberRepo({
       isMember: vi.fn().mockResolvedValue(true),
       listByGroup: vi.fn().mockResolvedValue(members),
@@ -140,9 +133,8 @@ describe('CreateEventUseCase', () => {
       excludeUserIds: [memberUser.userId],
     });
 
-    const call = (
-      eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0] as { inviteeIds: string[] };
+    const call = (eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as { inviteeIds: string[] };
     expect(call.inviteeIds).toContain(creator.userId);
     expect(call.inviteeIds).not.toContain(memberUser.userId);
   });
@@ -161,9 +153,8 @@ describe('CreateEventUseCase', () => {
       excludeUserIds: [creator.userId],
     });
 
-    const call = (
-      eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0] as { inviteeIds: string[] };
+    const call = (eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as { inviteeIds: string[] };
     expect(call.inviteeIds).toContain(creator.userId);
   });
 
@@ -180,9 +171,9 @@ describe('CreateEventUseCase', () => {
     const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
     const useCase = new CreateEventUseCase(makeEventCreator(), memberRepo);
 
-    await expect(
-      useCase.execute(creator, { ...validCommand, title: '   ' }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    await expect(useCase.execute(creator, { ...validCommand, title: '   ' })).rejects.toMatchObject(
+      { code: 'VALIDATION_ERROR' },
+    );
   });
 
   it('throws VALIDATION_ERROR when end time is before start time', async () => {
@@ -343,11 +334,7 @@ describe('CancelEventUseCase', () => {
   });
 
   it('throws NOT_FOUND when event does not exist', async () => {
-    const useCase = new CancelEventUseCase(
-      makeEventRepo(),
-      makeInvitationRepo(),
-      makeMemberRepo(),
-    );
+    const useCase = new CancelEventUseCase(makeEventRepo(), makeInvitationRepo(), makeMemberRepo());
     await expect(useCase.execute(creator, 'group-1', 'no-such-event')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
