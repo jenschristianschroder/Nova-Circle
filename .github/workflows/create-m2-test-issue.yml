@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   create-issue:
+    if: false  # workflow disabled
     runs-on: ubuntu-latest
     steps:
       - name: Create M2 test tracking issue
