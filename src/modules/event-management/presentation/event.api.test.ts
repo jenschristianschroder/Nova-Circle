@@ -598,9 +598,7 @@ describe('Events API', () => {
 
         // Owner removes member.
         const removeRes = await request(app)
-          .delete(
-            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`,
-          )
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
         expect(removeRes.status).toBe(204);
 
@@ -623,9 +621,7 @@ describe('Events API', () => {
 
         // Remove member.
         await request(app)
-          .delete(
-            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`,
-          )
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
 
         // Re-invite member.
@@ -653,9 +649,7 @@ describe('Events API', () => {
         const eventId = (createRes.body as { id: string }).id;
 
         const res = await request(app)
-          .delete(
-            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${outsider.userId}`,
-          )
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}/invitations/${outsider.userId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
         expect(res.status).toBe(404);
       },
@@ -671,9 +665,7 @@ describe('Events API', () => {
         const eventId = (createRes.body as { id: string }).id;
 
         const res = await request(app)
-          .delete(
-            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${owner.userId}`,
-          )
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}/invitations/${owner.userId}`)
           .set(testAuthHeaders(member.userId, member.displayName));
         expect(res.status).toBe(403);
       },
@@ -690,9 +682,7 @@ describe('Events API', () => {
 
         // Even the group owner cannot remove the event creator from invitations.
         const res = await request(app)
-          .delete(
-            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${owner.userId}`,
-          )
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}/invitations/${owner.userId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
         expect(res.status).toBe(403);
       },

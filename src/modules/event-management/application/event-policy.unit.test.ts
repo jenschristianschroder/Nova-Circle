@@ -610,12 +610,7 @@ describe('RemoveInviteeUseCase', () => {
       findByEventAndUser: vi.fn().mockResolvedValue(activeInvitation),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('admin') });
-    const useCase = new RemoveInviteeUseCase(
-      eventRepo,
-      invitationRepo,
-      memberRepo,
-      makeAuditLog(),
-    );
+    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
 
     await useCase.execute(admin, 'group-1', 'event-1', target.userId);
 
@@ -630,12 +625,7 @@ describe('RemoveInviteeUseCase', () => {
       findByEventAndUser: vi.fn().mockResolvedValue(null),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(
-      eventRepo,
-      invitationRepo,
-      memberRepo,
-      makeAuditLog(),
-    );
+    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', target.userId),
@@ -651,12 +641,7 @@ describe('RemoveInviteeUseCase', () => {
       findByEventAndUser: vi.fn().mockResolvedValue(removedInvitation),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(
-      eventRepo,
-      invitationRepo,
-      memberRepo,
-      makeAuditLog(),
-    );
+    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', target.userId),
@@ -668,12 +653,7 @@ describe('RemoveInviteeUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(
-      eventRepo,
-      invitationRepo,
-      memberRepo,
-      makeAuditLog(),
-    );
+    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
 
     await expect(
       useCase.execute(memberUser, 'group-1', 'event-1', target.userId),
@@ -685,12 +665,7 @@ describe('RemoveInviteeUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(
-      eventRepo,
-      invitationRepo,
-      memberRepo,
-      makeAuditLog(),
-    );
+    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
 
     await expect(
       useCase.execute(outsider, 'group-1', 'event-1', target.userId),
