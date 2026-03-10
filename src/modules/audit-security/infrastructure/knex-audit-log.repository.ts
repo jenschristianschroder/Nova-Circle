@@ -12,7 +12,6 @@ export class KnexAuditLogRepository implements AuditLogPort {
       resource_type: entry.resourceType,
       resource_id: entry.resourceId,
       group_id: entry.groupId ?? null,
-      created_at: new Date(),
     });
   }
 }

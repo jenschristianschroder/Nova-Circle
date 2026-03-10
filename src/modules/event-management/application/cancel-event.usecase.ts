@@ -43,12 +43,22 @@ export class CancelEventUseCase {
 
     await this.eventRepo.cancel(eventId);
 
-    await this.auditLog.write({
-      action: 'event.cancelled',
-      actorId: caller.userId,
-      resourceType: 'event',
-      resourceId: eventId,
-      groupId,
-    });
+    try {
+      await this.auditLog.write({
+        action: 'event.cancelled',
+        actorId: caller.userId,
+        resourceType: 'event',
+        resourceId: eventId,
+        groupId,
+      });
+    } catch (error) {
+      // Best-effort auditing: do not surface audit failures after a successful cancellation.
+      console.error('Failed to write audit log for event cancellation', {
+        eventId,
+        groupId,
+        actorId: caller.userId,
+        error,
+      });
+    }
   }
 }
