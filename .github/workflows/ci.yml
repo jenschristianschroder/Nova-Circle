@@ -11,10 +11,10 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
-  # Lint and type-check
+  # Lint – format check and ESLint
   # ──────────────────────────────────────────────────────────────────────────
   lint:
-    name: Lint & typecheck
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +32,23 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Typecheck – TypeScript compilation without emitting output
+  # ──────────────────────────────────────────────────────────────────────────
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Typecheck
         run: npm run typecheck
@@ -159,6 +176,89 @@ jobs:
           name: test-results-api
           path: test-results/api.xml
           if-no-files-found: ignore
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Authorization and privacy regression tests – policy and auth unit tests
+  # These are a subset of unit tests focused on access-control correctness.
+  # Running them as a dedicated required check ensures auth/privacy regressions
+  # are immediately visible and cannot be obscured by unrelated test failures.
+  # ──────────────────────────────────────────────────────────────────────────
+  auth-privacy-tests:
+    name: auth-privacy-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run authorization and privacy unit tests
+        run: npm run test:unit -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/auth-privacy.xml policy auth-middleware
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-auth-privacy
+          path: test-results/auth-privacy.xml
+          if-no-files-found: ignore
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Migration check – verifies the full migration sequence runs cleanly
+  # against a fresh database. Catches broken migrations before they reach
+  # integration or API tests and blocks any schema change that cannot be
+  # applied to an empty schema.
+  # ──────────────────────────────────────────────────────────────────────────
+  migration-check:
+    name: migration-check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nova_circle_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nova_circle_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply all migrations from scratch
+        run: npm run migrate
+
+      - name: Verify expected tables exist
+        run: |
+          for TABLE in user_profiles groups group_members events event_invitations; do
+            RESULT=$(PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d nova_circle_test -t -c \
+              "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${TABLE}';")
+            if [ "$(echo $RESULT | tr -d ' ')" != "1" ]; then
+              echo "ERROR: Table '${TABLE}' is missing after migrations"
+              exit 1
+            fi
+          done
+          echo "All expected tables verified: user_profiles, groups, group_members, events, event_invitations"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Build – validates that TypeScript compiles cleanly
