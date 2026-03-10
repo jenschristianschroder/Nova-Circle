@@ -135,6 +135,46 @@ describe('Events API', () => {
         expect(ownerGetRes.status).toBe(200);
       },
     );
+
+    it.skipIf(skipReason !== undefined)(
+      'creator cannot exclude themselves – they remain invited',
+      async () => {
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({
+            title: 'Creator Self-Exclude Attempt',
+            startAt: '2026-07-02T12:00:00Z',
+            excludeUserIds: [owner.userId],
+          });
+
+        expect(res.status).toBe(201);
+        const eventId = (res.body as { id: string }).id;
+
+        // Creator is still invited and can see the event.
+        const creatorGetRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(creatorGetRes.status).toBe(200);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 for invalid UUID in excludeUserIds',
+      async () => {
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({
+            title: 'Bad Exclude Event',
+            startAt: '2026-07-03T12:00:00Z',
+            excludeUserIds: ['not-a-uuid'],
+          });
+
+        expect(res.status).toBe(400);
+        expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
