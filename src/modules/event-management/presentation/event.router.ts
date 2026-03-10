@@ -274,7 +274,9 @@ export function createEventRouter(
     }
 
     if (description !== undefined && description !== null && typeof description !== 'string') {
-      res.status(400).json({ error: 'description must be a string or null', code: 'VALIDATION_ERROR' });
+      res
+        .status(400)
+        .json({ error: 'description must be a string or null', code: 'VALIDATION_ERROR' });
       return;
     }
 
@@ -287,9 +289,10 @@ export function createEventRouter(
 
     if (endAt !== undefined && endAt !== null) {
       if (typeof endAt !== 'string' || isNaN(Date.parse(endAt))) {
-        res
-          .status(400)
-          .json({ error: 'endAt must be a valid ISO date string or null', code: 'VALIDATION_ERROR' });
+        res.status(400).json({
+          error: 'endAt must be a valid ISO date string or null',
+          code: 'VALIDATION_ERROR',
+        });
         return;
       }
     }
@@ -301,9 +304,7 @@ export function createEventRouter(
         ...(title !== undefined ? { title } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(startAt !== undefined ? { startAt: new Date(startAt) } : {}),
-        ...(endAt !== undefined
-          ? { endAt: endAt === null ? null : new Date(endAt) }
-          : {}),
+        ...(endAt !== undefined ? { endAt: endAt === null ? null : new Date(endAt) } : {}),
       });
       res.json(event);
     } catch (err: unknown) {

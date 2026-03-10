@@ -75,10 +75,9 @@ export class KnexEventRepository implements EventRepositoryPort {
 
     const row = rows[0];
     if (!row) {
-      throw Object.assign(
-        new Error('No event was updated: event not found with the provided ID'),
-        { code: 'NOT_FOUND' },
-      );
+      throw Object.assign(new Error('No event was updated: event not found with the provided ID'), {
+        code: 'NOT_FOUND',
+      });
     }
     return toEvent(row);
   }

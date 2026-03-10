@@ -550,24 +550,21 @@ describe('Events API', () => {
       },
     );
 
-    it.skipIf(skipReason !== undefined)(
-      'returns 400 for invalid startAt value',
-      async () => {
-        const createRes = await request(app)
-          .post(`/api/v1/groups/${groupId}/events`)
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ title: 'Bad Date Event', startAt: '2027-06-01T10:00:00Z' });
-        const eventId = (createRes.body as { id: string }).id;
+    it.skipIf(skipReason !== undefined)('returns 400 for invalid startAt value', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Bad Date Event', startAt: '2027-06-01T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
 
-        const res = await request(app)
-          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ startAt: 'not-a-date' });
+      const res = await request(app)
+        .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ startAt: 'not-a-date' });
 
-        expect(res.status).toBe(400);
-        expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
-      },
-    );
+      expect(res.status).toBe(400);
+      expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+    });
 
     it.skipIf(skipReason !== undefined)('returns 404 for invalid UUID eventId', async () => {
       const res = await request(app)
