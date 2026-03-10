@@ -24,11 +24,24 @@ describe('EntraTokenValidator', () => {
   beforeEach(() => {
     process.env['AZURE_TENANT_ID'] = 'test-tenant-id';
     process.env['AZURE_CLIENT_ID'] = 'test-client-id';
+    mockedJwtVerify.mockClear();
   });
 
   afterEach(() => {
-    process.env['AZURE_TENANT_ID'] = originalEnv['AZURE_TENANT_ID'];
-    process.env['AZURE_CLIENT_ID'] = originalEnv['AZURE_CLIENT_ID'];
+    const originalTenantId = originalEnv['AZURE_TENANT_ID'];
+    const originalClientId = originalEnv['AZURE_CLIENT_ID'];
+
+    if (originalTenantId === undefined) {
+      delete process.env['AZURE_TENANT_ID'];
+    } else {
+      process.env['AZURE_TENANT_ID'] = originalTenantId;
+    }
+
+    if (originalClientId === undefined) {
+      delete process.env['AZURE_CLIENT_ID'];
+    } else {
+      process.env['AZURE_CLIENT_ID'] = originalClientId;
+    }
   });
 
   describe('constructor', () => {
@@ -161,6 +174,7 @@ describe('EntraTokenValidator', () => {
       const validator = new EntraTokenValidator();
       await validator.validate('my.token');
 
+      expect(mockedJwtVerify).toHaveBeenCalledTimes(1);
       expect(mockedJwtVerify).toHaveBeenCalledWith(
         'my.token',
         'mocked-jwks',

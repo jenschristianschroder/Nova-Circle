@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { createAuthMiddleware, requireAuth } from './auth-middleware.js';
@@ -26,6 +26,20 @@ function makeRejectingValidator(): TokenValidatorPort {
 }
 
 describe('createAuthMiddleware – test mode (NODE_ENV=test)', () => {
+  const originalNodeEnv = process.env['NODE_ENV'];
+
+  beforeEach(() => {
+    process.env['NODE_ENV'] = 'test';
+  });
+
+  afterEach(() => {
+    if (originalNodeEnv === undefined) {
+      delete process.env['NODE_ENV'];
+    } else {
+      process.env['NODE_ENV'] = originalNodeEnv;
+    }
+  });
+
   it('accepts X-Test-User-Id and X-Test-Display-Name and injects identity', async () => {
     const app = buildTestApp(createAuthMiddleware());
     const res = await request(app)
@@ -85,16 +99,18 @@ describe('createAuthMiddleware – test mode (NODE_ENV=test)', () => {
     expect(res.body).toMatchObject({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
   });
 
-  it('uses a real validator when both test headers and a Bearer token are provided', async () => {
+  it('test headers take priority over Bearer token when both are present', async () => {
     const identity: IdentityContext = { userId: 'jwt-user', displayName: 'JWT User' };
     const validator = makeValidator(identity);
     const app = buildTestApp(createAuthMiddleware(validator));
 
-    // Test headers take priority when NODE_ENV=test
+    // Both test headers and an Authorization header are supplied in the same request.
+    // Test headers must win so the validator is never invoked.
     const res = await request(app)
       .get('/protected')
       .set('X-Test-User-Id', 'test-user')
-      .set('X-Test-Display-Name', 'Test User');
+      .set('X-Test-Display-Name', 'Test User')
+      .set('Authorization', 'Bearer some.jwt.token');
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ userId: 'test-user', displayName: 'Test User' });
@@ -176,7 +192,11 @@ describe('createAuthMiddleware – production guard', () => {
         'createAuthMiddleware: a TokenValidatorPort is required in NODE_ENV=production.',
       );
     } finally {
-      process.env['NODE_ENV'] = original;
+      if (original === undefined) {
+        delete process.env['NODE_ENV'];
+      } else {
+        process.env['NODE_ENV'] = original;
+      }
     }
   });
 
@@ -187,7 +207,11 @@ describe('createAuthMiddleware – production guard', () => {
       const validator = makeValidator({ userId: 'u', displayName: 'U' });
       expect(() => createAuthMiddleware(validator)).not.toThrow();
     } finally {
-      process.env['NODE_ENV'] = original;
+      if (original === undefined) {
+        delete process.env['NODE_ENV'];
+      } else {
+        process.env['NODE_ENV'] = original;
+      }
     }
   });
 });
