@@ -255,6 +255,19 @@ export function createEventRouter(
       endAt?: unknown;
     };
 
+    if (
+      title === undefined &&
+      description === undefined &&
+      startAt === undefined &&
+      endAt === undefined
+    ) {
+      res.status(400).json({
+        error: 'At least one field must be provided for update',
+        code: 'VALIDATION_ERROR',
+      });
+      return;
+    }
+
     if (title !== undefined && typeof title !== 'string') {
       res.status(400).json({ error: 'title must be a string', code: 'VALIDATION_ERROR' });
       return;
@@ -304,6 +317,10 @@ export function createEventRouter(
       }
       if (isValidationError(err)) {
         res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      if (isConflictError(err)) {
+        res.status(409).json({ error: (err as Error).message, code: 'CONFLICT' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });

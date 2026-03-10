@@ -10,7 +10,7 @@ export class KnexAuditLogRepository implements AuditLogPort {
       action: entry.action,
       entity_type: entry.entityType,
       entity_id: entry.entityId,
-      metadata: entry.metadata != null ? JSON.stringify(entry.metadata) : null,
+      metadata: entry.metadata ?? null,
     });
   }
 }

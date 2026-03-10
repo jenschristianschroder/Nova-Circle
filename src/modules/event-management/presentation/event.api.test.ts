@@ -576,5 +576,49 @@ describe('Events API', () => {
         .send({ title: 'Whatever' });
       expect(res.status).toBe(404);
     });
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 when no updatable fields are provided',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Empty Patch Event', startAt: '2027-07-01T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({});
+
+        expect(res.status).toBe(400);
+        expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 409 when trying to edit a cancelled event',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'To Be Cancelled', startAt: '2027-08-01T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Cancel the event first.
+        await request(app)
+          .delete(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+
+        // Attempt to edit the now-cancelled event.
+        const res = await request(app)
+          .patch(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Edited After Cancel' });
+
+        expect(res.status).toBe(409);
+        expect((res.body as { code: string }).code).toBe('CONFLICT');
+      },
+    );
   });
 });

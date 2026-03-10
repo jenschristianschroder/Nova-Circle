@@ -50,6 +50,11 @@ export class EditEventUseCase {
       throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
     }
 
+    // Do not allow editing events that have already been cancelled.
+    if (event.status === 'cancelled') {
+      throw Object.assign(new Error('Cannot edit a cancelled event'), { code: 'CONFLICT' });
+    }
+
     // Validate fields when provided.
     const trimmedTitle = command.title !== undefined ? command.title.trim() : undefined;
     if (trimmedTitle !== undefined) {
@@ -81,18 +86,23 @@ export class EditEventUseCase {
       ...(command.endAt !== undefined ? { endAt: command.endAt } : {}),
     });
 
-    await this.auditLog.log({
-      actorId: caller.userId,
-      action: 'event.updated',
-      entityType: 'event',
-      entityId: eventId,
-      metadata: {
-        groupId,
-        changedFields: Object.keys(command).filter(
-          (k) => command[k as keyof EditEventCommand] !== undefined,
-        ),
-      },
-    });
+    // Audit logging is best-effort: do not fail the operation after a successful update.
+    try {
+      await this.auditLog.log({
+        actorId: caller.userId,
+        action: 'event.updated',
+        entityType: 'event',
+        entityId: eventId,
+        metadata: {
+          groupId,
+          changedFields: Object.keys(command).filter(
+            (k) => command[k as keyof EditEventCommand] !== undefined,
+          ),
+        },
+      });
+    } catch {
+      // Intentionally swallow audit logging failures to avoid inconsistent API outcomes.
+    }
 
     return updated;
   }

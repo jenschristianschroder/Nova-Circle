@@ -579,4 +579,30 @@ describe('EditEventUseCase', () => {
 
     expect(eventRepo.update).toHaveBeenCalledWith('event-1', { description: 'New desc' });
   });
+
+  it('throws CONFLICT when event is already cancelled', async () => {
+    const event = makeEvent({ createdBy: creator.userId, status: 'cancelled' });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
+    const useCase = new EditEventUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', validCommand),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('still succeeds when audit logging fails (best-effort)', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
+    const auditLog: AuditLogPort = { log: vi.fn().mockRejectedValue(new Error('DB down')) };
+    const useCase = new EditEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+
+    // Should not throw even though audit log failed.
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', validCommand),
+    ).resolves.toBeDefined();
+  });
 });
