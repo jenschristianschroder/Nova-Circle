@@ -30,8 +30,9 @@ const VALID_ACTIONS: AuditAction[] = [
 describe('AuditLogPort', () => {
   it('accepts a minimal entry with required fields only', async () => {
     const recorded: RecordAuditEntryData[] = [];
-    const auditLog = makeAuditLog(async (entry) => {
+    const auditLog = makeAuditLog((entry) => {
       recorded.push(entry);
+      return Promise.resolve();
     });
 
     await auditLog.record({
@@ -52,8 +53,9 @@ describe('AuditLogPort', () => {
 
   it('accepts groupId as optional context', async () => {
     const recorded: RecordAuditEntryData[] = [];
-    const auditLog = makeAuditLog(async (entry) => {
+    const auditLog = makeAuditLog((entry) => {
       recorded.push(entry);
+      return Promise.resolve();
     });
 
     await auditLog.record({
@@ -69,8 +71,9 @@ describe('AuditLogPort', () => {
 
   it('accepts safe metadata for member.added', async () => {
     const recorded: RecordAuditEntryData[] = [];
-    const auditLog = makeAuditLog(async (entry) => {
+    const auditLog = makeAuditLog((entry) => {
       recorded.push(entry);
+      return Promise.resolve();
     });
 
     await auditLog.record({
@@ -120,8 +123,9 @@ describe('Audit entry privacy rules', () => {
 
   it('metadata is null when no additional context is needed', async () => {
     const recorded: RecordAuditEntryData[] = [];
-    const auditLog = makeAuditLog(async (entry) => {
+    const auditLog = makeAuditLog((entry) => {
       recorded.push(entry);
+      return Promise.resolve();
     });
 
     await auditLog.record({
@@ -137,8 +141,9 @@ describe('Audit entry privacy rules', () => {
 
   it('metadata for member.added contains only role – no display names or emails', async () => {
     const recorded: RecordAuditEntryData[] = [];
-    const auditLog = makeAuditLog(async (entry) => {
+    const auditLog = makeAuditLog((entry) => {
       recorded.push(entry);
+      return Promise.resolve();
     });
 
     await auditLog.record({
