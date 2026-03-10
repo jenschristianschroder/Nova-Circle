@@ -1,6 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import type { GroupMemberRepositoryPort } from '../domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import { AddMemberUseCase } from '../application/add-member.usecase.js';
 import { RemoveMemberUseCase } from '../application/remove-member.usecase.js';
 import { ListMembersUseCase } from '../application/list-members.usecase.js';
@@ -18,7 +19,10 @@ function isConflictError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'CONFLICT';
 }
 
-export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): express.Router {
+export function createMembershipRouter(
+  memberRepo: GroupMemberRepositoryPort,
+  auditLog: AuditLogPort,
+): express.Router {
   const router = express.Router({ mergeParams: true });
 
   const addMember = new AddMemberUseCase(memberRepo);
@@ -75,6 +79,18 @@ export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): e
 
     try {
       const member = await addMember.execute(identity, groupId, userId, resolvedRole);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'member.added',
+          resourceType: 'member',
+          resourceId: userId,
+          groupId,
+          metadata: { role: resolvedRole },
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for member.added:', auditErr);
+      }
       res.status(201).json(member);
     } catch (err: unknown) {
       if (isForbiddenError(err)) {
@@ -106,6 +122,17 @@ export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): e
 
     try {
       await removeMember.execute(identity, groupId, targetUserId);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'member.removed',
+          resourceType: 'member',
+          resourceId: targetUserId,
+          groupId,
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for member.removed:', auditErr);
+      }
       res.status(204).send();
     } catch (err: unknown) {
       if (isForbiddenError(err)) {
@@ -122,3 +149,4 @@ export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): e
 
   return router;
 }
+

@@ -250,7 +250,7 @@ jobs:
 
       - name: Verify expected tables exist
         run: |
-          for TABLE in user_profiles groups group_members events event_invitations; do
+          for TABLE in user_profiles groups group_members events event_invitations audit_log; do
             RESULT=$(PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d nova_circle_test -t -c \
               "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='${TABLE}';")
             if [ "$(echo $RESULT | tr -d ' ')" != "1" ]; then
@@ -258,7 +258,7 @@ jobs:
               exit 1
             fi
           done
-          echo "All expected tables verified: user_profiles, groups, group_members, events, event_invitations"
+          echo "All expected tables verified: user_profiles, groups, group_members, events, event_invitations, audit_log"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Build – validates that TypeScript compiles cleanly
