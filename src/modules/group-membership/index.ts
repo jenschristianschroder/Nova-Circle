@@ -1,11 +1,7 @@
-/**
- * GroupMembership module – public API surface.
- *
- * Re-export only what other modules and the presentation layer are allowed to use.
- * Internal domain, application, and infrastructure details must not be exported here.
- */
-
-// Domain types and interfaces will be exported here as they are defined.
-// Application use-case command and query types will be exported here.
-
-export {};
+export type { GroupMember, AddMemberData, GroupMemberRole } from './domain/group-member.js';
+export type { GroupMemberRepositoryPort } from './domain/group-member.repository.port.js';
+export { AddMemberUseCase } from './application/add-member.usecase.js';
+export { RemoveMemberUseCase } from './application/remove-member.usecase.js';
+export { ListMembersUseCase } from './application/list-members.usecase.js';
+export { KnexGroupMemberRepository } from './infrastructure/knex-group-member.repository.js';
+export { createMembershipRouter } from './presentation/membership.router.js';
