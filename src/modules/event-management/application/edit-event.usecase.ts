@@ -2,7 +2,7 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
-import type { AuditLogPort } from '../../audit-security/domain/audit-log.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import type { Event } from '../domain/event.js';
 
 export interface EditEventCommand {
@@ -92,13 +92,13 @@ export class EditEventUseCase {
 
     // Audit logging is best-effort: do not fail the operation after a successful update.
     try {
-      await this.auditLog.log({
+      await this.auditLog.record({
         actorId: caller.userId,
         action: 'event.updated',
-        entityType: 'event',
-        entityId: eventId,
+        resourceType: 'event',
+        resourceId: eventId,
+        groupId,
         metadata: {
-          groupId,
           changedFields: Object.keys(command).filter(
             (k) => command[k as keyof EditEventCommand] !== undefined,
           ),

@@ -673,6 +673,141 @@ describe('Events API', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // POST /api/v1/groups/:groupId/events/:eventId/cancel
+  // ---------------------------------------------------------------------------
+
+  describe('POST /api/v1/groups/:groupId/events/:eventId/cancel', () => {
+    it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
+      const res = await request(app).post(`/api/v1/groups/${groupId}/events/some-id/cancel`);
+      expect(res.status).toBe(401);
+    });
+
+    it.skipIf(skipReason !== undefined)('creator can cancel their own event', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'POST Cancel Event', startAt: '2026-12-01T12:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
+      expect(res.status).toBe(204);
+
+      // Event still visible to invited user with cancelled status.
+      const getRes = await request(app)
+        .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
+      expect(getRes.status).toBe(200);
+      expect(getRes.body).toMatchObject({ status: 'cancelled' });
+    });
+
+    it.skipIf(skipReason !== undefined)(
+      'cancelled event appears in the list with cancelled status',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'List Cancel Event', startAt: '2026-12-02T12:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+
+        const listRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(listRes.status).toBe(200);
+        const found = (listRes.body as { id: string; status: string }[]).find(
+          (e) => e.id === eventId,
+        );
+        expect(found).toBeDefined();
+        expect(found?.status).toBe('cancelled');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'invited user can still read a cancelled event',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Cancelled But Readable', startAt: '2026-12-03T12:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+
+        // Invited member can still read the cancelled event.
+        const memberGetRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(memberGetRes.status).toBe(200);
+        expect(memberGetRes.body).toMatchObject({ status: 'cancelled' });
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)('returns 409 when event is already cancelled', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Double Cancel', startAt: '2026-12-04T12:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
+
+      const res = await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
+      expect(res.status).toBe(409);
+      expect((res.body as { code: string }).code).toBe('CONFLICT');
+    });
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 403 for invited member who is not creator or admin',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'No POST Cancel', startAt: '2026-12-05T12:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(res.status).toBe(403);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for non-invited user (no existence disclosure)',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Secret POST Cancel', startAt: '2026-12-06T12:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/cancel`)
+          .set(testAuthHeaders(outsider.userId, outsider.displayName));
+        expect(res.status).toBe(404);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)('returns 404 for invalid UUID', async () => {
+      const res = await request(app)
+        .post(`/api/v1/groups/${groupId}/events/not-a-uuid/cancel`)
+        .set(testAuthHeaders(owner.userId, owner.displayName));
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // GET /api/v1/groups/:groupId/events/:eventId/invitations
   // ---------------------------------------------------------------------------
 

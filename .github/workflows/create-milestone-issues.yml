@@ -75,6 +75,8 @@ jobs:
               { name: 'milestone-5',  color: '0075ca', description: 'Milestone 5 – Collaboration' },
               { name: 'milestone-6',  color: '0075ca', description: 'Milestone 6 – Event capture' },
               { name: 'milestone-7',  color: '0075ca', description: 'Milestone 7 – UI polish'     },
+              { name: 'milestone-8',  color: '0075ca', description: 'Milestone 8 – Provision infrastructure' },
+              { name: 'milestone-9',  color: '0075ca', description: 'Milestone 9 – Deployment and CD' },
             ];
 
             for (const l of labelDefs) {
@@ -95,6 +97,8 @@ jobs:
               { title: 'Milestone 5 – Event collaboration',     description: 'Event-scoped location, checklist, and chat'                                                },
               { title: 'Milestone 6 – Natural event capture',   description: 'Text, voice, and image-based event capture via shared pipeline'                           },
               { title: 'Milestone 7 – UI polish',               description: 'Theme support, palette support, accessibility, visual cleanup'                             },
+              { title: 'Milestone 8 – Provision infrastructure', description: 'Azure resource provisioning, IaC, managed identity, secrets, and environment configuration'   },
+              { title: 'Milestone 9 – Deployment and CD',        description: 'Docker build pipeline, container registry, CD workflows, smoke tests, and rollback'            },
             ];
 
             const msNumbers = {};
@@ -281,6 +285,64 @@ jobs:
                   {
                     title: 'M7: Visual cleanup – layout consistency, typography, spacing, and calm UX audit',
                     body: `### Goal\nConduct a visual audit of all screens and clean up inconsistent spacing, typography, layout, and any overly decorative or animation-heavy elements.\n\n### Acceptance criteria\n- [ ] Consistent spacing scale applied across all screens\n- [ ] Typography scale defined and applied consistently\n- [ ] No flashy animations or highly decorative elements\n- [ ] All screens reviewed for clarity and task-focus\n- [ ] Visual regression tests (screenshot comparisons) added for key screens\n\n### Depends on\n- M7: Accessibility`,
+                  },
+                ],
+              },
+
+              // ── M8 ──────────────────────────────────────────────────────────────
+              {
+                ms: 8,
+                title: 'M8: Provision infrastructure',
+                epicBody: `## Provision infrastructure\n\nProvision and configure the Azure cloud infrastructure required to host, run, and operate Nova-Circle in a production-grade environment. All resources use managed identity and least-privilege RBAC; no static secrets are stored in code or pipelines.\n\n### Scope\n- Infrastructure as Code (Bicep) for all Azure resources\n- Azure Container Apps (backend runtime)\n- Azure PostgreSQL Flexible Server (primary database)\n- Azure Blob Storage (file / capture artifact storage)\n- Azure Service Bus (async messaging)\n- Azure Application Insights + Log Analytics (observability)\n- Managed identity wiring for all service-to-service access\n- Environment-specific parameter files (dev / staging / prod)\n- Key Vault for any unavoidable secrets\n\n### Acceptance criteria\n- All resources are defined in source-controlled IaC templates\n- No static connection strings or shared keys committed to the repo\n- Managed identity is used wherever the platform supports it\n- Each environment (dev / staging / prod) can be independently provisioned from the same templates\n- IaC validation runs in CI (bicep build / what-if)\n\n### Depends on\nMilestone 1 – Foundation must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M8: IaC foundation – Bicep module layout, parameter files, and CI validation',
+                    body: `### Goal\nEstablish the Infrastructure as Code repository layout using Azure Bicep. Define the module structure, per-environment parameter files, and a CI step that validates templates on every pull request.\n\n### Acceptance criteria\n- [ ] \`infra/\` directory created with Bicep module layout\n- [ ] Per-environment parameter files: \`dev.bicepparam\`, \`staging.bicepparam\`, \`prod.bicepparam\`\n- [ ] \`bicep build\` runs unauthenticated in CI on pull requests; \`az deployment what-if\` runs in CI using OIDC (\`azure/login\`) against a dedicated dev subscription/resource group\n- [ ] README documents how to provision a new environment\n- [ ] No secrets or connection strings committed\n\n### Depends on\n- M1: CI – GitHub Actions pipeline`,
+                  },
+                  {
+                    title: 'M8: Container Apps environment – Azure Container Apps and Container Registry',
+                    body: `### Goal\nProvision the Azure Container Apps environment and a private Azure Container Registry for hosting the backend service container.\n\n### Acceptance criteria\n- [ ] Azure Container Registry provisioned (Bicep)\n- [ ] Container Apps environment provisioned with Log Analytics workspace\n- [ ] Backend Container App defined (min/max replicas, env vars via secrets/managed identity)\n- [ ] System-assigned managed identity enabled on the Container App\n- [ ] Container App assigned ACR pull role on the registry (no admin credentials)\n- [ ] Bicep module parameterised for dev / staging / prod scaling profiles\n\n### Depends on\n- M8: IaC foundation`,
+                  },
+                  {
+                    title: 'M8: Database – Azure PostgreSQL Flexible Server with managed identity access',
+                    body: `### Goal\nProvision Azure PostgreSQL Flexible Server and configure managed identity authentication so the backend connects without a static password.\n\n### Acceptance criteria\n- [ ] PostgreSQL Flexible Server provisioned (Bicep) with private networking or service endpoint\n- [ ] Managed identity of the Container App granted \`pg_connect\` / login role on the database\n- [ ] No static \`DATABASE_URL\` with password committed anywhere\n- [ ] Migration job can run using the managed identity connection\n- [ ] Firewall rules allow only Container Apps environment egress; public access disabled in prod\n- [ ] Backup retention and geo-redundancy configured per environment tier\n\n### Depends on\n- M8: Container Apps environment`,
+                  },
+                  {
+                    title: 'M8: Storage and messaging – Blob Storage and Service Bus with managed identity',
+                    body: `### Goal\nProvision Azure Blob Storage (for capture artifacts) and Azure Service Bus (for async messaging / notifications) and wire both to the backend via managed identity.\n\n### Acceptance criteria\n- [ ] Storage Account provisioned (Bicep) with a \`capture-artifacts\` container\n- [ ] Service Bus namespace and required queues / topics provisioned (Bicep)\n- [ ] Container App managed identity assigned \`Storage Blob Data Contributor\` on the storage account\n- [ ] Container App managed identity assigned \`Azure Service Bus Data Sender\` / \`Data Receiver\` as needed\n- [ ] No storage account keys or Service Bus SAS tokens committed\n- [ ] Local dev can use Azurite (storage) and Service Bus emulator via Docker Compose\n\n### Depends on\n- M8: Container Apps environment`,
+                  },
+                  {
+                    title: 'M8: Observability – Application Insights and Log Analytics workspace',
+                    body: `### Goal\nProvision Application Insights and a Log Analytics workspace so that all telemetry (traces, exceptions, performance counters, custom events) is captured from the first deployment.\n\n### Acceptance criteria\n- [ ] Log Analytics workspace provisioned (Bicep)\n- [ ] Application Insights resource provisioned and linked to the workspace\n- [ ] Backend configured to emit structured telemetry to Application Insights (connection string via env var / managed identity)\n- [ ] Basic availability test or health-check ping configured\n- [ ] Alert rule created for error-rate threshold (as a starting point)\n- [ ] No instrumentation key hardcoded in source\n\n### Depends on\n- M8: Container Apps environment`,
+                  },
+                ],
+              },
+
+              // ── M9 ──────────────────────────────────────────────────────────────
+              {
+                ms: 9,
+                title: 'M9: Deployment and continuous deployment',
+                epicBody: `## Deployment and continuous deployment\n\nBuild the full continuous deployment pipeline: Docker image build, push to registry, deploy to Azure Container Apps, run database migrations, execute smoke tests, and support rollback. The pipeline must be environment-aware (dev / staging / prod) and require explicit approval before production releases.\n\n### Scope\n- Multi-stage Docker build for the backend service\n- GitHub Actions CD workflow (build → push → deploy → migrate → smoke test)\n- Environment promotion gates (auto-deploy to dev/staging; manual approval for prod)\n- Database migration step integrated into the deployment pipeline\n- Post-deployment smoke tests\n- Rollback procedure\n\n### Acceptance criteria\n- Every merge to main triggers a deployment to the dev environment automatically\n- Staging deployment requires a passing dev deployment\n- Production deployment requires explicit manual approval in GitHub Actions\n- Failed smoke tests block promotion and trigger an automated rollback\n- No deployment uses static credentials — only managed identity / OIDC federation\n\n### Depends on\nMilestone 8 – Provision infrastructure must be complete.\n\n### Sub-tasks\n<!-- tasklist will be updated after child issues are created -->`,
+                children: [
+                  {
+                    title: 'M9: Docker – multi-stage production image for the backend service',
+                    body: `### Goal\nCreate an optimised, production-ready multi-stage Dockerfile for the backend. The image must be small, run as non-root, bake in no secrets, and be fully reproducible.\n\n### Acceptance criteria\n- [ ] Multi-stage Dockerfile: builder stage compiles TypeScript; runtime stage copies only compiled output and prod dependencies\n- [ ] Final image runs as a non-root user\n- [ ] No secrets, \`.env\` files, or dev dependencies in the final image\n- [ ] Image passes a basic \`docker run --rm\` health-check locally\n- [ ] \`.dockerignore\` excludes \`node_modules\`, test files, coverage artifacts, and local env/config files, but includes application source (\`src/\`) needed for the build\n- [ ] Image size is reasonable (document baseline size in PR)\n\n### Depends on\n- M1: Repo setup`,
+                  },
+                  {
+                    title: 'M9: CI image build – build and push Docker image in GitHub Actions',
+                    body: `### Goal\nExtend the CI pipeline to build the Docker image on every pull request (build-only, no push) and push a tagged image to Azure Container Registry on every merge to main.\n\n### Acceptance criteria\n- [ ] PR CI step: \`docker build\` succeeds (validates Dockerfile and build context)\n- [ ] Merge-to-main step: image is tagged with the commit SHA and \`latest\`, then pushed to ACR\n- [ ] OIDC workload identity federation used — no ACR admin passwords or long-lived tokens in secrets\n- [ ] Image tag (commit SHA) is passed as an output to the deploy step\n- [ ] Build cache configured to keep CI fast\n\n### Depends on\n- M9: Docker – multi-stage production image\n- M8: Container Apps environment`,
+                  },
+                  {
+                    title: 'M9: CD pipeline – deploy to Azure Container Apps with environment promotion',
+                    body: `### Goal\nCreate a GitHub Actions CD workflow that deploys the newly built image to the target Container App, promotes through dev → staging → prod with appropriate gates.\n\n### Acceptance criteria\n- [ ] CD workflow triggers automatically on a successful image push to ACR\n- [ ] Dev environment: deployed automatically on every merge to main\n- [ ] Staging environment: deployed automatically after successful dev smoke tests\n- [ ] Production environment: requires manual approval via GitHub Actions environment protection rule\n- [ ] Deployment uses OIDC federation with a service principal that has only \`Contributor\` on the target Container App resource group\n- [ ] Container App revision is updated to the new image tag; traffic is shifted to the new revision\n- [ ] Failed deployment leaves the previous revision active\n\n### Depends on\n- M9: CI image build`,
+                  },
+                  {
+                    title: 'M9: Database migration step – run migrations as part of the deployment pipeline',
+                    body: `### Goal\nIntegrate database schema migrations into the CD pipeline so that migrations run automatically before (or after, depending on compatibility) the new container revision receives traffic.\n\n### Acceptance criteria\n- [ ] Migration job runs as a Container Apps Job (one-off) using the same image as the service\n- [ ] Migration job uses managed identity to connect to PostgreSQL — no static password\n- [ ] Migration runs before new revision receives traffic (blue/green or pre-deployment job)\n- [ ] If the migration job fails, the deployment workflow halts and does not promote the new revision\n- [ ] Migration idempotency verified: re-running on an already-migrated database is safe\n- [ ] Rollback guide documents how to revert a migration manually if needed\n\n### Depends on\n- M9: CD pipeline\n- M8: Database – Azure PostgreSQL Flexible Server`,
+                  },
+                  {
+                    title: 'M9: Smoke tests and rollback – post-deployment validation and automated rollback',
+                    body: `### Goal\nRun a lightweight smoke-test suite against the freshly deployed environment. If smoke tests fail, the pipeline must automatically reactivate the previous stable revision.\n\n### Acceptance criteria\n- [ ] Smoke test suite covers: health endpoint, authenticated request (using a test identity), and at least one core API operation\n- [ ] Smoke tests run against the live deployment URL of the target environment\n- [ ] Failing smoke tests set the workflow to failed and trigger an automated rollback step\n- [ ] Rollback step re-activates the previous Container App revision and sets it to receive 100% traffic\n- [ ] Rollback is observable: a Slack / Teams notification (or GitHub deployment status) is posted on rollback\n- [ ] Smoke test credentials use a dedicated test service principal — not a human user account\n\n### Depends on\n- M9: CD pipeline\n- M9: Database migration step`,
                   },
                 ],
               },

@@ -17,8 +17,16 @@ export class UpdateGroupUseCase {
 
     if (data.name !== undefined) {
       const trimmed = data.name.trim();
-      if (trimmed.length === 0) throw new Error('Group name must not be empty');
-      if (trimmed.length > 100) throw new Error('Group name must not exceed 100 characters');
+      if (trimmed.length === 0) {
+        throw Object.assign(new Error('Group name must not be empty'), {
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      if (trimmed.length > 100) {
+        throw Object.assign(new Error('Group name must not exceed 100 characters'), {
+          code: 'VALIDATION_ERROR',
+        });
+      }
     }
 
     const updated = await this.groupRepo.update(groupId, data);

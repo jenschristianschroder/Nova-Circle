@@ -11,7 +11,7 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
-import type { AuditLogPort } from '../../audit-security/domain/audit-log.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import type { Event } from '../domain/event.js';
 import type { EventInvitation } from '../domain/event-invitation.js';
 import type { GroupMember } from '../../group-membership/domain/group-member.js';
@@ -82,7 +82,7 @@ function makeEventRepo(overrides?: Partial<EventRepositoryPort>): EventRepositor
 }
 
 function makeAuditLog(): AuditLogPort {
-  return { log: vi.fn().mockResolvedValue(undefined) };
+  return { record: vi.fn().mockResolvedValue(undefined) };
 }
 
 function makeInvitationRepo(
@@ -445,7 +445,7 @@ describe('EditEventUseCase', () => {
 
     expect(eventRepo.update).toHaveBeenCalledWith('event-1', { title: 'Updated Title' });
     expect(result.title).toBe('Updated Title');
-    expect(auditLog.log).toHaveBeenCalledOnce();
+    expect(auditLog.record).toHaveBeenCalledOnce();
   });
 
   it('allows group owner to edit any event', async () => {
@@ -497,12 +497,12 @@ describe('EditEventUseCase', () => {
 
     await useCase.execute(creator, 'group-1', 'event-1', validCommand);
 
-    expect(auditLog.log).toHaveBeenCalledWith(
+    expect(auditLog.record).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: creator.userId,
         action: 'event.updated',
-        entityType: 'event',
-        entityId: 'event-1',
+        resourceType: 'event',
+        resourceId: 'event-1',
       }),
     );
   });
@@ -616,7 +616,7 @@ describe('EditEventUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const auditLog: AuditLogPort = { log: vi.fn().mockRejectedValue(new Error('DB down')) };
+    const auditLog: AuditLogPort = { record: vi.fn().mockRejectedValue(new Error('DB down')) };
     const useCase = new EditEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
     // Should not throw even though audit log failed.
