@@ -10,6 +10,7 @@ import { KnexGroupMemberRepository } from './modules/group-membership/infrastruc
 import { KnexEventCreationService } from './modules/event-management/infrastructure/knex-event-creation.service.js';
 import { KnexEventRepository } from './modules/event-management/infrastructure/knex-event.repository.js';
 import { KnexEventInvitationRepository } from './modules/event-management/infrastructure/knex-event-invitation.repository.js';
+import { KnexAuditLogRepository } from './modules/audit-security/infrastructure/knex-audit-log.repository.js';
 import { createProfileRouter } from './modules/identity-profile/presentation/profile.router.js';
 import { createGroupRouter } from './modules/group-management/presentation/group.router.js';
 import { createMembershipRouter } from './modules/group-membership/presentation/membership.router.js';
@@ -53,6 +54,7 @@ export function createApp(deps?: AppDependencies): express.Application {
     const eventCreator = new KnexEventCreationService(db);
     const eventRepo = new KnexEventRepository(db);
     const invitationRepo = new KnexEventInvitationRepository(db);
+    const auditLog = new KnexAuditLogRepository(db);
 
     const authMiddleware = createAuthMiddleware(deps.tokenValidator);
 
@@ -63,7 +65,7 @@ export function createApp(deps?: AppDependencies): express.Application {
     app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo));
     app.use(
       '/api/v1/groups/:groupId/events',
-      createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo),
+      createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo, auditLog),
     );
   }
 

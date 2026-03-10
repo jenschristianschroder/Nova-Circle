@@ -436,4 +436,247 @@ describe('Events API', () => {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/v1/groups/:groupId/events/:eventId/invitations
+  // ---------------------------------------------------------------------------
+
+  describe('POST /api/v1/groups/:groupId/events/:eventId/invitations', () => {
+    it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Invite Test', startAt: '2026-12-01T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+        .send({ userId: member.userId });
+      expect(res.status).toBe(401);
+    });
+
+    it.skipIf(skipReason !== undefined)(
+      'creator can add a group member as a new invitee',
+      async () => {
+        // Create event excluding member.
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({
+            title: 'Add Invitee Event',
+            startAt: '2026-12-02T10:00:00Z',
+            excludeUserIds: [member.userId],
+          });
+        expect(createRes.status).toBe(201);
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Member cannot access yet.
+        const beforeRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(beforeRes.status).toBe(404);
+
+        // Owner adds member as invitee.
+        const addRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ userId: member.userId });
+        expect(addRes.status).toBe(201);
+        expect((addRes.body as { status: string }).status).toBe('invited');
+
+        // Member can now access the event.
+        const afterRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(afterRes.status).toBe(200);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 409 when user is already actively invited',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Conflict Invite', startAt: '2026-12-03T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // member is already invited (auto-seeded at creation).
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ userId: member.userId });
+        expect(res.status).toBe(409);
+        expect((res.body as { code: string }).code).toBe('CONFLICT');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 when target is not a group member',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Non-Member Invite', startAt: '2026-12-04T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ userId: outsider.userId });
+        expect(res.status).toBe(400);
+        expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 403 for invited non-creator non-admin',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Forbidden Invite', startAt: '2026-12-05T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+          .set(testAuthHeaders(member.userId, member.displayName))
+          .send({ userId: newMember.userId });
+        expect(res.status).toBe(403);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)('returns 400 for invalid userId', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Bad UUID Invite', startAt: '2026-12-06T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app)
+        .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ userId: 'not-a-uuid' });
+      expect(res.status).toBe(400);
+      expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // DELETE /api/v1/groups/:groupId/events/:eventId/invitations/:userId
+  // ---------------------------------------------------------------------------
+
+  describe('DELETE /api/v1/groups/:groupId/events/:eventId/invitations/:userId', () => {
+    it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
+      const createRes = await request(app)
+        .post(`/api/v1/groups/${groupId}/events`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Remove Invite Test', startAt: '2026-12-10T10:00:00Z' });
+      const eventId = (createRes.body as { id: string }).id;
+
+      const res = await request(app).delete(
+        `/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`,
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it.skipIf(skipReason !== undefined)(
+      'creator can remove an invitee; removed invitee immediately loses access',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Remove Member Event', startAt: '2026-12-11T10:00:00Z' });
+        expect(createRes.status).toBe(201);
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Member can access initially.
+        const beforeRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(beforeRes.status).toBe(200);
+
+        // Owner removes member.
+        const removeRes = await request(app)
+          .delete(
+            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`,
+          )
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(removeRes.status).toBe(204);
+
+        // Member immediately loses access.
+        const afterRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(afterRes.status).toBe(404);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'removed invitee can be re-invited and immediately regains access',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Re-invite Event', startAt: '2026-12-12T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Remove member.
+        await request(app)
+          .delete(
+            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${member.userId}`,
+          )
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+
+        // Re-invite member.
+        const addRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events/${eventId}/invitations`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ userId: member.userId });
+        expect(addRes.status).toBe(201);
+
+        // Member can access again.
+        const afterRes = await request(app)
+          .get(`/api/v1/groups/${groupId}/events/${eventId}`)
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(afterRes.status).toBe(200);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 when removing a non-invited user',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Remove Non-Invited', startAt: '2026-12-13T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .delete(
+            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${outsider.userId}`,
+          )
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(res.status).toBe(404);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 403 for invited non-creator non-admin attempting removal',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Forbidden Remove', startAt: '2026-12-14T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        const res = await request(app)
+          .delete(
+            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${owner.userId}`,
+          )
+          .set(testAuthHeaders(member.userId, member.displayName));
+        expect(res.status).toBe(403);
+      },
+    );
+  });
 });

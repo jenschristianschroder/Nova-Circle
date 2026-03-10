@@ -43,4 +43,40 @@ export class KnexEventInvitationRepository implements EventInvitationRepositoryP
       .first();
     return row !== undefined;
   }
+
+  async addInvitee(eventId: string, userId: string): Promise<EventInvitation> {
+    const existing = await this.db<EventInvitationRow>('event_invitations')
+      .where({ event_id: eventId, user_id: userId })
+      .first();
+
+    if (existing) {
+      const [updated] = await this.db<EventInvitationRow>('event_invitations')
+        .where({ event_id: eventId, user_id: userId })
+        .update({ status: 'invited', responded_at: null })
+        .returning('*');
+      if (!updated) {
+        throw new Error('Failed to update invitation');
+      }
+      return toEventInvitation(updated);
+    }
+
+    const [inserted] = await this.db<EventInvitationRow>('event_invitations')
+      .insert({
+        event_id: eventId,
+        user_id: userId,
+        status: 'invited',
+        invited_at: new Date(),
+      })
+      .returning('*');
+    if (!inserted) {
+      throw new Error('Failed to insert invitation');
+    }
+    return toEventInvitation(inserted);
+  }
+
+  async removeInvitee(eventId: string, userId: string): Promise<void> {
+    await this.db<EventInvitationRow>('event_invitations')
+      .where({ event_id: eventId, user_id: userId })
+      .update({ status: 'removed' });
+  }
 }

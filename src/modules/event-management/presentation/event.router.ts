@@ -4,10 +4,13 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
 import { CreateEventUseCase } from '../application/create-event.usecase.js';
 import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
 import { CancelEventUseCase } from '../application/cancel-event.usecase.js';
+import { AddInviteeUseCase } from '../application/add-invitee.usecase.js';
+import { RemoveInviteeUseCase } from '../application/remove-invitee.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 
 function isNotFoundError(err: unknown): boolean {
@@ -31,6 +34,7 @@ export function createEventRouter(
   eventRepo: EventRepositoryPort,
   invitationRepo: EventInvitationRepositoryPort,
   memberRepo: GroupMemberRepositoryPort,
+  auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router({ mergeParams: true });
 
@@ -38,6 +42,8 @@ export function createEventRouter(
   const getEvent = new GetEventUseCase(eventRepo, invitationRepo);
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
+  const addInvitee = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+  const removeInvitee = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
   // POST /api/v1/groups/:groupId/events
   router.post('/', async (req: Request, res: Response) => {
@@ -218,6 +224,98 @@ export function createEventRouter(
       }
       if (isConflictError(err)) {
         res.status(409).json({ error: 'Event is already cancelled', code: 'CONFLICT' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
+
+  // POST /api/v1/groups/:groupId/events/:eventId/invitations
+  router.post('/:eventId/invitations', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const eventId = req.params['eventId'] as string;
+    if (!isValidUuid(eventId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const { userId } = req.body as { userId?: unknown };
+    if (typeof userId !== 'string' || !isValidUuid(userId)) {
+      res.status(400).json({ error: 'userId must be a valid UUID', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    try {
+      const invitation = await addInvitee.execute(identity, groupId, eventId, userId);
+      res.status(201).json(invitation);
+    } catch (err: unknown) {
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      if (isConflictError(err)) {
+        res.status(409).json({ error: (err as Error).message, code: 'CONFLICT' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
+
+  // DELETE /api/v1/groups/:groupId/events/:eventId/invitations/:userId
+  router.delete('/:eventId/invitations/:userId', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const eventId = req.params['eventId'] as string;
+    if (!isValidUuid(eventId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const targetUserId = req.params['userId'] as string;
+    if (!isValidUuid(targetUserId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    try {
+      await removeInvitee.execute(identity, groupId, eventId, targetUserId);
+      res.status(204).send();
+    } catch (err: unknown) {
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
