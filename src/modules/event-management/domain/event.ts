@@ -23,3 +23,11 @@ export interface CreateEventData {
   /** User IDs to invite. Creator is always included. */
   readonly inviteeIds: ReadonlyArray<string>;
 }
+
+/** Partial update data for an event. Only provided fields are changed. */
+export interface UpdateEventData {
+  readonly title?: string;
+  readonly description?: string | null;
+  readonly startAt?: Date;
+  readonly endAt?: Date | null;
+}
