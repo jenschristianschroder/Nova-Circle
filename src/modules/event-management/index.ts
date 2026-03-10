@@ -5,7 +5,6 @@
  * Internal domain, application, and infrastructure details must not be exported here.
  */
 
-// Domain types and interfaces will be exported here as they are defined.
-// Application use-case command and query types will be exported here.
-
-export {};
+export type { Event, EventStatus, CreateEventData } from './domain/event.js';
+export type { EventInvitation, InvitationStatus } from './domain/event-invitation.js';
+export type { CreateEventCommand } from './application/create-event.usecase.js';
