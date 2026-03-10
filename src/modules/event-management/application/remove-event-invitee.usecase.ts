@@ -4,7 +4,7 @@ import type { EventInvitationRepositoryPort } from '../domain/event-invitation.r
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
 
-export class RemoveInviteeUseCase {
+export class RemoveEventInviteeUseCase {
   constructor(
     private readonly eventRepo: EventRepositoryPort,
     private readonly invitationRepo: EventInvitationRepositoryPort,
@@ -23,9 +23,8 @@ export class RemoveInviteeUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
-    // Group owners and admins may manage invitations without holding an invitation
-    // themselves.  For everyone else an active invitation is required so the
-    // event's existence is not disclosed to non-invited callers.
+    // Group owners and admins can manage invitations without needing their own
+    // invitation.  All others need an active invitation for existence checks.
     const role = await this.memberRepo.getRole(groupId, caller.userId);
     const isAdminOrOwner = role === 'owner' || role === 'admin';
 
@@ -36,26 +35,26 @@ export class RemoveInviteeUseCase {
       }
     }
 
+    // Only the creator or a group admin/owner can remove invitees.
     const isCreator = event.createdBy === caller.userId;
     if (!isCreator && !isAdminOrOwner) {
       throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
     }
 
-    // The event creator's invitation must not be removed: they would lose access
-    // to their own event and could no longer manage it.
+    // The event creator cannot be removed from their own event.
     if (targetUserId === event.createdBy) {
-      throw Object.assign(new Error('Cannot remove the event creator from invitations'), {
-        code: 'FORBIDDEN',
+      throw Object.assign(new Error('Cannot remove the event creator from their own event'), {
+        code: 'VALIDATION_ERROR',
       });
     }
 
-    // Target must have an active invitation.
+    // The target must have an active invitation.
     const existing = await this.invitationRepo.findByEventAndUser(eventId, targetUserId);
     if (!existing || existing.status === 'removed') {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
-    await this.invitationRepo.removeInvitee(eventId, targetUserId);
+    await this.invitationRepo.remove(eventId, targetUserId);
 
     await this.auditLog.log({
       action: 'event_invitation.removed',

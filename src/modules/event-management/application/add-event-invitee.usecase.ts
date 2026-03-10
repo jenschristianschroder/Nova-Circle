@@ -5,7 +5,7 @@ import type { GroupMemberRepositoryPort } from '../../group-membership/domain/gr
 import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
 import type { EventInvitation } from '../domain/event-invitation.js';
 
-export class AddInviteeUseCase {
+export class AddEventInviteeUseCase {
   constructor(
     private readonly eventRepo: EventRepositoryPort,
     private readonly invitationRepo: EventInvitationRepositoryPort,
@@ -24,9 +24,8 @@ export class AddInviteeUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
-    // Group owners and admins may manage invitations without holding an invitation
-    // themselves.  For everyone else an active invitation is required so the
-    // event's existence is not disclosed to non-invited callers.
+    // Group owners and admins can manage invitations without needing their own
+    // invitation.  All others need an active invitation for existence checks.
     const role = await this.memberRepo.getRole(groupId, caller.userId);
     const isAdminOrOwner = role === 'owner' || role === 'admin';
 
@@ -37,28 +36,33 @@ export class AddInviteeUseCase {
       }
     }
 
+    // Only the creator or a group admin/owner can add invitees.
     const isCreator = event.createdBy === caller.userId;
     if (!isCreator && !isAdminOrOwner) {
       throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
     }
 
-    // Only current group members may be invited.
-    const targetIsMember = await this.memberRepo.isMember(groupId, targetUserId);
-    if (!targetIsMember) {
-      throw Object.assign(new Error('Target user is not a member of this group'), {
-        code: 'VALIDATION_ERROR',
-      });
-    }
-
-    // Reject if target already has an active invitation.
-    const existing = await this.invitationRepo.findByEventAndUser(eventId, targetUserId);
-    if (existing && existing.status !== 'removed') {
-      throw Object.assign(new Error('User is already invited to this event'), {
+    if (event.status === 'cancelled') {
+      throw Object.assign(new Error('Cannot add invitees to a cancelled event'), {
         code: 'CONFLICT',
       });
     }
 
-    const invitation = await this.invitationRepo.addInvitee(eventId, targetUserId);
+    // The target user must be a current group member.
+    const isMember = await this.memberRepo.isMember(groupId, targetUserId);
+    if (!isMember) {
+      throw Object.assign(new Error('Target user is not a member of the group'), {
+        code: 'VALIDATION_ERROR',
+      });
+    }
+
+    // If the user already has an active invitation, return a conflict.
+    const existing = await this.invitationRepo.findByEventAndUser(eventId, targetUserId);
+    if (existing && existing.status !== 'removed') {
+      throw Object.assign(new Error('User is already invited to this event'), { code: 'CONFLICT' });
+    }
+
+    const invitation = await this.invitationRepo.add(eventId, targetUserId);
 
     await this.auditLog.log({
       action: 'event_invitation.added',

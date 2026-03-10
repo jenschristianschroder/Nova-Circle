@@ -3,8 +3,10 @@ import { CreateEventUseCase } from './create-event.usecase.js';
 import { GetEventUseCase } from './get-event.usecase.js';
 import { ListGroupEventsUseCase } from './list-group-events.usecase.js';
 import { CancelEventUseCase } from './cancel-event.usecase.js';
-import { AddInviteeUseCase } from './add-invitee.usecase.js';
-import { RemoveInviteeUseCase } from './remove-invitee.usecase.js';
+import { UpdateEventUseCase } from './update-event.usecase.js';
+import { ListEventInviteesUseCase } from './list-event-invitees.usecase.js';
+import { AddEventInviteeUseCase } from './add-event-invitee.usecase.js';
+import { RemoveEventInviteeUseCase } from './remove-event-invitee.usecase.js';
 import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
@@ -31,6 +33,18 @@ function makeEvent(overrides?: Partial<Event>): Event {
   };
 }
 
+function makeInvitation(overrides?: Partial<EventInvitation>): EventInvitation {
+  return {
+    id: 'inv-1',
+    eventId: 'event-1',
+    userId: 'creator-id',
+    status: 'invited',
+    invitedAt: new Date(),
+    respondedAt: null,
+    ...overrides,
+  };
+}
+
 function makeMember(userId: string, role: GroupMember['role'] = 'member'): GroupMember {
   return {
     id: `member-${userId}`,
@@ -53,6 +67,10 @@ function makeMemberRepo(overrides?: Partial<GroupMemberRepositoryPort>): GroupMe
   };
 }
 
+function makeAuditLog(): AuditLogPort {
+  return { log: vi.fn().mockResolvedValue(undefined) };
+}
+
 function makeEventCreator(event: Event = makeEvent()): EventCreationPort {
   return { createEventWithInvitations: vi.fn().mockResolvedValue(event) };
 }
@@ -61,6 +79,7 @@ function makeEventRepo(overrides?: Partial<EventRepositoryPort>): EventRepositor
   return {
     findById: vi.fn().mockResolvedValue(null),
     listByGroupForUser: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue(makeEvent()),
     cancel: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -72,24 +91,9 @@ function makeInvitationRepo(
   return {
     findByEventAndUser: vi.fn().mockResolvedValue(null),
     hasAccess: vi.fn().mockResolvedValue(false),
-    addInvitee: vi.fn().mockResolvedValue(makeInvitation()),
-    removeInvitee: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
-  };
-}
-
-function makeAuditLog(): AuditLogPort {
-  return { log: vi.fn().mockResolvedValue(undefined) };
-}
-
-function makeInvitation(overrides?: Partial<EventInvitation>): EventInvitation {
-  return {
-    id: 'inv-1',
-    eventId: 'event-1',
-    userId: 'target-id',
-    status: 'invited',
-    invitedAt: new Date(),
-    respondedAt: null,
+    listByEvent: vi.fn().mockResolvedValue([]),
+    add: vi.fn().mockResolvedValue(makeInvitation()),
+    remove: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -418,119 +422,55 @@ describe('CancelEventUseCase', () => {
   });
 });
 
-const target = FakeIdentity.user('target');
-
 // ---------------------------------------------------------------------------
-// AddInviteeUseCase
+// UpdateEventUseCase
 // ---------------------------------------------------------------------------
 
-describe('AddInviteeUseCase', () => {
-  it('allows creator to add a new group member as invitee', async () => {
+describe('UpdateEventUseCase', () => {
+  it('allows creator to update their own event', async () => {
     const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({
-      hasAccess: vi.fn().mockResolvedValue(true),
-      findByEventAndUser: vi.fn().mockResolvedValue(null),
+    const updated = makeEvent({ createdBy: creator.userId, title: 'Updated' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      update: vi.fn().mockResolvedValue(updated),
     });
-    const memberRepo = makeMemberRepo({
-      getRole: vi.fn().mockResolvedValue('member'),
-      isMember: vi.fn().mockResolvedValue(true),
-    });
-    const auditLog = makeAuditLog();
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
 
-    const invitation = await useCase.execute(creator, 'group-1', 'event-1', target.userId);
-
-    expect(invitation).toMatchObject({ status: 'invited' });
-    expect(invitationRepo.addInvitee).toHaveBeenCalledWith('event-1', target.userId);
-    expect(auditLog.log).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'event_invitation.added' }),
+    const result = await useCase.execute(creator, 'group-1', 'event-1', { title: 'Updated' });
+    expect(result.title).toBe('Updated');
+    expect(eventRepo.update).toHaveBeenCalledWith(
+      'event-1',
+      expect.objectContaining({ title: 'Updated' }),
     );
   });
 
-  it('allows group admin to add invitee without holding an invitation', async () => {
+  it('allows group admin to update any event', async () => {
     const admin = FakeIdentity.user('admin');
     const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({
-      hasAccess: vi.fn().mockResolvedValue(false),
-      findByEventAndUser: vi.fn().mockResolvedValue(null),
+    const updated = makeEvent({ title: 'Admin Updated' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      update: vi.fn().mockResolvedValue(updated),
     });
-    const memberRepo = makeMemberRepo({
-      getRole: vi.fn().mockResolvedValue('admin'),
-      isMember: vi.fn().mockResolvedValue(true),
-    });
-    const auditLog = makeAuditLog();
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('admin') });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
 
-    await useCase.execute(admin, 'group-1', 'event-1', target.userId);
-
-    expect(invitationRepo.addInvitee).toHaveBeenCalledWith('event-1', target.userId);
+    await useCase.execute(admin, 'group-1', 'event-1', { title: 'Admin Updated' });
+    expect(eventRepo.update).toHaveBeenCalled();
   });
 
-  it('reinstates a previously removed invitation', async () => {
-    const removedInvitation = makeInvitation({ userId: target.userId, status: 'removed' });
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({
-      hasAccess: vi.fn().mockResolvedValue(true),
-      findByEventAndUser: vi.fn().mockResolvedValue(removedInvitation),
-    });
-    const memberRepo = makeMemberRepo({
-      getRole: vi.fn().mockResolvedValue('member'),
-      isMember: vi.fn().mockResolvedValue(true),
-    });
-    const auditLog = makeAuditLog();
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
-
-    await useCase.execute(creator, 'group-1', 'event-1', target.userId);
-
-    expect(invitationRepo.addInvitee).toHaveBeenCalledWith('event-1', target.userId);
-  });
-
-  it('throws CONFLICT when user is already actively invited', async () => {
-    const activeInvitation = makeInvitation({ userId: target.userId, status: 'invited' });
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({
-      hasAccess: vi.fn().mockResolvedValue(true),
-      findByEventAndUser: vi.fn().mockResolvedValue(activeInvitation),
-    });
-    const memberRepo = makeMemberRepo({
-      getRole: vi.fn().mockResolvedValue('member'),
-      isMember: vi.fn().mockResolvedValue(true),
-    });
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
-
-    await expect(
-      useCase.execute(creator, 'group-1', 'event-1', target.userId),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
-  });
-
-  it('throws VALIDATION_ERROR when target is not a group member', async () => {
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
-    const memberRepo = makeMemberRepo({
-      getRole: vi.fn().mockResolvedValue('member'),
-      isMember: vi.fn().mockResolvedValue(false),
-    });
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
-
-    await expect(
-      useCase.execute(creator, 'group-1', 'event-1', target.userId),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
-  });
-
-  it('throws FORBIDDEN for invited non-creator non-admin', async () => {
+  it('throws FORBIDDEN for invited-but-not-creator non-admin', async () => {
     const event = makeEvent({ createdBy: creator.userId });
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
 
     await expect(
-      useCase.execute(memberUser, 'group-1', 'event-1', target.userId),
+      useCase.execute(memberUser, 'group-1', 'event-1', { title: 'Hacked' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
@@ -538,184 +478,412 @@ describe('AddInviteeUseCase', () => {
     const event = makeEvent({ createdBy: creator.userId });
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new AddInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
 
     await expect(
-      useCase.execute(outsider, 'group-1', 'event-1', target.userId),
+      useCase.execute(outsider, 'group-1', 'event-1', { title: 'Hacked' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('throws CONFLICT when trying to edit a cancelled event', async () => {
+    const event = makeEvent({ status: 'cancelled', createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', { title: 'Fixed' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('throws VALIDATION_ERROR for empty title', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', { title: '  ' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
+
+  it('throws VALIDATION_ERROR when endAt is before startAt', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', {
+        endAt: new Date('2026-06-01T10:00:00Z'), // before current startAt
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 
   it('throws NOT_FOUND when event does not exist', async () => {
-    const useCase = new AddInviteeUseCase(
-      makeEventRepo(),
-      makeInvitationRepo(),
-      makeMemberRepo(),
-      makeAuditLog(),
-    );
-
+    const useCase = new UpdateEventUseCase(makeEventRepo(), makeInvitationRepo(), makeMemberRepo());
     await expect(
-      useCase.execute(creator, 'group-1', 'no-such-event', target.userId),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-
-  it('throws NOT_FOUND when event belongs to a different group', async () => {
-    const event = makeEvent({ groupId: 'group-2' });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const useCase = new AddInviteeUseCase(
-      eventRepo,
-      makeInvitationRepo(),
-      makeMemberRepo(),
-      makeAuditLog(),
-    );
-
-    await expect(
-      useCase.execute(creator, 'group-1', 'event-1', target.userId),
+      useCase.execute(creator, 'group-1', 'no-such-event', { title: 'X' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
 
 // ---------------------------------------------------------------------------
-// RemoveInviteeUseCase
+// ListEventInviteesUseCase
 // ---------------------------------------------------------------------------
 
-describe('RemoveInviteeUseCase', () => {
-  it('allows creator to remove an invitee', async () => {
-    const activeInvitation = makeInvitation({ userId: target.userId, status: 'accepted' });
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+describe('ListEventInviteesUseCase', () => {
+  it('returns invitations for a user with active access', async () => {
+    const invitations = [makeInvitation()];
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) });
     const invitationRepo = makeInvitationRepo({
       hasAccess: vi.fn().mockResolvedValue(true),
-      findByEventAndUser: vi.fn().mockResolvedValue(activeInvitation),
+      listByEvent: vi.fn().mockResolvedValue(invitations),
     });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
+    const useCase = new ListEventInviteesUseCase(eventRepo, invitationRepo);
+
+    const result = await useCase.execute(creator, 'group-1', 'event-1');
+    expect(result).toEqual(invitations);
+  });
+
+  it('throws NOT_FOUND for non-invited caller (no existence disclosure)', async () => {
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
+    const useCase = new ListEventInviteesUseCase(eventRepo, invitationRepo);
+
+    await expect(useCase.execute(outsider, 'group-1', 'event-1')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws NOT_FOUND when event does not exist', async () => {
+    const useCase = new ListEventInviteesUseCase(makeEventRepo(), makeInvitationRepo());
+    await expect(useCase.execute(creator, 'group-1', 'no-such-event')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AddEventInviteeUseCase
+// ---------------------------------------------------------------------------
+
+describe('AddEventInviteeUseCase', () => {
+  it('allows creator to add a group member as invitee', async () => {
+    const invitation = makeInvitation({ userId: memberUser.userId });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(true),
+      findByEventAndUser: vi.fn().mockResolvedValue(null),
+      add: vi.fn().mockResolvedValue(invitation),
+    });
+    const memberRepo = makeMemberRepo({
+      getRole: vi.fn().mockResolvedValue(null),
+      isMember: vi.fn().mockResolvedValue(true),
+    });
     const auditLog = makeAuditLog();
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
-    await useCase.execute(creator, 'group-1', 'event-1', target.userId);
-
-    expect(invitationRepo.removeInvitee).toHaveBeenCalledWith('event-1', target.userId);
+    const result = await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
+    expect(result.userId).toBe(memberUser.userId);
+    expect(invitationRepo.add).toHaveBeenCalledWith('event-1', memberUser.userId);
     expect(auditLog.log).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'event_invitation.removed' }),
+      expect.objectContaining({ action: 'event_invitation.added' }),
     );
   });
 
-  it('allows group admin to remove invitee without holding an invitation', async () => {
+  it('allows group admin to add invitee without their own invitation', async () => {
     const admin = FakeIdentity.user('admin');
-    const activeInvitation = makeInvitation({ userId: target.userId, status: 'invited' });
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitation = makeInvitation({ userId: memberUser.userId });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
     const invitationRepo = makeInvitationRepo({
       hasAccess: vi.fn().mockResolvedValue(false),
-      findByEventAndUser: vi.fn().mockResolvedValue(activeInvitation),
+      findByEventAndUser: vi.fn().mockResolvedValue(null),
+      add: vi.fn().mockResolvedValue(invitation),
     });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('admin') });
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+    const memberRepo = makeMemberRepo({
+      getRole: vi.fn().mockResolvedValue('admin'),
+      isMember: vi.fn().mockResolvedValue(true),
+    });
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
-    await useCase.execute(admin, 'group-1', 'event-1', target.userId);
-
-    expect(invitationRepo.removeInvitee).toHaveBeenCalledWith('event-1', target.userId);
+    await useCase.execute(admin, 'group-1', 'event-1', memberUser.userId);
+    expect(invitationRepo.add).toHaveBeenCalled();
   });
 
-  it('throws NOT_FOUND when target has no active invitation', async () => {
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+  it('throws FORBIDDEN for invited-but-not-creator non-admin', async () => {
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await expect(
+      useCase.execute(memberUser, 'group-1', 'event-1', outsider.userId),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('throws VALIDATION_ERROR when target is not a group member', async () => {
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
     const invitationRepo = makeInvitationRepo({
       hasAccess: vi.fn().mockResolvedValue(true),
       findByEventAndUser: vi.fn().mockResolvedValue(null),
     });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+    const memberRepo = makeMemberRepo({
+      getRole: vi.fn().mockResolvedValue(null),
+      isMember: vi.fn().mockResolvedValue(false),
+    });
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
-      useCase.execute(creator, 'group-1', 'event-1', target.userId),
+      useCase.execute(creator, 'group-1', 'event-1', outsider.userId),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
+
+  it('throws CONFLICT when user already has an active invitation', async () => {
+    const existing = makeInvitation({ userId: memberUser.userId, status: 'accepted' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(true),
+      findByEventAndUser: vi.fn().mockResolvedValue(existing),
+    });
+    const memberRepo = makeMemberRepo({
+      getRole: vi.fn().mockResolvedValue(null),
+      isMember: vi.fn().mockResolvedValue(true),
+    });
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', memberUser.userId),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('reactivates a previously removed invitation', async () => {
+    const removed = makeInvitation({ userId: memberUser.userId, status: 'removed' });
+    const reactivated = makeInvitation({ userId: memberUser.userId, status: 'invited' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(true),
+      findByEventAndUser: vi.fn().mockResolvedValue(removed),
+      add: vi.fn().mockResolvedValue(reactivated),
+    });
+    const memberRepo = makeMemberRepo({
+      getRole: vi.fn().mockResolvedValue(null),
+      isMember: vi.fn().mockResolvedValue(true),
+    });
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    const result = await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
+    expect(result.status).toBe('invited');
+    expect(invitationRepo.add).toHaveBeenCalledWith('event-1', memberUser.userId);
+  });
+
+  it('throws CONFLICT when trying to add invitee to a cancelled event', async () => {
+    const eventRepo = makeEventRepo({
+      findById: vi
+        .fn()
+        .mockResolvedValue(makeEvent({ status: 'cancelled', createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({
+      getRole: vi.fn().mockResolvedValue(null),
+      isMember: vi.fn().mockResolvedValue(true),
+    });
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', memberUser.userId),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RemoveEventInviteeUseCase
+// ---------------------------------------------------------------------------
+
+describe('RemoveEventInviteeUseCase', () => {
+  it('allows creator to remove an invitee', async () => {
+    const invitation = makeInvitation({ userId: memberUser.userId, status: 'invited' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(true),
+      findByEventAndUser: vi.fn().mockResolvedValue(invitation),
+      remove: vi.fn().mockResolvedValue(undefined),
+    });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
+    expect(invitationRepo.remove).toHaveBeenCalledWith('event-1', memberUser.userId);
+  });
+
+  it('allows admin to remove an invitee', async () => {
+    const admin = FakeIdentity.user('admin');
+    const invitation = makeInvitation({ userId: memberUser.userId, status: 'invited' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(false),
+      findByEventAndUser: vi.fn().mockResolvedValue(invitation),
+      remove: vi.fn().mockResolvedValue(undefined),
+    });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('admin') });
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await useCase.execute(admin, 'group-1', 'event-1', memberUser.userId);
+    expect(invitationRepo.remove).toHaveBeenCalled();
+  });
+
+  it('throws FORBIDDEN for invited-but-not-creator non-admin', async () => {
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await expect(
+      useCase.execute(memberUser, 'group-1', 'event-1', outsider.userId),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('throws VALIDATION_ERROR when trying to remove the event creator', async () => {
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', creator.userId),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
+
+  it('throws NOT_FOUND when target has no active invitation', async () => {
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(true),
+      findByEventAndUser: vi.fn().mockResolvedValue(null),
+    });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', outsider.userId),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('throws NOT_FOUND when target invitation is already removed', async () => {
-    const removedInvitation = makeInvitation({ userId: target.userId, status: 'removed' });
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const removed = makeInvitation({ userId: memberUser.userId, status: 'removed' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(makeEvent({ createdBy: creator.userId })),
+    });
     const invitationRepo = makeInvitationRepo({
       hasAccess: vi.fn().mockResolvedValue(true),
-      findByEventAndUser: vi.fn().mockResolvedValue(removedInvitation),
+      findByEventAndUser: vi.fn().mockResolvedValue(removed),
     });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
-      useCase.execute(creator, 'group-1', 'event-1', target.userId),
+      useCase.execute(creator, 'group-1', 'event-1', memberUser.userId),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-
-  it('throws FORBIDDEN for invited non-creator non-admin', async () => {
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
-
-    await expect(
-      useCase.execute(memberUser, 'group-1', 'event-1', target.userId),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('throws NOT_FOUND for non-invited non-admin (no existence disclosure)', async () => {
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
-
-    await expect(
-      useCase.execute(outsider, 'group-1', 'event-1', target.userId),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-
-  it('throws NOT_FOUND when event does not exist', async () => {
-    const useCase = new RemoveInviteeUseCase(
-      makeEventRepo(),
-      makeInvitationRepo(),
-      makeMemberRepo(),
-      makeAuditLog(),
-    );
-
-    await expect(
-      useCase.execute(creator, 'group-1', 'no-such-event', target.userId),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-
-  it('throws NOT_FOUND when event belongs to a different group', async () => {
-    const event = makeEvent({ groupId: 'group-2' });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const useCase = new RemoveInviteeUseCase(
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new RemoveEventInviteeUseCase(
       eventRepo,
-      makeInvitationRepo(),
-      makeMemberRepo(),
+      invitationRepo,
+      memberRepo,
       makeAuditLog(),
     );
 
     await expect(
-      useCase.execute(creator, 'group-1', 'event-1', target.userId),
+      useCase.execute(outsider, 'group-1', 'event-1', memberUser.userId),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-
-  it('throws FORBIDDEN when attempting to remove the event creator', async () => {
-    // The creator's invitation must not be removable: they would lose access to
-    // their own event, breaking the invariant enforced at creation time.
-    const activeInvitation = makeInvitation({ userId: creator.userId, status: 'invited' });
-    const event = makeEvent({ createdBy: creator.userId });
-    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const invitationRepo = makeInvitationRepo({
-      hasAccess: vi.fn().mockResolvedValue(true),
-      findByEventAndUser: vi.fn().mockResolvedValue(activeInvitation),
-    });
-    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('owner') });
-    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
-
-    // Even a group owner cannot remove the creator.
-    await expect(
-      useCase.execute(FakeIdentity.user('admin'), 'group-1', 'event-1', creator.userId),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });
