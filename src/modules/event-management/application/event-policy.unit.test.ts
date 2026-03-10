@@ -158,6 +158,38 @@ describe('CreateEventUseCase', () => {
     expect(call.inviteeIds).toContain(creator.userId);
   });
 
+  it('snapshot is a point-in-time capture – listByGroup called exactly once at creation', async () => {
+    const members = [makeMember(creator.userId, 'owner'), makeMember(memberUser.userId, 'member')];
+    const memberRepo = makeMemberRepo({
+      isMember: vi.fn().mockResolvedValue(true),
+      listByGroup: vi.fn().mockResolvedValue(members),
+    });
+    const eventCreator = makeEventCreator();
+    const useCase = new CreateEventUseCase(eventCreator, memberRepo);
+
+    await useCase.execute(creator, validCommand);
+
+    expect(memberRepo.listByGroup).toHaveBeenCalledOnce();
+  });
+
+  it('does not invite a user who was not a member at snapshot time', async () => {
+    // Only the creator is in the snapshot – memberUser and outsider are not current members.
+    const members = [makeMember(creator.userId, 'owner')];
+    const memberRepo = makeMemberRepo({
+      isMember: vi.fn().mockResolvedValue(true),
+      listByGroup: vi.fn().mockResolvedValue(members),
+    });
+    const eventCreator = makeEventCreator();
+    const useCase = new CreateEventUseCase(eventCreator, memberRepo);
+
+    await useCase.execute(creator, validCommand);
+
+    const call = (eventCreator.createEventWithInvitations as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as { inviteeIds: string[] };
+    expect(call.inviteeIds).not.toContain(memberUser.userId);
+    expect(call.inviteeIds).not.toContain(outsider.userId);
+  });
+
   it('throws NOT_FOUND when caller is not a group member', async () => {
     const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(false) });
     const useCase = new CreateEventUseCase(makeEventCreator(), memberRepo);
