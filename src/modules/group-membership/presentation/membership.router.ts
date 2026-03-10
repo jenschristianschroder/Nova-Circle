@@ -4,6 +4,7 @@ import type { GroupMemberRepositoryPort } from '../domain/group-member.repositor
 import { AddMemberUseCase } from '../application/add-member.usecase.js';
 import { RemoveMemberUseCase } from '../application/remove-member.usecase.js';
 import { ListMembersUseCase } from '../application/list-members.usecase.js';
+import { isValidUuid } from '../../../shared/validation/uuid.js';
 
 function isForbiddenError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'FORBIDDEN';
@@ -32,12 +33,17 @@ export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): e
     }
 
     const groupId = req.params['id'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
     try {
       const members = await listMembers.execute(identity, groupId);
       res.json(members);
     } catch (err: unknown) {
-      if (isForbiddenError(err)) {
-        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
@@ -52,6 +58,11 @@ export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): e
     }
 
     const groupId = req.params['id'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
     const { userId, role } = req.body as { userId?: unknown; role?: unknown };
 
     if (typeof userId !== 'string') {
@@ -86,6 +97,11 @@ export function createMembershipRouter(memberRepo: GroupMemberRepositoryPort): e
     }
 
     const groupId = req.params['id'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
     const targetUserId = req.params['userId'] as string;
 
     try {

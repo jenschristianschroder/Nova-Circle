@@ -120,10 +120,21 @@ describe('RemoveMemberUseCase', () => {
     });
   });
 
-  it('returns NOT_FOUND when target is not a member', async () => {
-    const repo = makeRepo({ findByGroupAndUser: vi.fn().mockResolvedValue(null) });
+  it('returns NOT_FOUND when target is not a member (caller is authorized)', async () => {
+    const repo = makeRepo({
+      findByGroupAndUser: vi.fn().mockResolvedValue(null),
+      getRole: vi.fn().mockResolvedValue('owner'),
+    });
     const useCase = new RemoveMemberUseCase(repo);
     await expect(useCase.execute(owner, 'group-1', 'ghost-id')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('returns NOT_FOUND for non-member caller to prevent membership probing', async () => {
+    const repo = makeRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new RemoveMemberUseCase(repo);
+    await expect(useCase.execute(outsider, 'group-1', 'user-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });
@@ -141,9 +152,9 @@ describe('ListMembersUseCase', () => {
     expect(result).toEqual(members);
   });
 
-  it('throws FORBIDDEN for non-member', async () => {
+  it('throws NOT_FOUND for non-member (no existence disclosure)', async () => {
     const repo = makeRepo({ isMember: vi.fn().mockResolvedValue(false) });
     const useCase = new ListMembersUseCase(repo);
-    await expect(useCase.execute(outsider, 'group-1')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(useCase.execute(outsider, 'group-1')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

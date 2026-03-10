@@ -2,8 +2,10 @@ import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import type { Knex } from 'knex';
 import { createAuthMiddleware } from './shared/auth/auth-middleware.js';
+import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { KnexUserProfileRepository } from './modules/identity-profile/infrastructure/knex-user-profile.repository.js';
 import { KnexGroupRepository } from './modules/group-management/infrastructure/knex-group.repository.js';
+import { KnexGroupCreationService } from './modules/group-management/infrastructure/knex-group-creation.service.js';
 import { KnexGroupMemberRepository } from './modules/group-membership/infrastructure/knex-group-member.repository.js';
 import { createProfileRouter } from './modules/identity-profile/presentation/profile.router.js';
 import { createGroupRouter } from './modules/group-management/presentation/group.router.js';
@@ -11,6 +13,8 @@ import { createMembershipRouter } from './modules/group-membership/presentation/
 
 export interface AppDependencies {
   db?: Knex;
+  /** JWT token validator. Required in NODE_ENV=production; optional elsewhere. */
+  tokenValidator?: TokenValidatorPort;
 }
 
 /**
@@ -40,14 +44,15 @@ export function createApp(deps?: AppDependencies): express.Application {
 
     const profileRepo = new KnexUserProfileRepository(db);
     const groupRepo = new KnexGroupRepository(db);
+    const groupCreator = new KnexGroupCreationService(db);
     const memberRepo = new KnexGroupMemberRepository(db);
 
-    const authMiddleware = createAuthMiddleware();
+    const authMiddleware = createAuthMiddleware(deps.tokenValidator);
 
     app.use('/api/v1', authMiddleware);
 
     app.use('/api/v1', createProfileRouter(profileRepo));
-    app.use('/api/v1/groups', createGroupRouter(groupRepo, memberRepo));
+    app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo));
     app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo));
   }
 

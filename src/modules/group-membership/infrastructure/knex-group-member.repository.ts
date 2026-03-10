@@ -67,14 +67,4 @@ export class KnexGroupMemberRepository implements GroupMemberRepositoryPort {
       .first();
     return row ? row.role : null;
   }
-
-  /** Adds a user as the owner of a group. Used only at group creation time. */
-  async addOwner(groupId: string, userId: string): Promise<void> {
-    await this.db<GroupMemberRow>('group_members').insert({
-      group_id: groupId,
-      user_id: userId,
-      role: 'owner',
-      joined_at: new Date(),
-    });
-  }
 }

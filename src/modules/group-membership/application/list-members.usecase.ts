@@ -8,7 +8,9 @@ export class ListMembersUseCase {
   async execute(caller: IdentityContext, groupId: string): Promise<GroupMember[]> {
     const isMember = await this.memberRepo.isMember(groupId, caller.userId);
     if (!isMember) {
-      throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
+      // Return NOT_FOUND so non-members cannot distinguish "not a member" from
+      // "group does not exist" (no existence disclosure).
+      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
     return this.memberRepo.listByGroup(groupId);

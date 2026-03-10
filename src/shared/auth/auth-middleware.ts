@@ -19,9 +19,11 @@ import type { TokenValidatorPort } from './token-validator.port.js';
  */
 export function createAuthMiddleware(validator?: TokenValidatorPort): RequestHandler {
   const isTestMode = process.env['NODE_ENV'] === 'test';
-  if (!isTestMode && !validator) {
+  // In production, a real validator is mandatory to prevent accidental misconfiguration.
+  // Development environments may omit it and rely on test-header auth or local JWT setup.
+  if (process.env['NODE_ENV'] === 'production' && !validator) {
     throw new Error(
-      'createAuthMiddleware: a TokenValidatorPort is required when NODE_ENV is not "test".',
+      'createAuthMiddleware: a TokenValidatorPort is required in NODE_ENV=production.',
     );
   }
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {

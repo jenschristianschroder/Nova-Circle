@@ -5,6 +5,7 @@ import { UpdateGroupUseCase } from './update-group.usecase.js';
 import { DeleteGroupUseCase } from './delete-group.usecase.js';
 import type { GroupRepositoryPort } from '../domain/group.repository.port.js';
 import type { MembershipCheckerPort } from '../domain/membership-checker.port.js';
+import type { CreateGroupWithOwnerPort } from '../domain/group-creation.port.js';
 import type { Group } from '../domain/group.js';
 import { FakeIdentity } from '../../../shared/test-helpers/fake-identity.js';
 
@@ -37,37 +38,40 @@ function makeMembership(role: 'owner' | 'admin' | 'member' | null): MembershipCh
   };
 }
 
+function makeGroupCreator(group?: Group): CreateGroupWithOwnerPort {
+  return {
+    createGroupWithOwner: vi.fn().mockResolvedValue(group ?? makeGroup()),
+  };
+}
+
 describe('CreateGroupUseCase', () => {
   const identity = FakeIdentity.user('alice');
 
-  function makeMemberAdder(): { addOwner: ReturnType<typeof vi.fn> } {
-    return { addOwner: vi.fn().mockResolvedValue(undefined) };
-  }
-
   it('creates a group with valid name', async () => {
-    const repo = makeGroupRepo();
-    const useCase = new CreateGroupUseCase(repo, makeMemberAdder());
+    const creator = makeGroupCreator();
+    const useCase = new CreateGroupUseCase(creator);
     await useCase.execute(identity, { name: 'Book Club' });
-    expect(repo.create).toHaveBeenCalledWith(
+    expect(creator.createGroupWithOwner).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Book Club', ownerId: identity.userId }),
     );
   });
 
-  it('seeds the owner as a member after creation', async () => {
-    const repo = makeGroupRepo();
-    const memberAdder = makeMemberAdder();
-    const useCase = new CreateGroupUseCase(repo, memberAdder);
-    await useCase.execute(identity, { name: 'Book Club' });
-    expect(memberAdder.addOwner).toHaveBeenCalledWith('group-1', identity.userId);
+  it('trims whitespace from name before creating', async () => {
+    const creator = makeGroupCreator();
+    const useCase = new CreateGroupUseCase(creator);
+    await useCase.execute(identity, { name: '  Book Club  ' });
+    expect(creator.createGroupWithOwner).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Book Club' }),
+    );
   });
 
   it('rejects empty name', async () => {
-    const useCase = new CreateGroupUseCase(makeGroupRepo(), makeMemberAdder());
+    const useCase = new CreateGroupUseCase(makeGroupCreator());
     await expect(useCase.execute(identity, { name: '  ' })).rejects.toThrow();
   });
 
   it('rejects name longer than 100 characters', async () => {
-    const useCase = new CreateGroupUseCase(makeGroupRepo(), makeMemberAdder());
+    const useCase = new CreateGroupUseCase(makeGroupCreator());
     await expect(useCase.execute(identity, { name: 'a'.repeat(101) })).rejects.toThrow();
   });
 });
