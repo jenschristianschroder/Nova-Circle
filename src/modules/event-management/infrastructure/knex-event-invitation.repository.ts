@@ -45,33 +45,28 @@ export class KnexEventInvitationRepository implements EventInvitationRepositoryP
   }
 
   async addInvitee(eventId: string, userId: string): Promise<EventInvitation> {
-    const existing = await this.db<EventInvitationRow>('event_invitations')
-      .where({ event_id: eventId, user_id: userId })
-      .first();
-
-    if (existing) {
-      const [updated] = await this.db<EventInvitationRow>('event_invitations')
-        .where({ event_id: eventId, user_id: userId })
-        .update({ status: 'invited', responded_at: null })
-        .returning('*');
-      if (!updated) {
-        throw new Error('Failed to update invitation: no matching record found');
-      }
-      return toEventInvitation(updated);
-    }
-
-    const [inserted] = await this.db<EventInvitationRow>('event_invitations')
+    // Use a single atomic upsert to avoid race conditions from the UNIQUE(event_id,user_id) constraint.
+    // On conflict, reinstate the invitation by resetting status, invited_at, and responded_at.
+    const [row] = await this.db<EventInvitationRow>('event_invitations')
       .insert({
         event_id: eventId,
         user_id: userId,
         status: 'invited',
         invited_at: new Date(),
       })
+      .onConflict(['event_id', 'user_id'])
+      .merge({
+        status: 'invited',
+        invited_at: new Date(),
+        responded_at: null,
+      })
       .returning('*');
-    if (!inserted) {
-      throw new Error('Failed to insert invitation');
+
+    if (!row) {
+      throw new Error('Failed to upsert invitation');
     }
-    return toEventInvitation(inserted);
+
+    return toEventInvitation(row);
   }
 
   async removeInvitee(eventId: string, userId: string): Promise<void> {

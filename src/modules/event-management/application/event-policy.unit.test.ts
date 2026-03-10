@@ -724,4 +724,23 @@ describe('RemoveInviteeUseCase', () => {
       useCase.execute(creator, 'group-1', 'event-1', target.userId),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('throws FORBIDDEN when attempting to remove the event creator', async () => {
+    // The creator's invitation must not be removable: they would lose access to
+    // their own event, breaking the invariant enforced at creation time.
+    const activeInvitation = makeInvitation({ userId: creator.userId, status: 'invited' });
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({
+      hasAccess: vi.fn().mockResolvedValue(true),
+      findByEventAndUser: vi.fn().mockResolvedValue(activeInvitation),
+    });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('owner') });
+    const useCase = new RemoveInviteeUseCase(eventRepo, invitationRepo, memberRepo, makeAuditLog());
+
+    // Even a group owner cannot remove the creator.
+    await expect(
+      useCase.execute(FakeIdentity.user('admin'), 'group-1', 'event-1', creator.userId),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
 });

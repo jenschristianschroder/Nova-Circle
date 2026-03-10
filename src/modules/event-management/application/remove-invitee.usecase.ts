@@ -41,6 +41,14 @@ export class RemoveInviteeUseCase {
       throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
     }
 
+    // The event creator's invitation must not be removed: they would lose access
+    // to their own event and could no longer manage it.
+    if (targetUserId === event.createdBy) {
+      throw Object.assign(new Error('Cannot remove the event creator from invitations'), {
+        code: 'FORBIDDEN',
+      });
+    }
+
     // Target must have an active invitation.
     const existing = await this.invitationRepo.findByEventAndUser(eventId, targetUserId);
     if (!existing || existing.status === 'removed') {

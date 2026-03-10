@@ -678,5 +678,24 @@ describe('Events API', () => {
         expect(res.status).toBe(403);
       },
     );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 403 when attempting to remove the event creator',
+      async () => {
+        const createRes = await request(app)
+          .post(`/api/v1/groups/${groupId}/events`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Creator Remove Attempt', startAt: '2026-12-15T10:00:00Z' });
+        const eventId = (createRes.body as { id: string }).id;
+
+        // Even the group owner cannot remove the event creator from invitations.
+        const res = await request(app)
+          .delete(
+            `/api/v1/groups/${groupId}/events/${eventId}/invitations/${owner.userId}`,
+          )
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(res.status).toBe(403);
+      },
+    );
   });
 });

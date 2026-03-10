@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
 import type { AuditLogPort, AuditLogEntry } from '../domain/audit-log.port.js';
 
-interface AuditLogRow {
+interface AuditLogInsertRow {
   action: string;
   actor_id: string;
   resource_type: string;
@@ -14,7 +14,7 @@ export class KnexAuditLogRepository implements AuditLogPort {
   constructor(private readonly db: Knex) {}
 
   async log(entry: AuditLogEntry): Promise<void> {
-    const row: Omit<AuditLogRow, 'id' | 'created_at'> = {
+    const row: AuditLogInsertRow = {
       action: entry.action,
       actor_id: entry.actorId,
       resource_type: entry.resourceType,
