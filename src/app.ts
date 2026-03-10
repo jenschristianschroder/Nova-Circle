@@ -7,9 +7,13 @@ import { KnexUserProfileRepository } from './modules/identity-profile/infrastruc
 import { KnexGroupRepository } from './modules/group-management/infrastructure/knex-group.repository.js';
 import { KnexGroupCreationService } from './modules/group-management/infrastructure/knex-group-creation.service.js';
 import { KnexGroupMemberRepository } from './modules/group-membership/infrastructure/knex-group-member.repository.js';
+import { KnexEventCreationService } from './modules/event-management/infrastructure/knex-event-creation.service.js';
+import { KnexEventRepository } from './modules/event-management/infrastructure/knex-event.repository.js';
+import { KnexEventInvitationRepository } from './modules/event-management/infrastructure/knex-event-invitation.repository.js';
 import { createProfileRouter } from './modules/identity-profile/presentation/profile.router.js';
 import { createGroupRouter } from './modules/group-management/presentation/group.router.js';
 import { createMembershipRouter } from './modules/group-membership/presentation/membership.router.js';
+import { createEventRouter } from './modules/event-management/presentation/event.router.js';
 
 export interface AppDependencies {
   db?: Knex;
@@ -46,6 +50,9 @@ export function createApp(deps?: AppDependencies): express.Application {
     const groupRepo = new KnexGroupRepository(db);
     const groupCreator = new KnexGroupCreationService(db);
     const memberRepo = new KnexGroupMemberRepository(db);
+    const eventCreator = new KnexEventCreationService(db);
+    const eventRepo = new KnexEventRepository(db);
+    const invitationRepo = new KnexEventInvitationRepository(db);
 
     const authMiddleware = createAuthMiddleware(deps.tokenValidator);
 
@@ -54,6 +61,7 @@ export function createApp(deps?: AppDependencies): express.Application {
     app.use('/api/v1', createProfileRouter(profileRepo));
     app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo));
     app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo));
+    app.use('/api/v1/groups/:groupId/events', createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo));
   }
 
   // 404 handler for unmatched routes.
