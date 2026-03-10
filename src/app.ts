@@ -61,8 +61,8 @@ export function createApp(deps?: AppDependencies): express.Application {
     app.use('/api/v1', authMiddleware);
 
     app.use('/api/v1', createProfileRouter(profileRepo));
-    app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo));
-    app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo));
+    app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo, auditLog));
+    app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo, auditLog));
     app.use(
       '/api/v1/groups/:groupId/events',
       createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo, auditLog),

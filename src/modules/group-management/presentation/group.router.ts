@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import type { GroupRepositoryPort } from '../domain/group.repository.port.js';
 import type { MembershipCheckerPort } from '../domain/membership-checker.port.js';
 import type { CreateGroupWithOwnerPort } from '../domain/group-creation.port.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import { CreateGroupUseCase } from '../application/create-group.usecase.js';
 import { GetGroupUseCase } from '../application/get-group.usecase.js';
 import { UpdateGroupUseCase } from '../application/update-group.usecase.js';
@@ -17,10 +18,15 @@ function isNotFoundError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'NOT_FOUND';
 }
 
+function isValidationError(err: unknown): boolean {
+  return err instanceof Error && (err as Error & { code?: string }).code === 'VALIDATION_ERROR';
+}
+
 export function createGroupRouter(
   groupCreator: CreateGroupWithOwnerPort,
   groupRepo: GroupRepositoryPort,
   membership: MembershipCheckerPort,
+  auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router();
 
@@ -49,8 +55,11 @@ export function createGroupRouter(
       });
       res.status(201).json(group);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Invalid input';
-      res.status(400).json({ error: message, code: 'VALIDATION_ERROR' });
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
 
@@ -113,6 +122,17 @@ export function createGroupRouter(
 
     try {
       const group = await updateGroup.execute(identity, groupId, updateData);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'group.updated',
+          resourceType: 'group',
+          resourceId: groupId,
+          groupId,
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for group.updated:', auditErr);
+      }
       res.json(group);
     } catch (err: unknown) {
       if (isForbiddenError(err)) {
@@ -123,8 +143,11 @@ export function createGroupRouter(
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
         return;
       }
-      const message = err instanceof Error ? err.message : 'Invalid input';
-      res.status(400).json({ error: message, code: 'VALIDATION_ERROR' });
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
 
@@ -143,6 +166,17 @@ export function createGroupRouter(
 
     try {
       await deleteGroup.execute(identity, groupId);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'group.deleted',
+          resourceType: 'group',
+          resourceId: groupId,
+          groupId,
+        });
+      } catch (auditErr) {
+        console.error('Audit log failed for group.deleted:', auditErr);
+      }
       res.status(204).send();
     } catch (err: unknown) {
       if (isForbiddenError(err)) {

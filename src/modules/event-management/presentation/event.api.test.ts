@@ -711,6 +711,10 @@ describe('Events API', () => {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // GET /api/v1/groups/:groupId/events/:eventId/invitations
+  // ---------------------------------------------------------------------------
+
   describe('GET /api/v1/groups/:groupId/events/:eventId/invitations', () => {
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
       const res = await request(app).get(`/api/v1/groups/${groupId}/events/some-id/invitations`);

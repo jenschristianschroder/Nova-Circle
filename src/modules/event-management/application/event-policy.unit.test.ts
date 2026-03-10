@@ -96,7 +96,7 @@ function makeInvitationRepo(
 
 function makeAuditLog(overrides?: Partial<AuditLogPort>): AuditLogPort {
   return {
-    write: vi.fn().mockResolvedValue(undefined),
+    record: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -380,7 +380,7 @@ describe('CancelEventUseCase', () => {
     const useCase = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
     await useCase.execute(creator, 'group-1', 'event-1');
-    expect(auditLog.write).toHaveBeenCalledWith(
+    expect(auditLog.record).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'event.cancelled',
         actorId: creator.userId,
