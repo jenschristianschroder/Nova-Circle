@@ -62,8 +62,11 @@ export AZURE_CLIENT_ID='<client-id>'   # optional
 ./infra/scripts/deploy.sh \
   --resource-group rg-nova-circle-dev \
   --environment dev \
-  --image crnova dev.azurecr.io/nova-circle:latest
+  --image '<registry-login-server>/nova-circle:latest'
 ```
+
+> **Note:** The registry login server is included in the deployment output as `registryLoginServer`.
+> Retrieve it with: `az deployment group show -g rg-nova-circle-dev -n main --query properties.outputs.registryLoginServer.value -o tsv`
 
 ### 3. Preview changes without deploying (what-if)
 
@@ -84,19 +87,27 @@ az deployment group create \
   --parameters infra/main.bicepparam \
   --parameters \
     postgresAdminPassword='<strong-password>' \
-    containerImage='<registry>/nova-circle:<tag>'
+    containerImage='<registry-login-server>/nova-circle:<tag>'
 ```
 
 ## After first deploy
 
-1. **Push your Docker image** to the provisioned registry:
+1. **Get the registry login server** from the deployment output:
    ```bash
-   az acr login --name crnova dev
-   docker tag nova-circle:latest crnova dev.azurecr.io/nova-circle:latest
-   docker push crnova dev.azurecr.io/nova-circle:latest
+   REGISTRY_LOGIN_SERVER=$(az deployment group show \
+     --resource-group rg-nova-circle-dev \
+     --name main \
+     --query properties.outputs.registryLoginServer.value -o tsv)
    ```
 
-2. **Grant the Container App AcrPull access** to the registry:
+2. **Push your Docker image** to the provisioned registry:
+   ```bash
+   az acr login --name "${REGISTRY_LOGIN_SERVER%%.*}"
+   docker tag nova-circle:latest "${REGISTRY_LOGIN_SERVER}/nova-circle:latest"
+   docker push "${REGISTRY_LOGIN_SERVER}/nova-circle:latest"
+   ```
+
+3. **Grant the Container App AcrPull access** to the registry:
    ```bash
    PRINCIPAL_ID=$(az containerapp show \
      --name ca-nova-circle-dev \
@@ -104,8 +115,8 @@ az deployment group create \
      --query identity.principalId -o tsv)
 
    REGISTRY_ID=$(az acr show \
-     --name crnovadev \
      --resource-group rg-nova-circle-dev \
+     --name "${REGISTRY_LOGIN_SERVER%%.*}" \
      --query id -o tsv)
 
    az role assignment create \
@@ -115,11 +126,16 @@ az deployment group create \
      --scope "$REGISTRY_ID"
    ```
 
-3. **Run database migrations** (from a machine that can reach the PostgreSQL server or via a migration job in the Container App):
+4. **Run database migrations** (from a machine that can reach the PostgreSQL server or via a migration job in the Container App):
    ```bash
    DATABASE_URL='postgresql://ncadmin:<password>@psql-nova-circle-dev.postgres.database.azure.com:5432/nova_circle?sslmode=require' \
      npm run migrate
    ```
+
+> **Database firewall:** The PostgreSQL server has no automatic firewall rules enabled.
+> Before running migrations or connecting from outside Azure, add a firewall rule for your
+> client IP: `az postgres flexible-server firewall-rule create -g rg-nova-circle-dev -n psql-nova-circle-dev --rule-name ClientIP --start-ip-address <your-ip> --end-ip-address <your-ip>`
+> For production, prefer private networking or restrict to specific egress IP ranges.
 
 ## Telemetry
 

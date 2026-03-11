@@ -10,8 +10,7 @@
 //     --resource-group rg-nova-circle-dev \
 //     --template-file main.bicep \
 //     --parameters main.bicepparam \
-//     --parameters postgresAdminPassword=<secret> \
-//                  appInsightsConnectionStringOverride=<leave blank on first deploy>
+//     --parameters postgresAdminPassword=<secret>
 //
 // See infra/scripts/deploy.sh for a convenience wrapper.
 
@@ -92,6 +91,7 @@ module containerAppMod 'modules/container-app.bicep' = {
     environmentName: environmentName
     containerAppEnvId: containerAppEnvMod.outputs.resourceId
     containerImage: containerImage
+    registryLoginServer: containerRegistryMod.outputs.loginServer
     appInsightsConnectionString: appInsightsMod.outputs.connectionString
     databaseUrl: 'postgresql://${postgresAdminUser}:${postgresAdminPassword}@${postgresMod.outputs.fqdn}:5432/${postgresMod.outputs.databaseName}?sslmode=require'
     azureTenantId: azureTenantId

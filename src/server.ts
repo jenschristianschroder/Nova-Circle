@@ -13,7 +13,14 @@ if (appInsightsConnectionString) {
   // Dynamic import keeps tests fast — the heavy SDK is never loaded when the
   // env var is absent.
   const appInsights = await import('applicationinsights');
-  appInsights.setup(appInsightsConnectionString).setAutoCollectRequests(true).setAutoCollectDependencies(true).setAutoCollectExceptions(true).setAutoCollectPerformance(false, false).setSendLiveMetrics(false).start();
+  appInsights
+    .setup(appInsightsConnectionString)
+    .setAutoCollectRequests(true)
+    .setAutoCollectDependencies(true)
+    .setAutoCollectExceptions(true)
+    .setAutoCollectPerformance(false, false)
+    .setSendLiveMetrics(false)
+    .start();
   setTelemetryClient(appInsights.defaultClient);
 }
 

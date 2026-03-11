@@ -69,6 +69,14 @@ function toSeverity(level: LogLevel): string {
   }
 }
 
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '[unserializable value]';
+  }
+}
+
 function emit(level: LogLevel, message: string, meta?: Record<string, unknown>): void {
   if (!shouldLog(level)) return;
 
@@ -79,7 +87,7 @@ function emit(level: LogLevel, message: string, meta?: Record<string, unknown>):
       ...(meta !== undefined ? { properties: meta } : {}),
     });
   } else {
-    const entry = JSON.stringify({ level, message, ...meta });
+    const entry = JSON.stringify({ level, message, ...(meta ?? {}) });
     switch (level) {
       case 'error':
         console.error(entry);
@@ -102,15 +110,15 @@ function emitError(message: string, err: unknown, meta?: Record<string, unknown>
       ? {}
       : err instanceof Error
         ? { errorMessage: err.message, errorName: err.name }
-        : { error: err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err) };
+        : { error: typeof err === 'string' ? err : safeStringify(err) };
 
-  const errMeta: Record<string, unknown> = { ...meta, ...errFields };
+  const errMeta: Record<string, unknown> = { ...(meta ?? {}), ...errFields };
 
   if (appInsightsClient) {
     if (err instanceof Error) {
       appInsightsClient.trackException({
         exception: err,
-        properties: { logMessage: message, ...meta },
+        properties: { logMessage: message, ...(meta ?? {}) },
       });
     } else {
       appInsightsClient.trackTrace({

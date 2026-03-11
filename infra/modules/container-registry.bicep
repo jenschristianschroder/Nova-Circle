@@ -8,7 +8,9 @@ param location string
 param environmentName string
 
 // ACR names must be globally unique, 5–50 alphanumeric characters, no hyphens.
-var registryName = 'crnova${environmentName}'
+// A 6-character deterministic suffix derived from the resource group ID avoids
+// collisions without making the name entirely unpredictable.
+var registryName = 'crnova${environmentName}${substring(uniqueString(resourceGroup().id), 0, 6)}'
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: registryName

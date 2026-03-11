@@ -12,8 +12,11 @@ param environmentName string
 @description('Container Apps Environment resource ID')
 param containerAppEnvId string
 
-@description('Full container image reference, e.g. crnova<env>.azurecr.io/nova-circle:1.0.0')
+@description('Full container image reference, e.g. crnova<env><suffix>.azurecr.io/nova-circle:1.0.0')
 param containerImage string
+
+@description('Container Registry login server for managed-identity pull (e.g. crnovadev<suffix>.azurecr.io)')
+param registryLoginServer string
 
 @description('Application Insights connection string (passed in as a secret)')
 @secure()
@@ -57,6 +60,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           value: databaseUrl
         }
       ]
+      // Pull images from the provisioned ACR using the system-assigned managed identity.
+      // Requires the AcrPull role to be assigned to the Container App's principal ID.
+      registries: [
+        {
+          server: registryLoginServer
+          identity: 'system'
+        }
+      ]
     }
     template: {
       containers: [
@@ -64,8 +75,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'nova-circle-api'
           image: containerImage
           resources: {
-            cpu: '0.25'    // 0.25 vCPU (Consumption minimum)
-            memory: '0.5Gi' // 0.5 GiB
+            cpu: json('0.25') // 0.25 vCPU (Consumption minimum)
+            memory: '0.5Gi'  // 0.5 GiB
           }
           env: [
             {

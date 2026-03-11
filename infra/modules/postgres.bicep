@@ -56,17 +56,6 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-12-0
   }
 }
 
-// Allow Azure services (including Container Apps) to connect.
-// For a production hardened setup, restrict to the Container App outbound IP range.
-resource firewallAllowAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
-  name: 'AllowAzureServices'
-  parent: postgresServer
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
 // ── Outputs ───────────────────────────────────────────────────────────────
 @description('PostgreSQL server FQDN')
 output fqdn string = postgresServer.properties.fullyQualifiedDomainName
