@@ -165,26 +165,27 @@ describe('Event capture infrastructure integration', () => {
   // ---------------------------------------------------------------------------
 
   it.skipIf(skipReason !== undefined)(
-    'voice input with empty STT transcript produces a draft with the same issue codes as equivalent text input',
+    'voice input with incomplete STT transcript produces the same draft issue codes as the same text via text input',
     async () => {
+      const transcript = 'Team lunch with no date specified';
       const extractor = new FakeEventFieldExtractor({});
       const memberRepo = new KnexGroupMemberRepository(db);
       const eventCreator = new KnexEventCreationService(db);
       const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
 
-      const sttAdapter = new FakeSpeechToTextAdapter({ transcript: '', confidence: 0.0 });
+      const sttAdapter = new FakeSpeechToTextAdapter({ transcript, confidence: 0.9 });
       const voiceUseCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
 
-      // Both use cases share the same pipeline and the same FakeEventFieldExtractor that
-      // always returns empty fields regardless of input text, so the comparison is deterministic.
       const textUseCase = new CaptureTextUseCase(pipeline);
 
       const voiceResult = await voiceUseCase.execute(creator, {
-        audioBlobUri: 'blob://audio/empty.wav',
+        audioBlobUri: 'blob://audio/incomplete.wav',
         groupId,
       });
+      // Text input uses the exact transcript the STT adapter would return, so both paths
+      // normalize to the same text before entering the shared pipeline.
       const textResult = await textUseCase.execute(creator, {
-        text: 'Team lunch', // FakeEventFieldExtractor returns no fields for any input
+        text: transcript,
         groupId,
       });
 
@@ -201,8 +202,9 @@ describe('Event capture infrastructure integration', () => {
   );
 
   it.skipIf(skipReason !== undefined)(
-    'voice input with a complete STT transcript creates an event, matching text input behaviour',
+    'voice input with a complete STT transcript creates an event with the same outcome as the same text via text input',
     async () => {
+      const transcript = 'Voice standup on September first at nine';
       const extractor = new FakeEventFieldExtractor({
         title: { value: 'Voice Standup', confidence: 0.95 },
         startDateTime: { value: '2026-09-01T09:00:00Z', confidence: 0.95 },
@@ -211,20 +213,28 @@ describe('Event capture infrastructure integration', () => {
       const eventCreator = new KnexEventCreationService(db);
       const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
 
-      const sttAdapter = new FakeSpeechToTextAdapter({
-        transcript: 'Voice standup on September first at nine',
-        confidence: 0.92,
-      });
+      const sttAdapter = new FakeSpeechToTextAdapter({ transcript, confidence: 0.92 });
       const voiceUseCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
+      const textUseCase = new CaptureTextUseCase(pipeline);
 
       const voiceResult = await voiceUseCase.execute(creator, {
         audioBlobUri: 'blob://audio/standup.wav',
         groupId,
       });
+      // Text input uses the exact transcript the STT adapter would return, so both paths
+      // normalize to the same text before entering the shared pipeline.
+      const textResult = await textUseCase.execute(creator, {
+        text: transcript,
+        groupId,
+      });
 
+      // Both inputs create an event because the extractor returns all required fields.
       expect(voiceResult.type).toBe('event');
-      if (voiceResult.type === 'event') {
+      expect(textResult.type).toBe('event');
+
+      if (voiceResult.type === 'event' && textResult.type === 'event') {
         expect(voiceResult.eventId).toBeTruthy();
+        expect(textResult.eventId).toBeTruthy();
       }
     },
   );
