@@ -91,44 +91,53 @@ describe('Capture API', () => {
       expect(res.status).toBe(400);
     });
 
-    it.skipIf(skipReason !== undefined)('returns 202 and draft when input lacks required fields', async () => {
-      // The fake extractor returns nothing (no fields extracted).
-      const res = await request(app)
-        .post('/api/v1/capture/text')
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ text: 'Something vague', groupId });
+    it.skipIf(skipReason !== undefined)(
+      'returns 202 and draft when input lacks required fields',
+      async () => {
+        // The fake extractor returns nothing (no fields extracted).
+        const res = await request(app)
+          .post('/api/v1/capture/text')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ text: 'Something vague', groupId });
 
-      // The fake extractor returns no fields → draft with missing_title and missing_start_date.
-      expect(res.status).toBe(202);
-      const body = res.body as CaptureResponseBody;
-      expect(body.type).toBe('draft');
-      expect(body.draft).toBeDefined();
-      expect(body.draft!.issues.some((i) => i.code === 'missing_title')).toBe(true);
-    });
+        // The fake extractor returns no fields → draft with missing_title and missing_start_date.
+        expect(res.status).toBe(202);
+        const body = res.body as CaptureResponseBody;
+        expect(body.type).toBe('draft');
+        expect(body.draft).toBeDefined();
+        expect(body.draft!.issues.some((i) => i.code === 'missing_title')).toBe(true);
+      },
+    );
 
-    it.skipIf(skipReason !== undefined)('returns 202 with unauthorized_group_access for outsider', async () => {
-      const res = await request(app)
-        .post('/api/v1/capture/text')
-        .set(testAuthHeaders(outsider.userId, outsider.displayName))
-        .send({ text: 'Team lunch tomorrow at noon', groupId });
+    it.skipIf(skipReason !== undefined)(
+      'returns 202 with unauthorized_group_access for outsider',
+      async () => {
+        const res = await request(app)
+          .post('/api/v1/capture/text')
+          .set(testAuthHeaders(outsider.userId, outsider.displayName))
+          .send({ text: 'Team lunch tomorrow at noon', groupId });
 
-      expect(res.status).toBe(202);
-      const body = res.body as CaptureResponseBody;
-      expect(body.type).toBe('draft');
-      expect(body.draft!.issues.some((i) => i.code === 'unauthorized_group_access')).toBe(true);
-    });
+        expect(res.status).toBe(202);
+        const body = res.body as CaptureResponseBody;
+        expect(body.type).toBe('draft');
+        expect(body.draft!.issues.some((i) => i.code === 'unauthorized_group_access')).toBe(true);
+      },
+    );
 
-    it.skipIf(skipReason !== undefined)('returns 202 with missing_group when no groupId provided', async () => {
-      const res = await request(app)
-        .post('/api/v1/capture/text')
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ text: 'Team lunch tomorrow at noon' });
+    it.skipIf(skipReason !== undefined)(
+      'returns 202 with missing_group when no groupId provided',
+      async () => {
+        const res = await request(app)
+          .post('/api/v1/capture/text')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ text: 'Team lunch tomorrow at noon' });
 
-      expect(res.status).toBe(202);
-      const body = res.body as CaptureResponseBody;
-      expect(body.type).toBe('draft');
-      expect(body.draft!.issues.some((i) => i.code === 'missing_group')).toBe(true);
-    });
+        expect(res.status).toBe(202);
+        const body = res.body as CaptureResponseBody;
+        expect(body.type).toBe('draft');
+        expect(body.draft!.issues.some((i) => i.code === 'missing_group')).toBe(true);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -151,18 +160,21 @@ describe('Capture API', () => {
       expect(res.status).toBe(400);
     });
 
-    it.skipIf(skipReason !== undefined)('returns 202 and draft for voice input (fake STT returns empty transcript)', async () => {
-      const res = await request(app)
-        .post('/api/v1/capture/voice')
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ audioBlobUri: 'blob://audio/test.wav', groupId });
+    it.skipIf(skipReason !== undefined)(
+      'returns 202 and draft for voice input (fake STT returns empty transcript)',
+      async () => {
+        const res = await request(app)
+          .post('/api/v1/capture/voice')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ audioBlobUri: 'blob://audio/test.wav', groupId });
 
-      // Fake STT returns empty transcript → extractor returns nothing → draft.
-      expect(res.status).toBe(202);
-      const body = res.body as CaptureResponseBody;
-      expect(body.type).toBe('draft');
-      expect(body.draft!.issues.some((i) => i.code === 'missing_title')).toBe(true);
-    });
+        // Fake STT returns empty transcript → extractor returns nothing → draft.
+        expect(res.status).toBe(202);
+        const body = res.body as CaptureResponseBody;
+        expect(body.type).toBe('draft');
+        expect(body.draft!.issues.some((i) => i.code === 'missing_title')).toBe(true);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -185,17 +197,20 @@ describe('Capture API', () => {
       expect(res.status).toBe(400);
     });
 
-    it.skipIf(skipReason !== undefined)('returns 202 and draft for image input (fake extractor returns nothing)', async () => {
-      const res = await request(app)
-        .post('/api/v1/capture/image')
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ imageBlobUri: 'blob://images/poster.jpg', groupId });
+    it.skipIf(skipReason !== undefined)(
+      'returns 202 and draft for image input (fake extractor returns nothing)',
+      async () => {
+        const res = await request(app)
+          .post('/api/v1/capture/image')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ imageBlobUri: 'blob://images/poster.jpg', groupId });
 
-      // Fake image extractor returns nothing → draft.
-      expect(res.status).toBe(202);
-      const body = res.body as CaptureResponseBody;
-      expect(body.type).toBe('draft');
-    });
+        // Fake image extractor returns nothing → draft.
+        expect(res.status).toBe(202);
+        const body = res.body as CaptureResponseBody;
+        expect(body.type).toBe('draft');
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -333,20 +348,23 @@ describe('Capture API', () => {
   // ---------------------------------------------------------------------------
 
   describe('POST /api/v1/capture/drafts/:draftId/promote', () => {
-    it.skipIf(skipReason !== undefined)('returns 409 when draft has unresolved issues', async () => {
-      const captureRes = await request(app)
-        .post('/api/v1/capture/text')
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ text: 'Incomplete input' });
+    it.skipIf(skipReason !== undefined)(
+      'returns 409 when draft has unresolved issues',
+      async () => {
+        const captureRes = await request(app)
+          .post('/api/v1/capture/text')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ text: 'Incomplete input' });
 
-      const draftId = (captureRes.body as { draft: { id: string } }).draft.id;
+        const draftId = (captureRes.body as { draft: { id: string } }).draft.id;
 
-      const res = await request(app)
-        .post(`/api/v1/capture/drafts/${draftId}/promote`)
-        .set(testAuthHeaders(owner.userId, owner.displayName));
+        const res = await request(app)
+          .post(`/api/v1/capture/drafts/${draftId}/promote`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
 
-      expect(res.status).toBe(409);
-    });
+        expect(res.status).toBe(409);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

@@ -23,7 +23,9 @@ export class CaptureVoiceUseCase {
 
   async execute(caller: IdentityContext, command: CaptureVoiceCommand): Promise<CaptureResult> {
     if (!command.audioBlobUri.trim()) {
-      throw Object.assign(new Error('audioBlobUri must not be empty'), { code: 'VALIDATION_ERROR' });
+      throw Object.assign(new Error('audioBlobUri must not be empty'), {
+        code: 'VALIDATION_ERROR',
+      });
     }
 
     // Step 2: Normalize – transcribe audio to text.

@@ -17,10 +17,7 @@ export class AbandonDraftUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
     if (draft.status !== 'pending_review') {
-      throw Object.assign(
-        new Error('Draft is not in pending_review status'),
-        { code: 'CONFLICT' },
-      );
+      throw Object.assign(new Error('Draft is not in pending_review status'), { code: 'CONFLICT' });
     }
 
     const abandoned = await this.draftRepo.abandon(draftId);

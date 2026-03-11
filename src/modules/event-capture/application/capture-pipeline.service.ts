@@ -108,54 +108,104 @@ export class CapturePipelineService {
     }
 
     // Step 4: Deterministic parse of dates.
-    const parsedStart =
-      candidates.startDateTime ? tryParseDateTime(candidates.startDateTime.value) : null;
-    const parsedEnd =
-      candidates.endDateTime ? tryParseDateTime(candidates.endDateTime.value) : null;
+    const parsedStart = candidates.startDateTime
+      ? tryParseDateTime(candidates.startDateTime.value)
+      : null;
+    const parsedEnd = candidates.endDateTime
+      ? tryParseDateTime(candidates.endDateTime.value)
+      : null;
 
     // Step 5: Validate.
     const issues: DraftIssue[] = [];
 
     // Title validation.
     if (!candidates.title) {
-      issues.push({ code: 'missing_title', field: 'title', message: 'No title could be extracted from the input' });
+      issues.push({
+        code: 'missing_title',
+        field: 'title',
+        message: 'No title could be extracted from the input',
+      });
     } else if (candidates.title.confidence < CONFIDENCE_THRESHOLD) {
-      issues.push({ code: 'low_confidence_extraction', field: 'title', message: 'Title extraction confidence is too low to create an event' });
+      issues.push({
+        code: 'low_confidence_extraction',
+        field: 'title',
+        message: 'Title extraction confidence is too low to create an event',
+      });
     } else if (!candidates.title.value.trim()) {
-      issues.push({ code: 'missing_title', field: 'title', message: 'No title could be extracted from the input' });
+      issues.push({
+        code: 'missing_title',
+        field: 'title',
+        message: 'No title could be extracted from the input',
+      });
     } else if (candidates.title.value.trim().length > TITLE_MAX_LENGTH) {
-      issues.push({ code: 'title_too_long', field: 'title', message: `Event title must not exceed ${TITLE_MAX_LENGTH} characters` });
+      issues.push({
+        code: 'title_too_long',
+        field: 'title',
+        message: `Event title must not exceed ${TITLE_MAX_LENGTH} characters`,
+      });
     }
 
     // Start date/time validation.
     if (!candidates.startDateTime) {
-      issues.push({ code: 'missing_start_date', field: 'startAt', message: 'No start date or time could be determined from the input' });
+      issues.push({
+        code: 'missing_start_date',
+        field: 'startAt',
+        message: 'No start date or time could be determined from the input',
+      });
     } else if (parsedStart === null) {
-      issues.push({ code: 'ambiguous_date', field: 'startAt', message: 'Start date or time could not be parsed deterministically' });
+      issues.push({
+        code: 'ambiguous_date',
+        field: 'startAt',
+        message: 'Start date or time could not be parsed deterministically',
+      });
     } else if (candidates.startDateTime.confidence < CONFIDENCE_THRESHOLD) {
-      issues.push({ code: 'low_confidence_extraction', field: 'startAt', message: 'Start date/time extraction confidence is too low' });
+      issues.push({
+        code: 'low_confidence_extraction',
+        field: 'startAt',
+        message: 'Start date/time extraction confidence is too low',
+      });
     }
 
     // End time validation (only if start was parsed and end is present).
     if (candidates.endDateTime && parsedEnd === null) {
-      issues.push({ code: 'ambiguous_time', field: 'endAt', message: 'End date or time could not be parsed deterministically' });
+      issues.push({
+        code: 'ambiguous_time',
+        field: 'endAt',
+        message: 'End date or time could not be parsed deterministically',
+      });
     } else if (parsedStart !== null && parsedEnd !== null && parsedEnd <= parsedStart) {
-      issues.push({ code: 'invalid_time_range', field: 'endAt', message: 'End time must be after start time' });
+      issues.push({
+        code: 'invalid_time_range',
+        field: 'endAt',
+        message: 'End time must be after start time',
+      });
     }
 
     // Group validation.
     let resolvedGroupId = input.groupId;
 
     if (!resolvedGroupId) {
-      issues.push({ code: 'missing_group', field: 'groupId', message: 'No group could be identified from the input' });
+      issues.push({
+        code: 'missing_group',
+        field: 'groupId',
+        message: 'No group could be identified from the input',
+      });
     } else if (!isValidUuid(resolvedGroupId)) {
       // An invalid UUID would cause a PostgreSQL cast error; treat as unauthorized access.
-      issues.push({ code: 'unauthorized_group_access', field: 'groupId', message: 'Invalid group identifier' });
+      issues.push({
+        code: 'unauthorized_group_access',
+        field: 'groupId',
+        message: 'Invalid group identifier',
+      });
       resolvedGroupId = null;
     } else {
       const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
       if (!isMember) {
-        issues.push({ code: 'unauthorized_group_access', field: 'groupId', message: 'You are not a member of the specified group' });
+        issues.push({
+          code: 'unauthorized_group_access',
+          field: 'groupId',
+          message: 'You are not a member of the specified group',
+        });
         // Clear groupId to avoid persisting an inaccessible group reference.
         resolvedGroupId = null;
       }
@@ -176,7 +226,7 @@ export class CapturePipelineService {
         title: candidates.title!.value.trim(),
         description: candidates.description?.value ?? null,
         startAt: parsedStart,
-        endAt: (parsedEnd && hasValidTimeRange) ? parsedEnd : null,
+        endAt: parsedEnd && hasValidTimeRange ? parsedEnd : null,
         createdBy: caller.userId,
         inviteeIds,
       });
@@ -222,17 +272,29 @@ export class CapturePipelineService {
     if (!candidates.title || !candidates.title.trim()) {
       issues.push({ code: 'missing_title', field: 'title', message: 'Title is required' });
     } else if (candidates.title.trim().length > TITLE_MAX_LENGTH) {
-      issues.push({ code: 'title_too_long', field: 'title', message: `Event title must not exceed ${TITLE_MAX_LENGTH} characters` });
+      issues.push({
+        code: 'title_too_long',
+        field: 'title',
+        message: `Event title must not exceed ${TITLE_MAX_LENGTH} characters`,
+      });
     }
 
     // Start.
     if (!candidates.startAt) {
-      issues.push({ code: 'missing_start_date', field: 'startAt', message: 'Start date is required' });
+      issues.push({
+        code: 'missing_start_date',
+        field: 'startAt',
+        message: 'Start date is required',
+      });
     }
 
     // End.
     if (candidates.startAt && candidates.endAt && candidates.endAt <= candidates.startAt) {
-      issues.push({ code: 'invalid_time_range', field: 'endAt', message: 'End time must be after start time' });
+      issues.push({
+        code: 'invalid_time_range',
+        field: 'endAt',
+        message: 'End time must be after start time',
+      });
     }
 
     // Group.
@@ -240,12 +302,20 @@ export class CapturePipelineService {
     if (!resolvedGroupId) {
       issues.push({ code: 'missing_group', field: 'groupId', message: 'A group is required' });
     } else if (!isValidUuid(resolvedGroupId)) {
-      issues.push({ code: 'unauthorized_group_access', field: 'groupId', message: 'Invalid group identifier' });
+      issues.push({
+        code: 'unauthorized_group_access',
+        field: 'groupId',
+        message: 'Invalid group identifier',
+      });
       resolvedGroupId = null;
     } else {
       const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
       if (!isMember) {
-        issues.push({ code: 'unauthorized_group_access', field: 'groupId', message: 'You are not a member of the specified group' });
+        issues.push({
+          code: 'unauthorized_group_access',
+          field: 'groupId',
+          message: 'You are not a member of the specified group',
+        });
         resolvedGroupId = null;
       }
     }

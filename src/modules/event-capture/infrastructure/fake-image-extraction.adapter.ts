@@ -1,4 +1,7 @@
-import type { IImageExtractionAdapter, ExtractionCandidate } from '../application/image-extraction.port.js';
+import type {
+  IImageExtractionAdapter,
+  ExtractionCandidate,
+} from '../application/image-extraction.port.js';
 
 /**
  * Deterministic fake implementation of IImageExtractionAdapter for tests.

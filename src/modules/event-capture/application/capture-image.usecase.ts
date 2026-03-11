@@ -23,7 +23,9 @@ export class CaptureImageUseCase {
 
   async execute(caller: IdentityContext, command: CaptureImageCommand): Promise<CaptureResult> {
     if (!command.imageBlobUri.trim()) {
-      throw Object.assign(new Error('imageBlobUri must not be empty'), { code: 'VALIDATION_ERROR' });
+      throw Object.assign(new Error('imageBlobUri must not be empty'), {
+        code: 'VALIDATION_ERROR',
+      });
     }
 
     // Step 2: Normalize – extract text and structured fields from image.

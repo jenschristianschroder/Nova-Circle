@@ -66,19 +66,33 @@ function makeExtractor(fields: CandidateEventFields): IEventFieldExtractor {
 function makeDraftRepo(overrides?: Partial<EventDraftRepositoryPort>): EventDraftRepositoryPort {
   return {
     create: vi.fn().mockImplementation((data: Parameters<EventDraftRepositoryPort['create']>[0]) =>
-      Promise.resolve({ ...makeDraft(), ...data, id: 'draft-1', status: 'pending_review', createdAt: new Date(), updatedAt: new Date() }),
+      Promise.resolve({
+        ...makeDraft(),
+        ...data,
+        id: 'draft-1',
+        status: 'pending_review',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
     ),
     findById: vi.fn().mockResolvedValue(null),
     listByUser: vi.fn().mockResolvedValue([]),
-    updateCandidates: vi.fn().mockImplementation((_id: string, data: Parameters<EventDraftRepositoryPort['updateCandidates']>[1]) =>
-      Promise.resolve({ ...makeDraft(), ...data }),
-    ),
-    promote: vi.fn().mockImplementation((id: string) =>
-      Promise.resolve({ ...makeDraft(), id, status: 'promoted' }),
-    ),
-    abandon: vi.fn().mockImplementation((id: string) =>
-      Promise.resolve({ ...makeDraft(), id, status: 'abandoned' }),
-    ),
+    updateCandidates: vi
+      .fn()
+      .mockImplementation(
+        (_id: string, data: Parameters<EventDraftRepositoryPort['updateCandidates']>[1]) =>
+          Promise.resolve({ ...makeDraft(), ...data }),
+      ),
+    promote: vi
+      .fn()
+      .mockImplementation((id: string) =>
+        Promise.resolve({ ...makeDraft(), id, status: 'promoted' }),
+      ),
+    abandon: vi
+      .fn()
+      .mockImplementation((id: string) =>
+        Promise.resolve({ ...makeDraft(), id, status: 'abandoned' }),
+      ),
     ...overrides,
   };
 }
@@ -93,7 +107,15 @@ function makeEventCreator(overrides?: Partial<EventCreationPort>): EventCreation
 function makeMemberRepo(isMemberResult = true, members: string[] = []): GroupMemberRepositoryPort {
   return {
     findByGroupAndUser: vi.fn().mockResolvedValue(null),
-    listByGroup: vi.fn().mockResolvedValue(members.map((userId) => ({ id: userId, groupId: GROUP_ID, userId, role: 'member', joinedAt: new Date() }))),
+    listByGroup: vi.fn().mockResolvedValue(
+      members.map((userId) => ({
+        id: userId,
+        groupId: GROUP_ID,
+        userId,
+        role: 'member',
+        joinedAt: new Date(),
+      })),
+    ),
     add: vi.fn().mockResolvedValue(null),
     remove: vi.fn().mockResolvedValue(undefined),
     isMember: vi.fn().mockResolvedValue(isMemberResult),
@@ -159,10 +181,17 @@ describe('CaptureTextUseCase', () => {
   it('creates an event when all required fields are extracted with high confidence', async () => {
     const caller = FakeIdentity.random();
     const createFn = vi.fn().mockResolvedValue(makeEvent());
-    const pipeline = makePipeline(GOOD_FIELDS, makeDraftRepo(), makeEventCreator({ createEventWithInvitations: createFn }));
+    const pipeline = makePipeline(
+      GOOD_FIELDS,
+      makeDraftRepo(),
+      makeEventCreator({ createEventWithInvitations: createFn }),
+    );
     const useCase = new CaptureTextUseCase(pipeline);
 
-    const result = await useCase.execute(caller, { text: 'Team lunch tomorrow at noon', groupId: GROUP_ID });
+    const result = await useCase.execute(caller, {
+      text: 'Team lunch tomorrow at noon',
+      groupId: GROUP_ID,
+    });
 
     expect(result.type).toBe('event');
     expect(createFn).toHaveBeenCalledOnce();
@@ -214,7 +243,10 @@ describe('CaptureTextUseCase', () => {
     );
     const useCase = new CaptureTextUseCase(pipeline);
 
-    const result = await useCase.execute(caller, { text: 'Team lunch 2pm to noon', groupId: GROUP_ID });
+    const result = await useCase.execute(caller, {
+      text: 'Team lunch 2pm to noon',
+      groupId: GROUP_ID,
+    });
 
     expect(result.type).toBe('draft');
     if (result.type === 'draft') {
@@ -242,13 +274,13 @@ describe('CaptureTextUseCase', () => {
 
   it('creates a draft with missing_group when no groupId provided and none extracted', async () => {
     const caller = FakeIdentity.random();
-    const pipeline = makePipeline(
-      GOOD_FIELDS,
-      makeDraftRepo(),
-    );
+    const pipeline = makePipeline(GOOD_FIELDS, makeDraftRepo());
     const useCase = new CaptureTextUseCase(pipeline);
 
-    const result = await useCase.execute(caller, { text: 'Team lunch tomorrow at noon', groupId: null });
+    const result = await useCase.execute(caller, {
+      text: 'Team lunch tomorrow at noon',
+      groupId: null,
+    });
 
     expect(result.type).toBe('draft');
     if (result.type === 'draft') {
@@ -280,9 +312,11 @@ describe('CaptureTextUseCase', () => {
     const pipeline = makePipeline(GOOD_FIELDS);
     const useCase = new CaptureTextUseCase(pipeline);
 
-    await expect(useCase.execute(caller, { text: '   ', groupId: GROUP_ID })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-    });
+    await expect(useCase.execute(caller, { text: '   ', groupId: GROUP_ID })).rejects.toMatchObject(
+      {
+        code: 'VALIDATION_ERROR',
+      },
+    );
   });
 });
 
@@ -294,14 +328,23 @@ describe('CaptureVoiceUseCase', () => {
   it('uses the same downstream pipeline after STT transcription', async () => {
     const caller = FakeIdentity.random();
     const createFn = vi.fn().mockResolvedValue(makeEvent());
-    const pipeline = makePipeline(GOOD_FIELDS, makeDraftRepo(), makeEventCreator({ createEventWithInvitations: createFn }));
+    const pipeline = makePipeline(
+      GOOD_FIELDS,
+      makeDraftRepo(),
+      makeEventCreator({ createEventWithInvitations: createFn }),
+    );
 
     const sttAdapter: ISpeechToTextAdapter = {
-      transcribe: vi.fn().mockResolvedValue({ transcript: 'Team lunch tomorrow at noon', confidence: 0.95 }),
+      transcribe: vi
+        .fn()
+        .mockResolvedValue({ transcript: 'Team lunch tomorrow at noon', confidence: 0.95 }),
     };
 
     const useCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
-    const result = await useCase.execute(caller, { audioBlobUri: 'blob://audio/123', groupId: GROUP_ID });
+    const result = await useCase.execute(caller, {
+      audioBlobUri: 'blob://audio/123',
+      groupId: GROUP_ID,
+    });
 
     expect(sttAdapter.transcribe).toHaveBeenCalledWith('blob://audio/123');
     expect(result.type).toBe('event');
@@ -323,7 +366,10 @@ describe('CaptureVoiceUseCase', () => {
     };
 
     const useCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
-    const result = await useCase.execute(caller, { audioBlobUri: 'blob://audio/456', groupId: GROUP_ID });
+    const result = await useCase.execute(caller, {
+      audioBlobUri: 'blob://audio/456',
+      groupId: GROUP_ID,
+    });
 
     expect(result.type).toBe('draft');
     if (result.type === 'draft') {
@@ -342,7 +388,7 @@ describe('CaptureImageUseCase', () => {
     const caller = FakeIdentity.random();
     const createFn = vi.fn().mockResolvedValue(makeEvent());
     const pipeline = makePipeline(
-      {},  // extractor returns nothing extra since pre-extracted fields are sufficient
+      {}, // extractor returns nothing extra since pre-extracted fields are sufficient
       makeDraftRepo(),
       makeEventCreator({ createEventWithInvitations: createFn }),
     );
@@ -355,7 +401,10 @@ describe('CaptureImageUseCase', () => {
     };
 
     const useCase = new CaptureImageUseCase(imageAdapter, pipeline);
-    const result = await useCase.execute(caller, { imageBlobUri: 'blob://images/poster.jpg', groupId: GROUP_ID });
+    const result = await useCase.execute(caller, {
+      imageBlobUri: 'blob://images/poster.jpg',
+      groupId: GROUP_ID,
+    });
 
     expect(imageAdapter.extractFields).toHaveBeenCalledWith('blob://images/poster.jpg');
     expect(result.type).toBe('event');
@@ -375,7 +424,12 @@ describe('UpdateDraftUseCase', () => {
       issues: [{ code: 'missing_title', message: 'No title' }],
     });
     const draftRepo = makeDraftRepo({ findById: vi.fn().mockResolvedValue(draft) });
-    const pipeline = new CapturePipelineService(makeExtractor({}), draftRepo, makeEventCreator(), makeMemberRepo(true));
+    const pipeline = new CapturePipelineService(
+      makeExtractor({}),
+      draftRepo,
+      makeEventCreator(),
+      makeMemberRepo(true),
+    );
     const useCase = new UpdateDraftUseCase(draftRepo, pipeline);
 
     const result = await useCase.execute(caller, {
@@ -392,7 +446,12 @@ describe('UpdateDraftUseCase', () => {
     const caller = FakeIdentity.random();
     const otherDraft = makeDraft({ createdByUserId: 'other-user' });
     const draftRepo = makeDraftRepo({ findById: vi.fn().mockResolvedValue(otherDraft) });
-    const pipeline = new CapturePipelineService(makeExtractor({}), draftRepo, makeEventCreator(), makeMemberRepo(true));
+    const pipeline = new CapturePipelineService(
+      makeExtractor({}),
+      draftRepo,
+      makeEventCreator(),
+      makeMemberRepo(true),
+    );
     const useCase = new UpdateDraftUseCase(draftRepo, pipeline);
 
     await expect(useCase.execute(caller, { draftId: 'draft-1' })).rejects.toMatchObject({
@@ -404,10 +463,17 @@ describe('UpdateDraftUseCase', () => {
     const caller = FakeIdentity.random();
     const promotedDraft = makeDraft({ createdByUserId: caller.userId, status: 'promoted' });
     const draftRepo = makeDraftRepo({ findById: vi.fn().mockResolvedValue(promotedDraft) });
-    const pipeline = new CapturePipelineService(makeExtractor({}), draftRepo, makeEventCreator(), makeMemberRepo(true));
+    const pipeline = new CapturePipelineService(
+      makeExtractor({}),
+      draftRepo,
+      makeEventCreator(),
+      makeMemberRepo(true),
+    );
     const useCase = new UpdateDraftUseCase(draftRepo, pipeline);
 
-    await expect(useCase.execute(caller, { draftId: 'draft-1', title: 'Anything' })).rejects.toMatchObject({
+    await expect(
+      useCase.execute(caller, { draftId: 'draft-1', title: 'Anything' }),
+    ).rejects.toMatchObject({
       code: 'CONFLICT',
     });
   });
@@ -423,7 +489,10 @@ describe('PromoteDraftUseCase', () => {
     const draft = makeDraft({ createdByUserId: caller.userId, issues: [] });
     const createFn = vi.fn().mockResolvedValue(makeEvent());
     const promoteFn = vi.fn().mockResolvedValue({ ...draft, status: 'promoted' });
-    const draftRepo = makeDraftRepo({ findById: vi.fn().mockResolvedValue(draft), promote: promoteFn });
+    const draftRepo = makeDraftRepo({
+      findById: vi.fn().mockResolvedValue(draft),
+      promote: promoteFn,
+    });
     const eventCreator = makeEventCreator({ createEventWithInvitations: createFn });
 
     const useCase = new PromoteDraftUseCase(draftRepo, eventCreator, makeMemberRepo(true));
@@ -474,7 +543,10 @@ describe('AbandonDraftUseCase', () => {
     const caller = FakeIdentity.random();
     const draft = makeDraft({ createdByUserId: caller.userId });
     const abandonFn = vi.fn().mockResolvedValue({ ...draft, status: 'abandoned' });
-    const draftRepo = makeDraftRepo({ findById: vi.fn().mockResolvedValue(draft), abandon: abandonFn });
+    const draftRepo = makeDraftRepo({
+      findById: vi.fn().mockResolvedValue(draft),
+      abandon: abandonFn,
+    });
     const useCase = new AbandonDraftUseCase(draftRepo);
 
     const result = await useCase.execute(caller, draft.id);

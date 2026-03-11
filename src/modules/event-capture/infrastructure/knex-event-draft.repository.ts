@@ -75,7 +75,8 @@ export class KnexEventDraftRepository implements EventDraftRepositoryPort {
       .returning('*');
 
     const row = rows[0];
-    if (!row) throw new Error('Failed to create event draft: database returned no row after insert');
+    if (!row)
+      throw new Error('Failed to create event draft: database returned no row after insert');
     return toEventDraft(row);
   }
 
@@ -99,8 +100,10 @@ export class KnexEventDraftRepository implements EventDraftRepositoryPort {
 
     if (data.groupId !== undefined) updatePayload['group_id'] = data.groupId;
     if (data.candidateTitle !== undefined) updatePayload['candidate_title'] = data.candidateTitle;
-    if (data.candidateDescription !== undefined) updatePayload['candidate_description'] = data.candidateDescription;
-    if (data.candidateStartAt !== undefined) updatePayload['candidate_start_at'] = data.candidateStartAt;
+    if (data.candidateDescription !== undefined)
+      updatePayload['candidate_description'] = data.candidateDescription;
+    if (data.candidateStartAt !== undefined)
+      updatePayload['candidate_start_at'] = data.candidateStartAt;
     if (data.candidateEndAt !== undefined) updatePayload['candidate_end_at'] = data.candidateEndAt;
 
     const rows = await this.db<EventDraftRow>('event_drafts')

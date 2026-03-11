@@ -30,16 +30,12 @@ export class PromoteDraftUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
     if (draft.status !== 'pending_review') {
-      throw Object.assign(
-        new Error('Draft is not in pending_review status'),
-        { code: 'CONFLICT' },
-      );
+      throw Object.assign(new Error('Draft is not in pending_review status'), { code: 'CONFLICT' });
     }
     if (draft.issues.length > 0) {
-      throw Object.assign(
-        new Error('Draft still has unresolved issues and cannot be promoted'),
-        { code: 'CONFLICT' },
-      );
+      throw Object.assign(new Error('Draft still has unresolved issues and cannot be promoted'), {
+        code: 'CONFLICT',
+      });
     }
     if (!draft.candidateTitle || !draft.candidateStartAt || !draft.groupId) {
       throw Object.assign(
@@ -50,10 +46,9 @@ export class PromoteDraftUseCase {
     // Defensively validate the stored groupId is a valid UUID before calling the
     // member repository – a corrupt row must not cause an unhandled PostgreSQL cast error.
     if (!isValidUuid(draft.groupId)) {
-      throw Object.assign(
-        new Error('Draft has an invalid groupId and cannot be promoted'),
-        { code: 'CONFLICT' },
-      );
+      throw Object.assign(new Error('Draft has an invalid groupId and cannot be promoted'), {
+        code: 'CONFLICT',
+      });
     }
 
     // Verify the caller is still a member of the group at promotion time.

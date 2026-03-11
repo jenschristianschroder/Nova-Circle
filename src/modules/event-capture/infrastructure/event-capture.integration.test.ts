@@ -104,33 +104,30 @@ describe('Event capture infrastructure integration', () => {
     },
   );
 
-  it.skipIf(skipReason !== undefined)(
-    'abandoning a draft marks it as abandoned',
-    async () => {
-      const draft = await draftRepo.create({
-        createdByUserId: CREATOR_ID,
-        groupId,
-        rawInputType: 'text',
-        rawTextContent: 'some text',
-        audioBlobReference: null,
-        imageBlobReference: null,
-        candidateTitle: null,
-        candidateDescription: null,
-        candidateStartAt: null,
-        candidateEndAt: null,
-        issues: [{ code: 'missing_title', message: 'No title' }],
-      });
+  it.skipIf(skipReason !== undefined)('abandoning a draft marks it as abandoned', async () => {
+    const draft = await draftRepo.create({
+      createdByUserId: CREATOR_ID,
+      groupId,
+      rawInputType: 'text',
+      rawTextContent: 'some text',
+      audioBlobReference: null,
+      imageBlobReference: null,
+      candidateTitle: null,
+      candidateDescription: null,
+      candidateStartAt: null,
+      candidateEndAt: null,
+      issues: [{ code: 'missing_title', message: 'No title' }],
+    });
 
-      const useCase = new AbandonDraftUseCase(draftRepo);
-      const abandoned = await useCase.execute(creator, draft.id);
+    const useCase = new AbandonDraftUseCase(draftRepo);
+    const abandoned = await useCase.execute(creator, draft.id);
 
-      expect(abandoned.status).toBe('abandoned');
+    expect(abandoned.status).toBe('abandoned');
 
-      // Abandoned draft should not appear in listByUser (only pending_review are listed).
-      const userDrafts = await draftRepo.listByUser(CREATOR_ID);
-      expect(userDrafts.some((d) => d.id === draft.id)).toBe(false);
-    },
-  );
+    // Abandoned draft should not appear in listByUser (only pending_review are listed).
+    const userDrafts = await draftRepo.listByUser(CREATOR_ID);
+    expect(userDrafts.some((d) => d.id === draft.id)).toBe(false);
+  });
 
   it.skipIf(skipReason !== undefined)(
     'promoting a resolved draft creates an event and marks the draft as promoted',

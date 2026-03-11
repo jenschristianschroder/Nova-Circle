@@ -40,12 +40,10 @@ export class UpdateDraftUseCase {
     }
 
     // Merge supplied values with existing candidate values.
-    const mergedTitle =
-      command.title !== undefined ? command.title : draft.candidateTitle;
+    const mergedTitle = command.title !== undefined ? command.title : draft.candidateTitle;
     const mergedDescription =
       command.description !== undefined ? command.description : draft.candidateDescription;
-    const mergedGroupId =
-      command.groupId !== undefined ? command.groupId : draft.groupId;
+    const mergedGroupId = command.groupId !== undefined ? command.groupId : draft.groupId;
 
     // Parse user-supplied datetime strings. Throw VALIDATION_ERROR for non-null strings
     // that are not valid ISO 8601 datetimes-with-time so callers receive an actionable 400
@@ -58,7 +56,9 @@ export class UpdateDraftUseCase {
         const parsed = tryParseDateTime(command.startAt);
         if (parsed === null) {
           throw Object.assign(
-            new Error('startAt must be a valid ISO 8601 datetime string with time (e.g. "2026-06-01T12:00:00Z")'),
+            new Error(
+              'startAt must be a valid ISO 8601 datetime string with time (e.g. "2026-06-01T12:00:00Z")',
+            ),
             { code: 'VALIDATION_ERROR' },
           );
         }
@@ -76,7 +76,9 @@ export class UpdateDraftUseCase {
         const parsed = tryParseDateTime(command.endAt);
         if (parsed === null) {
           throw Object.assign(
-            new Error('endAt must be a valid ISO 8601 datetime string with time (e.g. "2026-06-01T13:00:00Z")'),
+            new Error(
+              'endAt must be a valid ISO 8601 datetime string with time (e.g. "2026-06-01T13:00:00Z")',
+            ),
             { code: 'VALIDATION_ERROR' },
           );
         }

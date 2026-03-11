@@ -117,7 +117,7 @@ export function createApp(deps?: AppDependencies): express.Application {
       if (missingAdapters.length > 0) {
         throw new Error(
           `Missing required AI adapters in production: ${missingAdapters.join(', ')}. ` +
-          'Inject real implementations via AppDependencies when creating the app.',
+            'Inject real implementations via AppDependencies when creating the app.',
         );
       }
     }

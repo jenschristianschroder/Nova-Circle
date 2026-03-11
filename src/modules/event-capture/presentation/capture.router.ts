@@ -43,10 +43,7 @@ function resolveOptionalGroupId(groupId: unknown): string | null {
     return null;
   }
   if (!isValidUuid(trimmed)) {
-    throw Object.assign(
-      new Error('groupId must be a valid UUID'),
-      { code: 'VALIDATION_ERROR' },
-    );
+    throw Object.assign(new Error('groupId must be a valid UUID'), { code: 'VALIDATION_ERROR' });
   }
   return trimmed;
 }
@@ -119,7 +116,10 @@ export function createCaptureRouter(
 
     try {
       const resolvedGroupId = resolveOptionalGroupId(groupId);
-      const result = await captureVoice.execute(identity, { audioBlobUri, groupId: resolvedGroupId });
+      const result = await captureVoice.execute(identity, {
+        audioBlobUri,
+        groupId: resolvedGroupId,
+      });
       if (result.type === 'event') {
         res.status(201).json({ type: 'event', eventId: result.eventId });
       } else {
@@ -150,7 +150,10 @@ export function createCaptureRouter(
 
     try {
       const resolvedGroupId = resolveOptionalGroupId(groupId);
-      const result = await captureImage.execute(identity, { imageBlobUri, groupId: resolvedGroupId });
+      const result = await captureImage.execute(identity, {
+        imageBlobUri,
+        groupId: resolvedGroupId,
+      });
       if (result.type === 'event') {
         res.status(201).json({ type: 'event', eventId: result.eventId });
       } else {
@@ -234,7 +237,9 @@ export function createCaptureRouter(
         draftId,
         ...(groupId !== undefined ? { groupId: resolveOptionalGroupId(groupId) } : {}),
         ...(title !== undefined ? { title: typeof title === 'string' ? title : null } : {}),
-        ...(description !== undefined ? { description: typeof description === 'string' ? description : null } : {}),
+        ...(description !== undefined
+          ? { description: typeof description === 'string' ? description : null }
+          : {}),
         ...(startAt !== undefined ? { startAt: typeof startAt === 'string' ? startAt : null } : {}),
         ...(endAt !== undefined ? { endAt: typeof endAt === 'string' ? endAt : null } : {}),
       });

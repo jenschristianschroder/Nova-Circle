@@ -11,10 +11,7 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
     // groupId may be null if no group could be identified from the input.
     table.uuid('group_id').nullable().references('id').inTable('groups').onDelete('SET NULL');
-    table
-      .string('raw_input_type', 20)
-      .notNullable()
-      .checkIn(['text', 'voice', 'image']);
+    table.string('raw_input_type', 20).notNullable().checkIn(['text', 'voice', 'image']);
     table.text('raw_text_content').nullable();
     table.text('audio_blob_reference').nullable();
     table.text('image_blob_reference').nullable();

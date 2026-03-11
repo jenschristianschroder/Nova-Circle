@@ -1,4 +1,7 @@
-import type { IEventFieldExtractor, CandidateEventFields } from '../application/event-field-extractor.port.js';
+import type {
+  IEventFieldExtractor,
+  CandidateEventFields,
+} from '../application/event-field-extractor.port.js';
 
 /**
  * Deterministic fake implementation of IEventFieldExtractor for tests.
