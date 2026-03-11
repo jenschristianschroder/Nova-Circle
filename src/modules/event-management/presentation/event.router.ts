@@ -10,6 +10,7 @@ import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
 import { CancelEventUseCase } from '../application/cancel-event.usecase.js';
 import { EditEventUseCase } from '../application/edit-event.usecase.js';
+
 import { ListEventInviteesUseCase } from '../application/list-event-invitees.usecase.js';
 import { AddEventInviteeUseCase } from '../application/add-event-invitee.usecase.js';
 import { RemoveEventInviteeUseCase } from '../application/remove-event-invitee.usecase.js';
@@ -45,6 +46,7 @@ export function createEventRouter(
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
   const editEvent = new EditEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+
   const listInvitees = new ListEventInviteesUseCase(eventRepo, invitationRepo);
   const addInvitee = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
   const removeInvitee = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
@@ -282,6 +284,7 @@ export function createEventRouter(
         ...(startAt !== undefined ? { startAt: new Date(startAt) } : {}),
         ...(endAt !== undefined ? { endAt: endAt === null ? null : new Date(endAt) } : {}),
       });
+
       res.json(event);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
