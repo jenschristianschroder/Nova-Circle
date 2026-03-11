@@ -176,3 +176,6 @@ $RECYCLE.BIN/
 *.orig
 *.patch
 *.diff
+
+# Client build output
+client/dist/
