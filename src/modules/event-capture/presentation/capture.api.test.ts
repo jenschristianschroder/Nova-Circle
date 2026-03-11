@@ -214,6 +214,18 @@ describe('Capture API', () => {
       expect(res.status).toBe(400);
     });
 
+    it.skipIf(skipReason !== undefined)('returns 413 when image exceeds size limit', async () => {
+      // Create a buffer slightly larger than the 10 MB limit.
+      const oversized = Buffer.alloc(10 * 1024 * 1024 + 1);
+      const res = await request(app)
+        .post('/api/v1/capture/image')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .attach('image', oversized, { filename: 'huge.jpg', contentType: 'image/jpeg' })
+        .field('groupId', groupId);
+      expect(res.status).toBe(413);
+      expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
+    });
+
     it.skipIf(skipReason !== undefined)(
       'returns 202 and draft for image input (fake extractor returns nothing)',
       async () => {

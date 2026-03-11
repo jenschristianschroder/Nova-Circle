@@ -15,6 +15,14 @@ describe('FakeBlobStorageAdapter', () => {
     expect(uri).toContain('event-flyer.png');
   });
 
+  it('uses a deterministic counter so URIs are predictable within an adapter instance', async () => {
+    const adapter = new FakeBlobStorageAdapter();
+    const uri1 = await adapter.store(Buffer.from('a'), 'image/jpeg', 'photo.jpg');
+    const uri2 = await adapter.store(Buffer.from('b'), 'image/jpeg', 'photo.jpg');
+    expect(uri1).toBe('blob://fake-storage/1/photo.jpg');
+    expect(uri2).toBe('blob://fake-storage/2/photo.jpg');
+  });
+
   it('records stored blobs with correct metadata', async () => {
     const adapter = new FakeBlobStorageAdapter();
     const data = Buffer.from('hello-image');
@@ -24,7 +32,7 @@ describe('FakeBlobStorageAdapter', () => {
     expect(adapter.stored[0]!.mimeType).toBe('image/webp');
     expect(adapter.stored[0]!.filename).toBe('banner.webp');
     expect(adapter.stored[0]!.size).toBe(data.length);
-    expect(adapter.stored[0]!.uri).toContain('banner.webp');
+    expect(adapter.stored[0]!.uri).toBe('blob://fake-storage/1/banner.webp');
   });
 
   it('generates unique URIs for separate uploads of the same file', async () => {
@@ -32,5 +40,14 @@ describe('FakeBlobStorageAdapter', () => {
     const uri1 = await adapter.store(Buffer.from('a'), 'image/jpeg', 'dup.jpg');
     const uri2 = await adapter.store(Buffer.from('b'), 'image/jpeg', 'dup.jpg');
     expect(uri1).not.toBe(uri2);
+  });
+
+  it('reset() clears stored records and restarts counter', async () => {
+    const adapter = new FakeBlobStorageAdapter();
+    await adapter.store(Buffer.from('x'), 'image/jpeg', 'before.jpg');
+    adapter.reset();
+    expect(adapter.stored).toHaveLength(0);
+    const uri = await adapter.store(Buffer.from('y'), 'image/png', 'after.png');
+    expect(uri).toBe('blob://fake-storage/1/after.png');
   });
 });

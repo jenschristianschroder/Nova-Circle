@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
-import type { Request, Response } from 'express';
+import { basename } from 'path';
+import type { Request, Response, NextFunction } from 'express';
 import type { EventDraftRepositoryPort } from '../domain/event-draft.repository.port.js';
 import type { EventCreationPort } from '../../event-management/domain/event-creation.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
@@ -42,6 +43,20 @@ function isValidationError(err: unknown): boolean {
 
 function isConflictError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'CONFLICT';
+}
+
+/**
+ * Sanitizes a client-supplied filename by stripping path separators and any
+ * characters that are not alphanumeric, dots, hyphens, or underscores.
+ * Falls back to `'upload'` when the result would otherwise be empty.
+ */
+function sanitizeFilename(originalname: string): string {
+  const base = basename(originalname);
+  return base.replace(/[^a-zA-Z0-9.\-_]/g, '_') || 'upload';
+}
+
+function isMulterFileSizeError(err: unknown): boolean {
+  return err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE';
 }
 
 /**
@@ -166,50 +181,81 @@ export function createCaptureRouter(
   // POST /api/v1/capture/image
   // Accepts a multipart form upload with an `image` file field and an optional `groupId` field.
   // The image is securely stored via the blob storage adapter before extraction begins.
-  router.post('/image', upload.single('image'), async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
-
-    const file = req.file;
-    if (!file) {
-      res.status(400).json({ error: 'image file is required', code: 'VALIDATION_ERROR' });
-      return;
-    }
-
-    try {
-      const resolvedGroupId = resolveOptionalGroupId(
-        (req.body as Record<string, unknown>)['groupId'],
-      );
-
-      // Step 1: Store the image securely via the blob storage adapter.
-      const imageBlobUri = await blobStorage.store(
-        file.buffer,
-        file.mimetype,
-        file.originalname,
-      );
-
-      // Steps 2–6 are handled by the use case and the shared pipeline.
-      const result = await captureImage.execute(identity, {
-        imageBlobUri,
-        groupId: resolvedGroupId,
+  //
+  // Multer errors (LIMIT_FILE_SIZE, unsupported MIME type) are handled via the callback form of
+  // upload.single so they map to proper HTTP status codes (413 / 400) instead of falling through
+  // to the app-level 500 handler.
+  router.post(
+    '/image',
+    (req: Request, res: Response, next: NextFunction) => {
+      upload.single('image')(req, res, (err: unknown) => {
+        if (!err) {
+          next();
+          return;
+        }
+        if (isMulterFileSizeError(err)) {
+          res.status(413).json({
+            error: `Image file exceeds the ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)} MB size limit`,
+            code: 'VALIDATION_ERROR',
+          });
+          return;
+        }
+        if (err instanceof multer.MulterError || isValidationError(err)) {
+          res.status(400).json({
+            error: (err as Error).message || 'Invalid upload',
+            code: 'VALIDATION_ERROR',
+          });
+          return;
+        }
+        res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
       });
-
-      if (result.type === 'event') {
-        res.status(201).json({ type: 'event', eventId: result.eventId });
-      } else {
-        res.status(202).json({ type: 'draft', draft: result.draft });
-      }
-    } catch (err: unknown) {
-      if (isValidationError(err)) {
-        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+    },
+    async (req: Request, res: Response) => {
+      const identity = req.identity;
+      if (!identity) {
+        res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
         return;
       }
-      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
-    }
-  });
+
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ error: 'image file is required', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
+      try {
+        const resolvedGroupId = resolveOptionalGroupId(
+          (req.body as Record<string, unknown>)['groupId'],
+        );
+
+        // Step 1: Store the image securely via the blob storage adapter.
+        // Sanitize the filename to prevent path traversal or unsafe characters.
+        const imageBlobUri = await blobStorage.store(
+          file.buffer,
+          file.mimetype,
+          sanitizeFilename(file.originalname),
+        );
+
+        // Steps 2–6 are handled by the use case and the shared pipeline.
+        const result = await captureImage.execute(identity, {
+          imageBlobUri,
+          groupId: resolvedGroupId,
+        });
+
+        if (result.type === 'event') {
+          res.status(201).json({ type: 'event', eventId: result.eventId });
+        } else {
+          res.status(202).json({ type: 'draft', draft: result.draft });
+        }
+      } catch (err: unknown) {
+        if (isValidationError(err)) {
+          res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+          return;
+        }
+        res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+      }
+    },
+  );
 
   // GET /api/v1/capture/drafts
   router.get('/drafts', async (req: Request, res: Response) => {
