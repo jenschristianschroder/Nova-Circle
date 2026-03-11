@@ -6,6 +6,7 @@ import { AddMemberUseCase } from '../application/add-member.usecase.js';
 import { RemoveMemberUseCase } from '../application/remove-member.usecase.js';
 import { ListMembersUseCase } from '../application/list-members.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
+import { logger } from '../../../shared/logger/logger.js';
 
 function isForbiddenError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'FORBIDDEN';
@@ -94,7 +95,7 @@ export function createMembershipRouter(
           metadata: { role: resolvedRole },
         });
       } catch (auditErr) {
-        console.error('Audit log failed for member.added:', auditErr);
+        logger.error('Audit log failed for member.added', auditErr);
       }
       res.status(201).json(member);
     } catch (err: unknown) {
@@ -140,7 +141,7 @@ export function createMembershipRouter(
           groupId,
         });
       } catch (auditErr) {
-        console.error('Audit log failed for member.removed:', auditErr);
+        logger.error('Audit log failed for member.removed', auditErr);
       }
       res.status(204).send();
     } catch (err: unknown) {

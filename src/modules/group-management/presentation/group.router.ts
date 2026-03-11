@@ -8,6 +8,7 @@ import { CreateGroupUseCase } from '../application/create-group.usecase.js';
 import { GetGroupUseCase } from '../application/get-group.usecase.js';
 import { UpdateGroupUseCase } from '../application/update-group.usecase.js';
 import { DeleteGroupUseCase } from '../application/delete-group.usecase.js';
+import { logger } from '../../../shared/logger/logger.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 
 function isForbiddenError(err: unknown): boolean {
@@ -131,7 +132,7 @@ export function createGroupRouter(
           groupId,
         });
       } catch (auditErr) {
-        console.error('Audit log failed for group.updated:', auditErr);
+        logger.error('Audit log failed for group.updated', auditErr);
       }
       res.json(group);
     } catch (err: unknown) {
@@ -175,7 +176,7 @@ export function createGroupRouter(
           groupId,
         });
       } catch (auditErr) {
-        console.error('Audit log failed for group.deleted:', auditErr);
+        logger.error('Audit log failed for group.deleted', auditErr);
       }
       res.status(204).send();
     } catch (err: unknown) {
