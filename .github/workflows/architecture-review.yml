@@ -1,17 +1,13 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Daily Architecture & Design Principles Review
 #
-# Runs every morning at 03:00 UTC. Reads the codebase and the project's
-# copilot-instructions.md (solution strategy + design principles), asks an
-# LLM to identify violations, and creates one GitHub issue per finding.
+# Runs every morning at 03:00 UTC. Reviews the codebase module-by-module
+# against copilot-instructions.md design principles using batched LLM
+# calls that stay within GitHub Models token limits.
 #
 # Prerequisites:
-#   1. A GitHub fine-grained PAT or App token stored as REVIEW_TOKEN with
-#      "issues: write" and "contents: read" permissions.
-#   2. An Azure OpenAI deployment -OR- a GitHub Models / OpenAI API key
-#      stored as LLM_API_KEY.
-#   3. Set LLM_ENDPOINT and LLM_MODEL as repository variables or adjust
-#      the defaults below.
+#   1. A GitHub PAT with "models" permission stored as LLM_API_KEY.
+#   2. Optionally set LLM_ENDPOINT and LLM_MODEL as repository variables.
 # ──────────────────────────────────────────────────────────────────────────
 
 name: Daily Architecture Review
@@ -26,19 +22,10 @@ permissions:
   issues: write
 
 env:
-  # ── LLM configuration ──────────────────────────────────────────────────
-  # Option A: Azure OpenAI
-  #   LLM_ENDPOINT: https://<your-resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-08-01-preview
-  # Option B: GitHub Models (https://models.github.com)
-  #   LLM_ENDPOINT: https://models.inference.ai.azure.com/chat/completions
-  # Option C: OpenAI direct
-  #   LLM_ENDPOINT: https://api.openai.com/v1/chat/completions
   LLM_ENDPOINT: ${{ vars.LLM_ENDPOINT || 'https://models.inference.ai.azure.com/chat/completions' }}
   LLM_MODEL: ${{ vars.LLM_MODEL || 'gpt-4o' }}
   LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-
-  # ── Review configuration ────────────────────────────────────────────────
-  MAX_ISSUES: '10'          # Cap issues created per run to avoid noise
+  MAX_ISSUES: '10'
 
 jobs:
   review:
@@ -50,189 +37,228 @@ jobs:
         with:
           fetch-depth: 1
 
-      # ── 2. Collect codebase snapshot for review ────────────────────────
-      - name: Build codebase snapshot
-        id: snapshot
-        run: |
-          set -euo pipefail
-
-          # Collect the design principles document
-          PRINCIPLES=""
-          if [ -f ".github/copilot-instructions.md" ]; then
-            PRINCIPLES=$(cat .github/copilot-instructions.md)
-          fi
-
-          # Collect all TypeScript source files (skip node_modules, dist, test files)
-          # Truncate very large files to keep within token limits
-          MAX_FILE_CHARS=3000
-          SNAPSHOT=""
-          FILE_COUNT=0
-
-          while IFS= read -r -d '' file; do
-            FILE_COUNT=$((FILE_COUNT + 1))
-            CONTENT=$(head -c $MAX_FILE_CHARS "$file")
-            SNAPSHOT="${SNAPSHOT}
-
-          --- FILE: ${file} ---
-          ${CONTENT}"
-          done < <(find src/ -name '*.ts' -not -name '*.test.ts' -not -name '*.spec.ts' -not -path '*/node_modules/*' -not -path '*/dist/*' -print0 | sort -z)
-
-          echo "Collected ${FILE_COUNT} source files for review"
-
-          # Also collect migration files
-          if [ -d "db/migrations" ]; then
-            while IFS= read -r -d '' file; do
-              CONTENT=$(head -c $MAX_FILE_CHARS "$file")
-              SNAPSHOT="${SNAPSHOT}
-
-          --- FILE: ${file} ---
-          ${CONTENT}"
-            done < <(find db/migrations/ -name '*.ts' -print0 | sort -z)
-          fi
-
-          # Write to temp files (avoid shell escaping issues)
-          echo "$PRINCIPLES" > /tmp/principles.txt
-          echo "$SNAPSHOT" > /tmp/snapshot.txt
-
-      # ── 3. Call LLM to review against design principles ────────────────
-      - name: Run LLM architecture review
+      # ── 2. Collect codebase & run batched review ───────────────────────
+      - name: Run batched LLM architecture review
         id: llm_review
         run: |
           set -euo pipefail
 
-          PRINCIPLES=$(cat /tmp/principles.txt)
-          SNAPSHOT=$(cat /tmp/snapshot.txt)
-
-          # Build the prompt
-          cat > /tmp/prompt.json << 'PROMPT_EOF'
-          {
-            "model": "${{ env.LLM_MODEL }}",
-            "temperature": 0.2,
-            "max_tokens": 4000,
-            "messages": [
-              {
-                "role": "system",
-                "content": "You are a senior software architect reviewing a TypeScript codebase against its documented solution strategy and design principles.\n\nYour job:\n1. Read the DESIGN PRINCIPLES document carefully.\n2. Read the CODEBASE SNAPSHOT.\n3. Identify concrete, specific violations of the design principles.\n4. For each finding, provide:\n   - A short title (max 80 chars)\n   - The file path where the violation occurs\n   - A clear description of what violates the principle and why\n   - Which specific principle or rule from the document is violated\n   - A suggested fix\n\nRules:\n- Only report genuine, specific violations you can point to in the code.\n- Do NOT report missing features or unimplemented modules — only violations in existing code.\n- Do NOT report test files.\n- Do NOT fabricate findings. If the code is compliant, say so.\n- Be precise about file paths and line-level issues.\n- Maximum 10 findings, ordered by severity (most critical first).\n\nOutput format: Return a JSON array of findings. Each finding is an object with keys: title, file, description, principle_violated, suggested_fix, severity (critical|high|medium|low).\nIf no violations found, return an empty array: []\nReturn ONLY the JSON array, no markdown fences, no extra text."
-              },
-              {
-                "role": "user",
-                "content": "PLACEHOLDER_CONTENT"
-              }
-            ]
-          }
-          PROMPT_EOF
-
-          # Combine principles + snapshot into user message
-          USER_CONTENT="## DESIGN PRINCIPLES\n\n${PRINCIPLES}\n\n## CODEBASE SNAPSHOT\n\n${SNAPSHOT}"
-
-          # Use Python to safely build the JSON (handles escaping)
           python3 << 'PYEOF'
-          import json, os
+          import json, os, subprocess, sys, time, glob
 
-          with open('/tmp/principles.txt', 'r') as f:
-              principles = f.read()
-          with open('/tmp/snapshot.txt', 'r') as f:
-              snapshot = f.read()
+          LLM_ENDPOINT = os.environ["LLM_ENDPOINT"]
+          LLM_MODEL = os.environ["LLM_MODEL"]
+          LLM_API_KEY = os.environ["LLM_API_KEY"]
 
-          # Truncate if needed to stay within ~120k chars total
-          max_snapshot = 100000
-          if len(snapshot) > max_snapshot:
-              snapshot = snapshot[:max_snapshot] + "\n\n[TRUNCATED — snapshot too large]"
+          # ── Token budget ───────────────────────────────────────────────
+          # GitHub Models gpt-4o limit: ~8k input tokens ≈ ~24k chars
+          # We reserve ~2k tokens for system prompt ≈ ~6k chars
+          # That leaves ~6k tokens ≈ ~18k chars for user content
+          # We further split: ~4k chars for principles summary, ~14k for code
+          MAX_PRINCIPLES_CHARS = 4000
+          MAX_CODE_CHARS_PER_BATCH = 14000
+          MAX_FILE_CHARS = 2000        # Per-file truncation
+          MAX_OUTPUT_TOKENS = 2000
+          DELAY_BETWEEN_CALLS = 7      # GitHub Models: 10 req/min
 
-          user_content = f"## DESIGN PRINCIPLES\n\n{principles}\n\n## CODEBASE SNAPSHOT\n\n{snapshot}"
+          # ── Load design principles (condensed) ─────────────────────────
+          principles_full = ""
+          if os.path.exists(".github/copilot-instructions.md"):
+              with open(".github/copilot-instructions.md", "r") as f:
+                  principles_full = f.read()
 
-          payload = {
-              "model": os.environ["LLM_MODEL"],
-              "temperature": 0.2,
-              "max_tokens": 4000,
-              "messages": [
-                  {
-                      "role": "system",
-                      "content": (
-                          "You are a senior software architect reviewing a TypeScript codebase "
-                          "against its documented solution strategy and design principles.\n\n"
-                          "Your job:\n"
-                          "1. Read the DESIGN PRINCIPLES document carefully.\n"
-                          "2. Read the CODEBASE SNAPSHOT.\n"
-                          "3. Identify concrete, specific violations of the design principles.\n"
-                          "4. For each finding, provide:\n"
-                          "   - A short title (max 80 chars)\n"
-                          "   - The file path where the violation occurs\n"
-                          "   - A clear description of what violates the principle and why\n"
-                          "   - Which specific principle or rule from the document is violated\n"
-                          "   - A suggested fix\n\n"
-                          "Rules:\n"
-                          "- Only report genuine, specific violations you can point to in the code.\n"
-                          "- Do NOT report missing features or unimplemented modules — only violations in existing code.\n"
-                          "- Do NOT report test files.\n"
-                          "- Do NOT fabricate findings. If the code is compliant, say so.\n"
-                          "- Be precise about file paths and line-level issues.\n"
-                          "- Maximum 10 findings, ordered by severity (most critical first).\n\n"
-                          "Output format: Return a JSON array of findings. Each finding is an object with keys: "
-                          "title, file, description, principle_violated, suggested_fix, severity "
-                          "(critical|high|medium|low).\n"
-                          "If no violations found, return an empty array: []\n"
-                          "Return ONLY the JSON array, no markdown fences, no extra text."
-                      )
-                  },
-                  {
-                      "role": "user",
-                      "content": user_content
+          # Condense principles to fit token budget — keep section headers
+          # and key rules, drop verbose examples
+          def condense_principles(text: str, max_chars: int) -> str:
+              if len(text) <= max_chars:
+                  return text
+              lines = text.split("\n")
+              condensed = []
+              chars = 0
+              for line in lines:
+                  # Prioritize: headers, bullet points, numbered items
+                  stripped = line.strip()
+                  if not stripped:
+                      continue
+                  if stripped.startswith("#") or stripped.startswith("-") or stripped.startswith("*") or (len(stripped) > 1 and stripped[0].isdigit() and stripped[1] in ".)"):
+                      if chars + len(line) + 1 > max_chars:
+                          condensed.append("[PRINCIPLES TRUNCATED — review covers key rules]")
+                          break
+                      condensed.append(line)
+                      chars += len(line) + 1
+              return "\n".join(condensed)
+
+          principles = condense_principles(principles_full, MAX_PRINCIPLES_CHARS)
+          print(f"Principles: {len(principles_full)} chars -> condensed to {len(principles)} chars")
+
+          # ── Compact system prompt ──────────────────────────────────────
+          SYSTEM_PROMPT = (
+              "You are a senior architect reviewing TypeScript code against design principles.\n"
+              "Report ONLY genuine, specific violations in the provided code files.\n"
+              "Do NOT report missing features, unimplemented modules, or test files.\n"
+              "Do NOT fabricate findings. If compliant, return [].\n"
+              "For each finding return: title (max 80 chars), file, description, "
+              "principle_violated, suggested_fix, severity (critical|high|medium|low).\n"
+              "Return ONLY a JSON array. No markdown, no extra text."
+          )
+
+          # ── Discover source files by module ────────────────────────────
+          modules = {}
+          for ts_file in sorted(glob.glob("src/**/*.ts", recursive=True)):
+              if ".test." in ts_file or ".spec." in ts_file:
+                  continue
+              if "/node_modules/" in ts_file or "/dist/" in ts_file:
+                  continue
+              # Group by module: src/modules/<name>/... -> module name
+              parts = ts_file.split("/")
+              if len(parts) >= 3 and parts[1] == "modules":
+                  module_name = parts[2]
+              else:
+                  module_name = "_shared"
+              modules.setdefault(module_name, []).append(ts_file)
+
+          # Also include migrations as a pseudo-module
+          migration_files = sorted(glob.glob("db/migrations/*.ts"))
+          if migration_files:
+              modules["_migrations"] = migration_files
+
+          print(f"Discovered {sum(len(v) for v in modules.values())} files across {len(modules)} modules: {list(modules.keys())}")
+
+          # ── Build batches that fit within token budget ──────────────────
+          def build_batches(file_list, max_chars):
+              """Group files into batches that fit within max_chars."""
+              batches = []
+              current_batch = []
+              current_chars = 0
+              for filepath in file_list:
+                  try:
+                      with open(filepath, "r") as f:
+                          content = f.read()[:MAX_FILE_CHARS]
+                  except Exception:
+                      continue
+                  entry = f"\n--- FILE: {filepath} ---\n{content}\n"
+                  entry_len = len(entry)
+                  if current_chars + entry_len > max_chars and current_batch:
+                      batches.append(current_batch)
+                      current_batch = []
+                      current_chars = 0
+                  current_batch.append(entry)
+                  current_chars += entry_len
+              if current_batch:
+                  batches.append(current_batch)
+              return batches
+
+          # ── Call LLM for each batch ────────────────────────────────────
+          all_findings = []
+          call_count = 0
+
+          for module_name, file_list in modules.items():
+              batches = build_batches(file_list, MAX_CODE_CHARS_PER_BATCH)
+              for batch_idx, batch_entries in enumerate(batches):
+                  code_snapshot = "".join(batch_entries)
+                  user_content = (
+                      f"## DESIGN PRINCIPLES (condensed)\n\n{principles}\n\n"
+                      f"## CODE FILES (module: {module_name}, batch {batch_idx + 1}/{len(batches)})\n\n"
+                      f"{code_snapshot}"
+                  )
+
+                  payload = {
+                      "model": LLM_MODEL,
+                      "temperature": 0.2,
+                      "max_tokens": MAX_OUTPUT_TOKENS,
+                      "messages": [
+                          {"role": "system", "content": SYSTEM_PROMPT},
+                          {"role": "user", "content": user_content},
+                      ],
                   }
-              ]
-          }
 
-          with open('/tmp/request.json', 'w') as f:
-              json.dump(payload, f)
+                  # Check total payload size (~4 chars per token is a rough estimate)
+                  payload_json = json.dumps(payload)
+                  estimated_tokens = len(payload_json) // 4
+                  print(f"  [{module_name} batch {batch_idx+1}/{len(batches)}] "
+                        f"{len(batch_entries)} files, ~{estimated_tokens} est. tokens, "
+                        f"{len(payload_json)} chars")
+
+                  # If still too large, skip with a warning
+                  if len(payload_json) > 28000:  # ~7k tokens safety margin
+                      print(f"  ⚠️  Batch too large ({len(payload_json)} chars), skipping")
+                      continue
+
+                  # Rate limit: wait between calls
+                  if call_count > 0:
+                      time.sleep(DELAY_BETWEEN_CALLS)
+
+                  # Write payload and call via curl (handles auth headers cleanly)
+                  with open("/tmp/request.json", "w") as f:
+                      json.dump(payload, f)
+
+                  result = subprocess.run(
+                      [
+                          "curl", "-s", "-w", "\n%{http_code}",
+                          "-X", "POST", LLM_ENDPOINT,
+                          "-H", "Content-Type: application/json",
+                          "-H", f"Authorization: Bearer {LLM_API_KEY}",
+                          "-H", f"api-key: {LLM_API_KEY}",
+                          "-d", "@/tmp/request.json",
+                      ],
+                      capture_output=True, text=True,
+                  )
+
+                  call_count += 1
+                  lines = result.stdout.strip().rsplit("\n", 1)
+                  if len(lines) != 2:
+                      print(f"  ���️  Unexpected curl output, skipping batch")
+                      continue
+
+                  body, http_code = lines[0], lines[1].strip()
+
+                  if http_code != "200":
+                      print(f"  ⚠️  HTTP {http_code} for {module_name} batch {batch_idx+1}, skipping")
+                      print(f"     {body[:300]}")
+                      # If rate limited, wait longer
+                      if http_code in ("429", "413"):
+                          time.sleep(15)
+                      continue
+
+                  # Parse response
+                  try:
+                      resp = json.loads(body)
+                      content = resp.get("choices", [{}])[0].get("message", {}).get("content", "[]")
+                      content = content.strip()
+                      if content.startswith("```"):
+                          content = "\n".join(content.split("\n")[1:])
+                      if content.endswith("```"):
+                          content = content[:-3].strip()
+                      findings = json.loads(content)
+                      if isinstance(findings, list):
+                          all_findings.extend(findings)
+                          print(f"  ✅ {len(findings)} findings")
+                      else:
+                          print(f"  ⚠️  Response was not a list, skipping")
+                  except (json.JSONDecodeError, KeyError, IndexError) as e:
+                      print(f"  ⚠️  Failed to parse response: {e}")
+                      continue
+
+          # ── Deduplicate findings by title ──────────────────────────────
+          seen_titles = set()
+          unique_findings = []
+          for f in all_findings:
+              title_key = f.get("title", "").lower().strip()
+              if title_key and title_key not in seen_titles:
+                  seen_titles.add(title_key)
+                  unique_findings.append(f)
+
+          # Sort by severity
+          severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+          unique_findings.sort(key=lambda f: severity_order.get(f.get("severity", "low"), 4))
+
+          with open("/tmp/findings.json", "w") as f:
+              json.dump(unique_findings, f, indent=2)
+
+          print(f"\n📊 Total: {len(all_findings)} raw findings -> {len(unique_findings)} unique findings across {call_count} API calls")
           PYEOF
 
-          # Call the LLM
-          HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/llm_response.json \
-            -X POST "${{ env.LLM_ENDPOINT }}" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ env.LLM_API_KEY }}" \
-            -H "api-key: ${{ env.LLM_API_KEY }}" \
-            -d @/tmp/request.json)
-
-          if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "::error::LLM API returned HTTP $HTTP_CODE"
-            cat /tmp/llm_response.json
-            exit 1
-          fi
-
-          # Extract the content from the response
-          python3 << 'PYEOF2'
-          import json, sys
-
-          with open('/tmp/llm_response.json', 'r') as f:
-              resp = json.load(f)
-
-          content = resp.get("choices", [{}])[0].get("message", {}).get("content", "[]")
-
-          # Strip markdown fences if present
-          content = content.strip()
-          if content.startswith("```"):
-              lines = content.split("\n")
-              content = "\n".join(lines[1:])
-          if content.endswith("```"):
-              content = content[:-3].strip()
-
-          # Validate it's valid JSON
-          try:
-              findings = json.loads(content)
-              if not isinstance(findings, list):
-                  findings = []
-          except json.JSONDecodeError:
-              print(f"::warning::LLM returned non-JSON content: {content[:200]}")
-              findings = []
-
-          with open('/tmp/findings.json', 'w') as f:
-              json.dump(findings, f, indent=2)
-
-          print(f"Found {len(findings)} architecture review findings")
-          PYEOF2
-
-      # ── 4. Create GitHub issues for findings ───────────────────────────
+      # ── 3. Create GitHub issues for findings ───────────────────────────
       - name: Create issues for findings
         uses: actions/github-script@v7
         with:
@@ -264,7 +290,6 @@ jobs:
             let created = 0;
 
             for (const finding of findings.slice(0, maxIssues)) {
-              // Skip if a similar issue already exists
               const proposedTitle = `[arch-review] ${finding.title}`;
               if (existingTitles.has(proposedTitle.toLowerCase())) {
                 console.log(`⏭️  Skipping duplicate: ${proposedTitle}`);
@@ -320,7 +345,7 @@ jobs:
 
             console.log(`\n📊 Summary: ${created} issues created, ${findings.length - created} skipped (duplicates or errors)`);
 
-      # ── 5. Summary ─────────────────────────────────────────────────────
+      # ── 4. Summary ─────────────────────────────────────────────────────
       - name: Post summary
         if: always()
         run: |
