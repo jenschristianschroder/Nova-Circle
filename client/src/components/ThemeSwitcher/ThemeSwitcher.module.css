@@ -107,7 +107,9 @@
 
 .paletteSwatchActive {
   border-color: var(--nc-accent-default);
-  box-shadow: 0 0 0 2px var(--nc-surface-background), 0 0 0 4px var(--nc-accent-default);
+  box-shadow:
+    0 0 0 2px var(--nc-surface-background),
+    0 0 0 4px var(--nc-accent-default);
 }
 
 /* Focus ring forwarded from hidden radio */

@@ -9,7 +9,6 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "test": "vitest run",
@@ -30,6 +29,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "axe-core": "^4.11.1",
     "jsdom": "^28.1.0",
+    "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
