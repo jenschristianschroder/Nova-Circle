@@ -3,6 +3,7 @@ import { CreateEventUseCase } from './create-event.usecase.js';
 import { GetEventUseCase } from './get-event.usecase.js';
 import { ListGroupEventsUseCase } from './list-group-events.usecase.js';
 import { CancelEventUseCase } from './cancel-event.usecase.js';
+import { UpdateEventUseCase } from './update-event.usecase.js';
 import { EditEventUseCase } from './edit-event.usecase.js';
 
 import { ListEventInviteesUseCase } from './list-event-invitees.usecase.js';
@@ -420,6 +421,116 @@ describe('CancelEventUseCase', () => {
     await expect(useCase.execute(creator, 'group-1', 'event-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UpdateEventUseCase
+// ---------------------------------------------------------------------------
+
+describe('UpdateEventUseCase', () => {
+  it('allows creator to update their own event', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const updated = makeEvent({ createdBy: creator.userId, title: 'Updated' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    const result = await useCase.execute(creator, 'group-1', 'event-1', { title: 'Updated' });
+    expect(result.title).toBe('Updated');
+    expect(eventRepo.update).toHaveBeenCalledWith(
+      'event-1',
+      expect.objectContaining({ title: 'Updated' }),
+    );
+  });
+
+  it('allows group admin to update any event', async () => {
+    const admin = FakeIdentity.user('admin');
+    const event = makeEvent({ createdBy: creator.userId });
+    const updated = makeEvent({ title: 'Admin Updated' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      update: vi.fn().mockResolvedValue(updated),
+    });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('admin') });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await useCase.execute(admin, 'group-1', 'event-1', { title: 'Admin Updated' });
+    expect(eventRepo.update).toHaveBeenCalled();
+  });
+
+  it('throws FORBIDDEN for invited-but-not-creator non-admin', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(memberUser, 'group-1', 'event-1', { title: 'Hacked' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('throws NOT_FOUND for non-invited non-admin (no existence disclosure)', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(outsider, 'group-1', 'event-1', { title: 'Hacked' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('throws CONFLICT when trying to edit a cancelled event', async () => {
+    const event = makeEvent({ status: 'cancelled', createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', { title: 'Fixed' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('throws VALIDATION_ERROR for empty title', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', { title: '  ' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
+
+  it('throws VALIDATION_ERROR when endAt is before startAt', async () => {
+    const event = makeEvent({ createdBy: creator.userId });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
+    const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
+    const useCase = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
+
+    await expect(
+      useCase.execute(creator, 'group-1', 'event-1', {
+        endAt: new Date('2026-06-01T10:00:00Z'), // before current startAt
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
+
+  it('throws NOT_FOUND when event does not exist', async () => {
+    const useCase = new UpdateEventUseCase(makeEventRepo(), makeInvitationRepo(), makeMemberRepo());
+    await expect(
+      useCase.execute(creator, 'group-1', 'no-such-event', { title: 'X' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
 

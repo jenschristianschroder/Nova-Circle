@@ -2,6 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
+import type { UpdateEventData } from '../domain/event.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { AuditLogPort } from '../../audit-security/index.js';
@@ -9,7 +10,7 @@ import { CreateEventUseCase } from '../application/create-event.usecase.js';
 import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
 import { CancelEventUseCase } from '../application/cancel-event.usecase.js';
-import { EditEventUseCase } from '../application/edit-event.usecase.js';
+import { UpdateEventUseCase } from '../application/update-event.usecase.js';
 
 import { ListEventInviteesUseCase } from '../application/list-event-invitees.usecase.js';
 import { AddEventInviteeUseCase } from '../application/add-event-invitee.usecase.js';
@@ -45,7 +46,7 @@ export function createEventRouter(
   const getEvent = new GetEventUseCase(eventRepo, invitationRepo);
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
-  const editEvent = new EditEventUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+  const updateEvent = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
 
   const listInvitees = new ListEventInviteesUseCase(eventRepo, invitationRepo);
   const addInvitee = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
@@ -278,13 +279,27 @@ export function createEventRouter(
     }
 
     try {
-      const event = await editEvent.execute(identity, groupId, eventId, {
+      const patch: UpdateEventData = {
         ...(title !== undefined ? { title } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(startAt !== undefined ? { startAt: new Date(startAt) } : {}),
-        ...(endAt !== undefined ? { endAt: endAt === null ? null : new Date(endAt) } : {}),
-      });
+        ...(endAt !== undefined ? { endAt: endAt !== null ? new Date(endAt) : null } : {}),
+      };
 
+      const event = await updateEvent.execute(identity, groupId, eventId, patch);
+      // Best-effort audit log for event update.
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'event.updated',
+          resourceType: 'event',
+          resourceId: eventId,
+          groupId,
+          metadata: { changedFields: Object.keys(patch) },
+        });
+      } catch {
+        // Intentionally swallow audit logging failures to avoid inconsistent API outcomes.
+      }
       res.json(event);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {

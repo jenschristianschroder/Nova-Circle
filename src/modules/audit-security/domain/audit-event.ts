@@ -7,12 +7,12 @@
  */
 export type AuditAction =
   | 'event.created'
-  | 'event.updated'
   | 'event.cancelled'
   | 'member.added'
   | 'member.removed'
   | 'group.updated'
-  | 'group.deleted';
+  | 'group.deleted'
+  | 'event.updated';
 
 /**
  * A persisted audit log entry.
