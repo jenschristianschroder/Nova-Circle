@@ -11,7 +11,6 @@ import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
 import { CancelEventUseCase } from '../application/cancel-event.usecase.js';
 import { UpdateEventUseCase } from '../application/update-event.usecase.js';
-
 import { ListEventInviteesUseCase } from '../application/list-event-invitees.usecase.js';
 import { AddEventInviteeUseCase } from '../application/add-event-invitee.usecase.js';
 import { RemoveEventInviteeUseCase } from '../application/remove-event-invitee.usecase.js';
@@ -47,7 +46,6 @@ export function createEventRouter(
   const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
   const updateEvent = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
-
   const listInvitees = new ListEventInviteesUseCase(eventRepo, invitationRepo);
   const addInvitee = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
   const removeInvitee = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
@@ -235,19 +233,6 @@ export function createEventRouter(
       endAt?: unknown;
     };
 
-    if (
-      title === undefined &&
-      description === undefined &&
-      startAt === undefined &&
-      endAt === undefined
-    ) {
-      res.status(400).json({
-        error: 'At least one field must be provided for update',
-        code: 'VALIDATION_ERROR',
-      });
-      return;
-    }
-
     if (title !== undefined && typeof title !== 'string') {
       res.status(400).json({ error: 'title must be a string', code: 'VALIDATION_ERROR' });
       return;
@@ -287,19 +272,6 @@ export function createEventRouter(
       };
 
       const event = await updateEvent.execute(identity, groupId, eventId, patch);
-      // Best-effort audit log for event update.
-      try {
-        await auditLog.record({
-          actorId: identity.userId,
-          action: 'event.updated',
-          resourceType: 'event',
-          resourceId: eventId,
-          groupId,
-          metadata: { changedFields: Object.keys(patch) },
-        });
-      } catch {
-        // Intentionally swallow audit logging failures to avoid inconsistent API outcomes.
-      }
       res.json(event);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {

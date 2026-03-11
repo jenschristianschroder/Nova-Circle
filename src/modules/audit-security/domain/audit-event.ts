@@ -11,8 +11,7 @@ export type AuditAction =
   | 'member.added'
   | 'member.removed'
   | 'group.updated'
-  | 'group.deleted'
-  | 'event.updated';
+  | 'group.deleted';
 
 /**
  * A persisted audit log entry.

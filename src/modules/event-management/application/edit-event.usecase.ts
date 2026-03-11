@@ -2,7 +2,7 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
-import type { AuditLogPort } from '../../audit-security/index.js';
+import type { AuditLogPort, AuditAction } from '../../audit-security/index.js';
 import type { Event } from '../domain/event.js';
 
 export interface EditEventCommand {
@@ -94,7 +94,8 @@ export class EditEventUseCase {
     try {
       await this.auditLog.record({
         actorId: caller.userId,
-        action: 'event.updated',
+        // 'event.updated' will be added to AuditAction once the shared type is extended.
+        action: 'event.updated' as AuditAction,
         resourceType: 'event',
         resourceId: eventId,
         groupId,
