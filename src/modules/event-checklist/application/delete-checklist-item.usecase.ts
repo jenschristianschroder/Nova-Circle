@@ -12,11 +12,7 @@ export class DeleteChecklistItemUseCase {
     private readonly memberRepo: GroupMemberRepositoryPort,
   ) {}
 
-  async execute(
-    caller: IdentityContext,
-    eventId: string,
-    itemId: string,
-  ): Promise<void> {
+  async execute(caller: IdentityContext, eventId: string, itemId: string): Promise<void> {
     const event = await this.eventRepo.findById(eventId);
     if (!event) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });

@@ -6,4 +6,7 @@
  */
 
 export type { EventChatThread, EventChatMessage, PostMessageData } from './domain/event-chat.js';
-export type { EventChatRepositoryPort, ListMessagesOptions } from './domain/event-chat.repository.port.js';
+export type {
+  EventChatRepositoryPort,
+  ListMessagesOptions,
+} from './domain/event-chat.repository.port.js';

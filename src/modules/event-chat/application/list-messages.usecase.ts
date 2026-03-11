@@ -1,7 +1,10 @@
 import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../../event-management/domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../../event-management/domain/event-invitation.repository.port.js';
-import type { EventChatRepositoryPort, ListMessagesOptions } from '../domain/event-chat.repository.port.js';
+import type {
+  EventChatRepositoryPort,
+  ListMessagesOptions,
+} from '../domain/event-chat.repository.port.js';
 import type { EventChatMessage } from '../domain/event-chat.js';
 
 export class ListMessagesUseCase {

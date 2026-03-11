@@ -10,11 +10,7 @@ export class ReorderChecklistUseCase {
     private readonly checklistRepo: EventChecklistRepositoryPort,
   ) {}
 
-  async execute(
-    caller: IdentityContext,
-    eventId: string,
-    orderedItemIds: string[],
-  ): Promise<void> {
+  async execute(caller: IdentityContext, eventId: string, orderedItemIds: string[]): Promise<void> {
     const event = await this.eventRepo.findById(eventId);
     if (!event) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
@@ -53,10 +49,9 @@ export class ReorderChecklistUseCase {
       }
 
       if (seenIds.has(id)) {
-        throw Object.assign(
-          new Error('orderedItemIds must not contain duplicate item IDs'),
-          { code: 'VALIDATION_ERROR' },
-        );
+        throw Object.assign(new Error('orderedItemIds must not contain duplicate item IDs'), {
+          code: 'VALIDATION_ERROR',
+        });
       }
 
       seenIds.add(id);

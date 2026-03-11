@@ -48,10 +48,9 @@ export class UpdateChecklistItemUseCase {
         throw Object.assign(new Error('text must not be empty'), { code: 'VALIDATION_ERROR' });
       }
       if (data.text.length > MAX_ITEM_TEXT_LENGTH) {
-        throw Object.assign(
-          new Error(`text must not exceed ${MAX_ITEM_TEXT_LENGTH} characters`),
-          { code: 'VALIDATION_ERROR' },
-        );
+        throw Object.assign(new Error(`text must not exceed ${MAX_ITEM_TEXT_LENGTH} characters`), {
+          code: 'VALIDATION_ERROR',
+        });
       }
       const isItemCreator = item.createdByUserId === caller.userId;
       const isEventCreator = event.createdBy === caller.userId;

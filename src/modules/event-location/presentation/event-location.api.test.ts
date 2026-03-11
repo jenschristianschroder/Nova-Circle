@@ -90,13 +90,16 @@ describe('Event Location API', () => {
     expect(res.body).toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 
-  it.skipIf(skipReason !== undefined)('PUT returns 403 for non-creator non-admin invitee', async () => {
-    const res = await request(app)
-      .put(`/api/v1/events/${eventId}/location`)
-      .set(testAuthHeaders(member.userId, member.displayName))
-      .send({ locationType: 'physical', displayText: 'Test Hall' });
-    expect(res.status).toBe(403);
-  });
+  it.skipIf(skipReason !== undefined)(
+    'PUT returns 403 for non-creator non-admin invitee',
+    async () => {
+      const res = await request(app)
+        .put(`/api/v1/events/${eventId}/location`)
+        .set(testAuthHeaders(member.userId, member.displayName))
+        .send({ locationType: 'physical', displayText: 'Test Hall' });
+      expect(res.status).toBe(403);
+    },
+  );
 
   it.skipIf(skipReason !== undefined)('PUT sets location for event creator', async () => {
     const res = await request(app)

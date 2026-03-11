@@ -146,9 +146,9 @@ describe('AddChecklistItemUseCase', () => {
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChecklistRepo(),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'x'.repeat(501)),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    await expect(useCase.execute(caller, 'event-1', 'x'.repeat(501))).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
   });
 });
 

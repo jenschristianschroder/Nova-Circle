@@ -1,5 +1,8 @@
 import type { Knex } from 'knex';
-import type { EventChatRepositoryPort, ListMessagesOptions } from '../domain/event-chat.repository.port.js';
+import type {
+  EventChatRepositoryPort,
+  ListMessagesOptions,
+} from '../domain/event-chat.repository.port.js';
 import type { EventChatThread, EventChatMessage } from '../domain/event-chat.js';
 
 interface ThreadRow {
@@ -65,16 +68,11 @@ export class KnexEventChatRepository implements EventChatRepositoryPort {
   }
 
   async findThreadByEvent(eventId: string): Promise<EventChatThread | null> {
-    const row = await this.db<ThreadRow>('event_chat_threads')
-      .where({ event_id: eventId })
-      .first();
+    const row = await this.db<ThreadRow>('event_chat_threads').where({ event_id: eventId }).first();
     return row ? toThread(row) : null;
   }
 
-  async listMessages(
-    threadId: string,
-    options?: ListMessagesOptions,
-  ): Promise<EventChatMessage[]> {
+  async listMessages(threadId: string, options?: ListMessagesOptions): Promise<EventChatMessage[]> {
     const limit = Math.min(options?.limit ?? DEFAULT_MESSAGE_LIMIT, MAX_MESSAGE_LIMIT);
 
     let query = this.db<MessageRow>('event_chat_messages')
@@ -128,9 +126,7 @@ export class KnexEventChatRepository implements EventChatRepositoryPort {
   }
 
   async findMessage(messageId: string): Promise<EventChatMessage | null> {
-    const row = await this.db<MessageRow>('event_chat_messages')
-      .where({ id: messageId })
-      .first();
+    const row = await this.db<MessageRow>('event_chat_messages').where({ id: messageId }).first();
     return row ? toMessage(row) : null;
   }
 

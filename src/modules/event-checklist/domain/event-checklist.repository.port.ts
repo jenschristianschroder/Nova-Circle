@@ -1,4 +1,9 @@
-import type { EventChecklist, EventChecklistItem, AddChecklistItemData, UpdateChecklistItemData } from './event-checklist.js';
+import type {
+  EventChecklist,
+  EventChecklistItem,
+  AddChecklistItemData,
+  UpdateChecklistItemData,
+} from './event-checklist.js';
 
 export interface EventChecklistRepositoryPort {
   findOrCreateChecklist(eventId: string): Promise<EventChecklist>;
@@ -10,10 +15,7 @@ export interface EventChecklistRepositoryPort {
     userId: string,
   ): Promise<EventChecklistItem>;
   findItem(itemId: string): Promise<EventChecklistItem | null>;
-  updateItem(
-    itemId: string,
-    data: UpdateChecklistItemData,
-  ): Promise<EventChecklistItem | null>;
+  updateItem(itemId: string, data: UpdateChecklistItemData): Promise<EventChecklistItem | null>;
   markDone(itemId: string, userId: string): Promise<EventChecklistItem | null>;
   markUndone(itemId: string): Promise<EventChecklistItem | null>;
   deleteItem(itemId: string): Promise<void>;

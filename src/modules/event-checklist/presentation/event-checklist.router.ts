@@ -96,8 +96,7 @@ export function createEventChecklistRouter(
       return;
     }
 
-    const parsedOrder =
-      typeof displayOrder === 'number' ? displayOrder : undefined;
+    const parsedOrder = typeof displayOrder === 'number' ? displayOrder : undefined;
 
     try {
       const item = await addItem.execute(identity, eventId, text, parsedOrder);
@@ -168,7 +167,9 @@ export function createEventChecklistRouter(
 
     if (body.dueAt !== undefined) {
       if (typeof body.dueAt !== 'string') {
-        res.status(400).json({ error: 'Invalid dueAt: must be a string', code: 'VALIDATION_ERROR' });
+        res
+          .status(400)
+          .json({ error: 'Invalid dueAt: must be a string', code: 'VALIDATION_ERROR' });
         return;
       }
       if (body.dueAt.length === 0) {
@@ -327,11 +328,11 @@ export function createEventChecklistRouter(
       return;
     }
 
-    const hasInvalid = (itemIds as unknown[]).some((id) => typeof id !== 'string' || !isValidUuid(id));
+    const hasInvalid = (itemIds as unknown[]).some(
+      (id) => typeof id !== 'string' || !isValidUuid(id),
+    );
     if (hasInvalid) {
-      res
-        .status(400)
-        .json({ error: 'itemIds must contain valid UUIDs', code: 'VALIDATION_ERROR' });
+      res.status(400).json({ error: 'itemIds must contain valid UUIDs', code: 'VALIDATION_ERROR' });
       return;
     }
 

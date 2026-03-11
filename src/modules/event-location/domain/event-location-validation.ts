@@ -15,9 +15,7 @@ function validationError(message: string): never {
  */
 export function validateSetLocationData(data: SetLocationData): void {
   if (!VALID_LOCATION_TYPES.includes(data.locationType)) {
-    validationError(
-      `locationType must be one of: ${VALID_LOCATION_TYPES.join(', ')}`,
-    );
+    validationError(`locationType must be one of: ${VALID_LOCATION_TYPES.join(', ')}`);
   }
 
   if (data.displayText != null && typeof data.displayText !== 'string') {
@@ -69,8 +67,12 @@ export function validateSetLocationData(data: SetLocationData): void {
   }
 
   const hasPhysicalField =
-    (data.displayText != null && typeof data.displayText === 'string' && data.displayText.trim().length > 0) ||
-    (data.streetAddress != null && typeof data.streetAddress === 'string' && data.streetAddress.trim().length > 0);
+    (data.displayText != null &&
+      typeof data.displayText === 'string' &&
+      data.displayText.trim().length > 0) ||
+    (data.streetAddress != null &&
+      typeof data.streetAddress === 'string' &&
+      data.streetAddress.trim().length > 0);
 
   const hasVirtualUrl =
     data.virtualMeetingUrl != null &&
@@ -78,9 +80,7 @@ export function validateSetLocationData(data: SetLocationData): void {
     data.virtualMeetingUrl.trim().length > 0;
 
   if (data.locationType === 'physical' && !hasPhysicalField) {
-    validationError(
-      'A physical location requires at least displayText or streetAddress',
-    );
+    validationError('A physical location requires at least displayText or streetAddress');
   }
 
   if (data.locationType === 'virtual' && !hasVirtualUrl) {
@@ -92,13 +92,15 @@ export function validateSetLocationData(data: SetLocationData): void {
       validationError('A hybrid location requires virtualMeetingUrl');
     }
     if (!hasPhysicalField) {
-      validationError(
-        'A hybrid location requires at least displayText or streetAddress',
-      );
+      validationError('A hybrid location requires at least displayText or streetAddress');
     }
   }
 
-  if (data.virtualMeetingUrl != null && typeof data.virtualMeetingUrl === 'string' && data.virtualMeetingUrl.trim().length > 0) {
+  if (
+    data.virtualMeetingUrl != null &&
+    typeof data.virtualMeetingUrl === 'string' &&
+    data.virtualMeetingUrl.trim().length > 0
+  ) {
     try {
       new URL(data.virtualMeetingUrl);
     } catch {
@@ -106,7 +108,11 @@ export function validateSetLocationData(data: SetLocationData): void {
     }
   }
 
-  if (data.countryCode != null && typeof data.countryCode === 'string' && data.countryCode.trim().length > 0) {
+  if (
+    data.countryCode != null &&
+    typeof data.countryCode === 'string' &&
+    data.countryCode.trim().length > 0
+  ) {
     // Validates format only (2 uppercase letters); does not verify the code
     // exists in the official ISO 3166-1 alpha-2 list.
     if (!/^[A-Z]{2}$/.test(data.countryCode)) {
@@ -126,7 +132,11 @@ export function validateSetLocationData(data: SetLocationData): void {
     }
   }
 
-  if (data.displayText != null && typeof data.displayText === 'string' && data.displayText.length > 500) {
+  if (
+    data.displayText != null &&
+    typeof data.displayText === 'string' &&
+    data.displayText.length > 500
+  ) {
     validationError('displayText must not exceed 500 characters');
   }
 

@@ -34,10 +34,9 @@ export class AddChecklistItemUseCase {
     }
 
     if (text.length > MAX_ITEM_TEXT_LENGTH) {
-      throw Object.assign(
-        new Error(`text must not exceed ${MAX_ITEM_TEXT_LENGTH} characters`),
-        { code: 'VALIDATION_ERROR' },
-      );
+      throw Object.assign(new Error(`text must not exceed ${MAX_ITEM_TEXT_LENGTH} characters`), {
+        code: 'VALIDATION_ERROR',
+      });
     }
 
     const checklist = await this.checklistRepo.findOrCreateChecklist(eventId);

@@ -59,10 +59,9 @@ export class EditMessageUseCase {
     }
 
     if (content.length > MAX_CONTENT_LENGTH) {
-      throw Object.assign(
-        new Error(`content must not exceed ${MAX_CONTENT_LENGTH} characters`),
-        { code: 'VALIDATION_ERROR' },
-      );
+      throw Object.assign(new Error(`content must not exceed ${MAX_CONTENT_LENGTH} characters`), {
+        code: 'VALIDATION_ERROR',
+      });
     }
 
     const updated = await this.chatRepo.editMessage(messageId, content);

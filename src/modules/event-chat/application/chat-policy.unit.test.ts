@@ -124,9 +124,9 @@ describe('PostMessageUseCase', () => {
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChatRepo(),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'x'.repeat(4001)),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    await expect(useCase.execute(caller, 'event-1', 'x'.repeat(4001))).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
   });
 });
 
@@ -200,9 +200,9 @@ describe('DeleteMessageUseCase', () => {
       }),
       makeMemberRepo(),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'msg-1'),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(useCase.execute(caller, 'event-1', 'msg-1')).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
   });
 
   it('throws FORBIDDEN when non-author non-creator non-admin tries to delete', async () => {
@@ -218,9 +218,9 @@ describe('DeleteMessageUseCase', () => {
       }),
       makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') }),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'msg-1'),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(useCase.execute(caller, 'event-1', 'msg-1')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('event creator can delete any message', async () => {

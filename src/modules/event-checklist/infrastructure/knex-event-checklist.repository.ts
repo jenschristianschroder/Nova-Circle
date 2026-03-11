@@ -188,9 +188,7 @@ export class KnexEventChecklistRepository implements EventChecklistRepositoryPor
 
     // Build a single UPDATE with a CASE expression to avoid N round-trips.
     const now = new Date();
-    const caseClause = orderedItemIds
-      .map((_, i) => `WHEN id = ? THEN ${i}`)
-      .join(' ');
+    const caseClause = orderedItemIds.map((_, i) => `WHEN id = ? THEN ${i}`).join(' ');
     const params: unknown[] = [...orderedItemIds, now, checklistId, ...orderedItemIds];
 
     await this.db.raw(
