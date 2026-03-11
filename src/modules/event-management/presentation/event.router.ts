@@ -251,9 +251,10 @@ export function createEventRouter(
     }
 
     if (description !== undefined && description !== null && typeof description !== 'string') {
-      res
-        .status(400)
-        .json({ error: 'description must be a string or null', code: 'VALIDATION_ERROR' });
+      res.status(400).json({
+        error: 'description must be a string or null when provided',
+        code: 'VALIDATION_ERROR',
+      });
       return;
     }
 

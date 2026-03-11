@@ -454,6 +454,7 @@ describe('Events API', () => {
         .post(`/api/v1/groups/${groupId}/events`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ title: 'Original Title', startAt: '2027-01-01T10:00:00Z' });
+
       const eventId = (createRes.body as { id: string }).id;
 
       const res = await request(app)
@@ -474,6 +475,7 @@ describe('Events API', () => {
         .post(`/api/v1/groups/${groupId}/events`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ title: 'Time Update Event', startAt: '2027-02-01T10:00:00Z' });
+
       const eventId = (createRes.body as { id: string }).id;
 
       const res = await request(app)
@@ -489,6 +491,7 @@ describe('Events API', () => {
 
     it.skipIf(skipReason !== undefined)(
       'edit does not alter the existing invitation list',
+
       async () => {
         const createRes = await request(app)
           .post(`/api/v1/groups/${groupId}/events`)
@@ -541,6 +544,7 @@ describe('Events API', () => {
           .post(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ title: 'Secret Edit Event', startAt: '2027-05-01T10:00:00Z' });
+
         const eventId = (createRes.body as { id: string }).id;
 
         const res = await request(app)
@@ -605,6 +609,7 @@ describe('Events API', () => {
         const eventId = (createRes.body as { id: string }).id;
 
         // Cancel the event first.
+
         await request(app)
           .delete(`/api/v1/groups/${groupId}/events/${eventId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
