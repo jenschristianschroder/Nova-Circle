@@ -2,6 +2,20 @@ import knex from 'knex';
 import { createApp } from './app.js';
 import { EntraTokenValidator } from './shared/auth/entra-token-validator.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
+import { logger, setTelemetryClient } from './shared/logger/logger.js';
+
+// ── Application Insights ──────────────────────────────────────────────────────
+// Initialise the SDK *before* createApp() so all requests and dependencies are
+// captured from the first incoming connection.  The SDK is disabled (no-op)
+// when the connection string env var is absent, which keeps tests clean.
+const appInsightsConnectionString = process.env['APPLICATIONINSIGHTS_CONNECTION_STRING'];
+if (appInsightsConnectionString) {
+  // Dynamic import keeps tests fast — the heavy SDK is never loaded when the
+  // env var is absent.
+  const appInsights = await import('applicationinsights');
+  appInsights.setup(appInsightsConnectionString).setAutoCollectRequests(true).setAutoCollectDependencies(true).setAutoCollectExceptions(true).setAutoCollectPerformance(false, false).setSendLiveMetrics(false).start();
+  setTelemetryClient(appInsights.defaultClient);
+}
 
 const port = Number(process.env['PORT'] ?? 3000);
 const databaseUrl = process.env['DATABASE_URL'];
@@ -24,5 +38,5 @@ const app = createApp({
 });
 
 app.listen(port, () => {
-  console.log(JSON.stringify({ level: 'info', message: 'Server started', port }));
+  logger.info('Server started', { port });
 });
