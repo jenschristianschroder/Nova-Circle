@@ -186,7 +186,10 @@ describe('DeleteChecklistItemUseCase', () => {
     const useCase = new DeleteChecklistItemUseCase(
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
-      makeChecklistRepo({ findItem: vi.fn().mockResolvedValue(item) }),
+      makeChecklistRepo({
+        findChecklistByEvent: vi.fn().mockResolvedValue(makeChecklist()),
+        findItem: vi.fn().mockResolvedValue(item),
+      }),
       makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') }),
     );
     await expect(useCase.execute(caller, 'event-1', 'item-1')).rejects.toMatchObject({
@@ -202,6 +205,7 @@ describe('DeleteChecklistItemUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChecklistRepo({
+        findChecklistByEvent: vi.fn().mockResolvedValue(makeChecklist()),
         findItem: vi.fn().mockResolvedValue(item),
         deleteItem: deleteItemFn,
       }),
@@ -209,6 +213,24 @@ describe('DeleteChecklistItemUseCase', () => {
     );
     await useCase.execute(caller, 'event-1', 'item-1');
     expect(deleteItemFn).toHaveBeenCalledWith('item-1');
+  });
+
+  it('throws NOT_FOUND when item belongs to a different event (cross-event IDOR)', async () => {
+    const caller = FakeIdentity.random();
+    // item has checklistId 'cl-other', but the event's checklist is 'cl-1'
+    const item = makeItem({ checklistId: 'cl-other', createdByUserId: caller.userId });
+    const useCase = new DeleteChecklistItemUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
+      makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
+      makeChecklistRepo({
+        findChecklistByEvent: vi.fn().mockResolvedValue(makeChecklist()),
+        findItem: vi.fn().mockResolvedValue(item),
+      }),
+      makeMemberRepo(),
+    );
+    await expect(useCase.execute(caller, 'event-1', 'item-other')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });
 
@@ -225,6 +247,7 @@ describe('CompleteChecklistItemUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChecklistRepo({
+        findChecklistByEvent: vi.fn().mockResolvedValue(makeChecklist()),
         findItem: vi.fn().mockResolvedValue(makeItem()),
         markDone: markDoneFn,
       }),
@@ -243,6 +266,7 @@ describe('CompleteChecklistItemUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChecklistRepo({
+        findChecklistByEvent: vi.fn().mockResolvedValue(makeChecklist()),
         findItem: vi.fn().mockResolvedValue(makeItem({ isDone: true })),
         markUndone: markUndoneFn,
       }),
@@ -251,5 +275,22 @@ describe('CompleteChecklistItemUseCase', () => {
     expect(markUndoneFn).toHaveBeenCalledWith('item-1');
     expect(result.isDone).toBe(false);
     expect(result.completedAt).toBeNull();
+  });
+
+  it('throws NOT_FOUND when item belongs to a different event (cross-event IDOR)', async () => {
+    const caller = FakeIdentity.random();
+    // item has checklistId 'cl-other', but the event's checklist is 'cl-1'
+    const item = makeItem({ checklistId: 'cl-other' });
+    const useCase = new CompleteChecklistItemUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
+      makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
+      makeChecklistRepo({
+        findChecklistByEvent: vi.fn().mockResolvedValue(makeChecklist()),
+        findItem: vi.fn().mockResolvedValue(item),
+      }),
+    );
+    await expect(useCase.execute(caller, 'event-1', 'item-other', true)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

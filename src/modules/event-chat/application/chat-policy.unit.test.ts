@@ -137,7 +137,10 @@ describe('EditMessageUseCase', () => {
     const useCase = new EditMessageUseCase(
       makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
-      makeChatRepo({ findMessage: vi.fn().mockResolvedValue(message) }),
+      makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
+        findMessage: vi.fn().mockResolvedValue(message),
+      }),
     );
     await expect(
       useCase.execute(caller, 'event-1', 'msg-1', 'Updated content'),
@@ -153,11 +156,31 @@ describe('EditMessageUseCase', () => {
     const useCase = new EditMessageUseCase(
       makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
-      makeChatRepo({ findMessage: vi.fn().mockResolvedValue(message) }),
+      makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
+        findMessage: vi.fn().mockResolvedValue(message),
+      }),
     );
     await expect(
       useCase.execute(caller, 'event-1', 'msg-1', 'Updated content'),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('throws NOT_FOUND when message belongs to a different event (cross-event IDOR)', async () => {
+    const caller = FakeIdentity.random();
+    // thread-1 belongs to event-1; message has threadId 'thread-other' (different event)
+    const message = makeMessage({ threadId: 'thread-other', authorUserId: caller.userId });
+    const useCase = new EditMessageUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
+      makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
+      makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
+        findMessage: vi.fn().mockResolvedValue(message),
+      }),
+    );
+    await expect(
+      useCase.execute(caller, 'event-1', 'msg-other', 'Updated content'),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
 
@@ -171,7 +194,10 @@ describe('DeleteMessageUseCase', () => {
     const useCase = new DeleteMessageUseCase(
       makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
-      makeChatRepo({ findMessage: vi.fn().mockResolvedValue(message) }),
+      makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
+        findMessage: vi.fn().mockResolvedValue(message),
+      }),
       makeMemberRepo(),
     );
     await expect(
@@ -186,7 +212,10 @@ describe('DeleteMessageUseCase', () => {
     const useCase = new DeleteMessageUseCase(
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
-      makeChatRepo({ findMessage: vi.fn().mockResolvedValue(message) }),
+      makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
+        findMessage: vi.fn().mockResolvedValue(message),
+      }),
       makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') }),
     );
     await expect(
@@ -204,6 +233,7 @@ describe('DeleteMessageUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
         findMessage: vi.fn().mockResolvedValue(message),
         softDeleteMessage: softDeleteFn,
       }),
@@ -223,6 +253,7 @@ describe('DeleteMessageUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
       makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
         findMessage: vi.fn().mockResolvedValue(message),
         softDeleteMessage: softDeleteFn,
       }),
@@ -230,5 +261,23 @@ describe('DeleteMessageUseCase', () => {
     );
     await useCase.execute(caller, 'event-1', 'msg-1');
     expect(softDeleteFn).toHaveBeenCalledWith('msg-1', caller.userId);
+  });
+
+  it('throws NOT_FOUND when message belongs to a different event (cross-event IDOR)', async () => {
+    const caller = FakeIdentity.random();
+    // thread-1 belongs to event-1; message has threadId 'thread-other' (different event)
+    const message = makeMessage({ threadId: 'thread-other', authorUserId: caller.userId });
+    const useCase = new DeleteMessageUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) }),
+      makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) }),
+      makeChatRepo({
+        findThreadByEvent: vi.fn().mockResolvedValue(makeThread()),
+        findMessage: vi.fn().mockResolvedValue(message),
+      }),
+      makeMemberRepo(),
+    );
+    await expect(useCase.execute(caller, 'event-1', 'msg-other')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

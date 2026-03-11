@@ -141,21 +141,53 @@ export function createEventChecklistRouter(
       dueAt?: unknown;
     };
 
+    const updatePayload: {
+      text?: string;
+      assignedToUserId?: string | null;
+      dueAt?: Date | null;
+    } = {};
+
+    if (body.text !== undefined) {
+      if (typeof body.text !== 'string') {
+        res.status(400).json({ error: 'Invalid text: must be a string', code: 'VALIDATION_ERROR' });
+        return;
+      }
+      updatePayload.text = body.text;
+    }
+
+    if (body.assignedToUserId !== undefined) {
+      if (body.assignedToUserId !== null && typeof body.assignedToUserId !== 'string') {
+        res.status(400).json({
+          error: 'Invalid assignedToUserId: must be a string or null',
+          code: 'VALIDATION_ERROR',
+        });
+        return;
+      }
+      updatePayload.assignedToUserId = body.assignedToUserId as string | null;
+    }
+
+    if (body.dueAt !== undefined) {
+      if (typeof body.dueAt !== 'string') {
+        res.status(400).json({ error: 'Invalid dueAt: must be a string', code: 'VALIDATION_ERROR' });
+        return;
+      }
+      if (body.dueAt.length === 0) {
+        updatePayload.dueAt = null;
+      } else {
+        const timestamp = Date.parse(body.dueAt);
+        if (Number.isNaN(timestamp)) {
+          res.status(400).json({
+            error: 'Invalid dueAt: must be a valid date-time string',
+            code: 'VALIDATION_ERROR',
+          });
+          return;
+        }
+        updatePayload.dueAt = new Date(timestamp);
+      }
+    }
+
     try {
-      const item = await updateItem.execute(identity, eventId, itemId, {
-        ...(body.text !== undefined ? { text: body.text as string } : {}),
-        ...(body.assignedToUserId !== undefined
-          ? { assignedToUserId: body.assignedToUserId as string | null }
-          : {}),
-        ...(body.dueAt !== undefined
-          ? {
-              dueAt:
-                typeof body.dueAt === 'string' && body.dueAt.length > 0
-                  ? new Date(body.dueAt)
-                  : null,
-            }
-          : {}),
-      });
+      const item = await updateItem.execute(identity, eventId, itemId, updatePayload);
       res.json(item);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
