@@ -5,7 +5,5 @@
  * Internal domain, application, and infrastructure details must not be exported here.
  */
 
-// Domain types and interfaces will be exported here as they are defined.
-// Application use-case command and query types will be exported here.
-
-export {};
+export type { EventLocation, SetLocationData, LocationType } from './domain/event-location.js';
+export type { EventLocationRepositoryPort } from './domain/event-location.repository.port.js';

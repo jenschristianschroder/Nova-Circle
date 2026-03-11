@@ -5,7 +5,8 @@
  * Internal domain, application, and infrastructure details must not be exported here.
  */
 
-// Domain types and interfaces will be exported here as they are defined.
-// Application use-case command and query types will be exported here.
-
-export {};
+export type { EventChatThread, EventChatMessage, PostMessageData } from './domain/event-chat.js';
+export type {
+  EventChatRepositoryPort,
+  ListMessagesOptions,
+} from './domain/event-chat.repository.port.js';
