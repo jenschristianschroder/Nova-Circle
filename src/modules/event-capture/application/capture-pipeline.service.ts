@@ -4,12 +4,25 @@ import type { EventDraftRepositoryPort } from '../domain/event-draft.repository.
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { EventCreationPort } from '../../event-management/domain/event-creation.port.js';
 import type { EventDraft, DraftIssue, RawInputType } from '../domain/event-draft.js';
+import { isValidUuid } from '../../../shared/validation/uuid.js';
 
 /**
  * Minimum confidence score required to promote a candidate field to a real value.
  * Fields below this threshold are flagged with low_confidence_extraction.
  */
 const CONFIDENCE_THRESHOLD = 0.7;
+
+/** Maximum allowed length for an event title. Mirrors the DB constraint on events.title. */
+const TITLE_MAX_LENGTH = 200;
+
+/**
+ * Strict ISO 8601 datetime-with-time regex.
+ * Accepts: YYYY-MM-DDThh:mm[:ss][.SSS](Z|±hh:mm)
+ * Rejects date-only strings (e.g. "2026-06-01") so callers get explicit issue codes
+ * (ambiguous_date / missing_start_time) rather than silent midnight-UTC coercions.
+ */
+const ISO_DATETIME_WITH_TIME_REGEX =
+  /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(?::[0-9]{2})?(?:\.[0-9]{1,3})?(Z|[+-][0-9]{2}:[0-9]{2})$/;
 
 /** Returned when the pipeline produces a saved event. */
 export interface CaptureEventResult {
@@ -46,16 +59,23 @@ export interface PipelineInput {
 
 /**
  * Attempts to parse a datetime string deterministically.
- * Returns a Date if the string is a valid ISO 8601 datetime; null otherwise.
+ * Returns a Date only for strict ISO 8601 datetime strings that include a time component
+ * (e.g. "2026-06-01T12:00:00Z" or "2026-06-01T14:00:00+02:00"). Returns null otherwise.
  *
- * Uses only JavaScript's built-in Date.parse – no AI or external service is called.
+ * Date-only values (e.g. "2026-06-01") are intentionally rejected so callers can
+ * surface explicit ambiguous_date / missing_start_time issue codes rather than
+ * silently coercing them to midnight UTC.
+ *
+ * Behavior is deterministic across runtimes because only ISO 8601 datetimes are
+ * accepted – no locale-dependent or browser-specific parsing paths are used.
  */
 export function tryParseDateTime(value: string): Date | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const ms = Date.parse(trimmed);
-  if (isNaN(ms)) return null;
-  return new Date(ms);
+  if (!ISO_DATETIME_WITH_TIME_REGEX.test(trimmed)) return null;
+  const date = new Date(trimmed);
+  if (isNaN(date.getTime())) return null;
+  return date;
 }
 
 /**
@@ -103,6 +123,8 @@ export class CapturePipelineService {
       issues.push({ code: 'low_confidence_extraction', field: 'title', message: 'Title extraction confidence is too low to create an event' });
     } else if (!candidates.title.value.trim()) {
       issues.push({ code: 'missing_title', field: 'title', message: 'No title could be extracted from the input' });
+    } else if (candidates.title.value.trim().length > TITLE_MAX_LENGTH) {
+      issues.push({ code: 'title_too_long', field: 'title', message: `Event title must not exceed ${TITLE_MAX_LENGTH} characters` });
     }
 
     // Start date/time validation.
@@ -126,6 +148,10 @@ export class CapturePipelineService {
 
     if (!resolvedGroupId) {
       issues.push({ code: 'missing_group', field: 'groupId', message: 'No group could be identified from the input' });
+    } else if (!isValidUuid(resolvedGroupId)) {
+      // An invalid UUID would cause a PostgreSQL cast error; treat as unauthorized access.
+      issues.push({ code: 'unauthorized_group_access', field: 'groupId', message: 'Invalid group identifier' });
+      resolvedGroupId = null;
     } else {
       const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
       if (!isMember) {
@@ -195,6 +221,8 @@ export class CapturePipelineService {
     // Title.
     if (!candidates.title || !candidates.title.trim()) {
       issues.push({ code: 'missing_title', field: 'title', message: 'Title is required' });
+    } else if (candidates.title.trim().length > TITLE_MAX_LENGTH) {
+      issues.push({ code: 'title_too_long', field: 'title', message: `Event title must not exceed ${TITLE_MAX_LENGTH} characters` });
     }
 
     // Start.
@@ -211,6 +239,9 @@ export class CapturePipelineService {
     let resolvedGroupId = candidates.groupId;
     if (!resolvedGroupId) {
       issues.push({ code: 'missing_group', field: 'groupId', message: 'A group is required' });
+    } else if (!isValidUuid(resolvedGroupId)) {
+      issues.push({ code: 'unauthorized_group_access', field: 'groupId', message: 'Invalid group identifier' });
+      resolvedGroupId = null;
     } else {
       const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
       if (!isMember) {

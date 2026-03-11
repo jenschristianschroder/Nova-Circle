@@ -20,7 +20,7 @@ import { FakeIdentity } from '../../../shared/test-helpers/fake-identity.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-const GROUP_ID = 'group-00000000-0000-0000-0000-000000000001';
+const GROUP_ID = '00000000-0000-4000-8000-000000000001';
 
 function makeEvent(overrides?: Partial<Event>): Event {
   return {
@@ -144,9 +144,10 @@ describe('tryParseDateTime', () => {
   });
 
   it('returns null for a date-only string (no time component)', () => {
-    // Date.parse('2026-06-01') is valid per spec but returns midnight UTC – we accept it.
+    // Date-only strings are intentionally rejected to avoid ambiguous midnight-UTC coercions.
+    // Callers should surface an explicit ambiguous_date or missing_start_time issue code.
     const result = tryParseDateTime('2026-06-01');
-    expect(result).toBeInstanceOf(Date);
+    expect(result).toBeNull();
   });
 });
 
@@ -451,6 +452,16 @@ describe('PromoteDraftUseCase', () => {
     const useCase = new PromoteDraftUseCase(draftRepo, makeEventCreator(), makeMemberRepo(true));
 
     await expect(useCase.execute(caller, 'draft-1')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('throws CONFLICT when caller is no longer a member of the group', async () => {
+    const caller = FakeIdentity.random();
+    const draft = makeDraft({ createdByUserId: caller.userId, issues: [] });
+    const draftRepo = makeDraftRepo({ findById: vi.fn().mockResolvedValue(draft) });
+    // Caller is no longer a group member.
+    const useCase = new PromoteDraftUseCase(draftRepo, makeEventCreator(), makeMemberRepo(false));
+
+    await expect(useCase.execute(caller, draft.id)).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 });
 

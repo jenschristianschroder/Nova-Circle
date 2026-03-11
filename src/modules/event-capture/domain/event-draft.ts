@@ -4,6 +4,7 @@ export type DraftStatus = 'pending_review' | 'promoted' | 'abandoned';
 
 export type DraftIssueCode =
   | 'missing_title'
+  | 'title_too_long'
   | 'missing_start_date'
   | 'missing_start_time'
   | 'ambiguous_date'

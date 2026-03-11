@@ -2,6 +2,7 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventDraftRepositoryPort } from '../domain/event-draft.repository.port.js';
 import type { EventCreationPort } from '../../event-management/domain/event-creation.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import { isValidUuid } from '../../../shared/validation/uuid.js';
 
 export interface PromoteDraftResult {
   readonly eventId: string;
@@ -43,6 +44,25 @@ export class PromoteDraftUseCase {
     if (!draft.candidateTitle || !draft.candidateStartAt || !draft.groupId) {
       throw Object.assign(
         new Error('Draft is missing required fields (title, startAt, or groupId)'),
+        { code: 'CONFLICT' },
+      );
+    }
+    // Defensively validate the stored groupId is a valid UUID before calling the
+    // member repository – a corrupt row must not cause an unhandled PostgreSQL cast error.
+    if (!isValidUuid(draft.groupId)) {
+      throw Object.assign(
+        new Error('Draft has an invalid groupId and cannot be promoted'),
+        { code: 'CONFLICT' },
+      );
+    }
+
+    // Verify the caller is still a member of the group at promotion time.
+    // A user who was removed from the group after creating the draft must not be
+    // able to promote it (which would re-add them via the invitees snapshot).
+    const isStillMember = await this.memberRepo.isMember(draft.groupId, caller.userId);
+    if (!isStillMember) {
+      throw Object.assign(
+        new Error('You are not a member of the group associated with this draft'),
         { code: 'CONFLICT' },
       );
     }

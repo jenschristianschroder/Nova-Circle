@@ -29,9 +29,26 @@ function isConflictError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'CONFLICT';
 }
 
-/** Returns the groupId string if it is a non-empty string, or null otherwise. */
+/**
+ * Returns the trimmed groupId if it is a valid UUID, null if absent or blank.
+ * Throws VALIDATION_ERROR when a non-empty, non-UUID value is provided so callers
+ * receive a 400 rather than a PostgreSQL cast error (500).
+ */
 function resolveOptionalGroupId(groupId: unknown): string | null {
-  return typeof groupId === 'string' && groupId.length > 0 ? groupId : null;
+  if (typeof groupId !== 'string') {
+    return null;
+  }
+  const trimmed = groupId.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (!isValidUuid(trimmed)) {
+    throw Object.assign(
+      new Error('groupId must be a valid UUID'),
+      { code: 'VALIDATION_ERROR' },
+    );
+  }
+  return trimmed;
 }
 
 export function createCaptureRouter(
@@ -68,9 +85,9 @@ export function createCaptureRouter(
       res.status(400).json({ error: 'text is required', code: 'VALIDATION_ERROR' });
       return;
     }
-    const resolvedGroupId = resolveOptionalGroupId(groupId);
 
     try {
+      const resolvedGroupId = resolveOptionalGroupId(groupId);
       const result = await captureText.execute(identity, { text, groupId: resolvedGroupId });
       if (result.type === 'event') {
         res.status(201).json({ type: 'event', eventId: result.eventId });
@@ -99,9 +116,9 @@ export function createCaptureRouter(
       res.status(400).json({ error: 'audioBlobUri is required', code: 'VALIDATION_ERROR' });
       return;
     }
-    const resolvedGroupId = resolveOptionalGroupId(groupId);
 
     try {
+      const resolvedGroupId = resolveOptionalGroupId(groupId);
       const result = await captureVoice.execute(identity, { audioBlobUri, groupId: resolvedGroupId });
       if (result.type === 'event') {
         res.status(201).json({ type: 'event', eventId: result.eventId });
@@ -130,9 +147,9 @@ export function createCaptureRouter(
       res.status(400).json({ error: 'imageBlobUri is required', code: 'VALIDATION_ERROR' });
       return;
     }
-    const resolvedGroupId = resolveOptionalGroupId(groupId);
 
     try {
+      const resolvedGroupId = resolveOptionalGroupId(groupId);
       const result = await captureImage.execute(identity, { imageBlobUri, groupId: resolvedGroupId });
       if (result.type === 'event') {
         res.status(201).json({ type: 'event', eventId: result.eventId });

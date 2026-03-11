@@ -1,6 +1,7 @@
 import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventDraftRepositoryPort } from '../domain/event-draft.repository.port.js';
 import type { CapturePipelineService } from './capture-pipeline.service.js';
+import { tryParseDateTime } from './capture-pipeline.service.js';
 import type { EventDraft } from '../domain/event-draft.js';
 
 export interface UpdateDraftCommand {
@@ -46,15 +47,44 @@ export class UpdateDraftUseCase {
     const mergedGroupId =
       command.groupId !== undefined ? command.groupId : draft.groupId;
 
-    const { tryParseDateTime } = await import('./capture-pipeline.service.js');
-    const mergedStartAt =
-      command.startAt !== undefined
-        ? (command.startAt ? tryParseDateTime(command.startAt) : null)
-        : draft.candidateStartAt;
-    const mergedEndAt =
-      command.endAt !== undefined
-        ? (command.endAt ? tryParseDateTime(command.endAt) : null)
-        : draft.candidateEndAt;
+    // Parse user-supplied datetime strings. Throw VALIDATION_ERROR for non-null strings
+    // that are not valid ISO 8601 datetimes-with-time so callers receive an actionable 400
+    // rather than a silent null that becomes a missing_start_date issue.
+    let mergedStartAt: Date | null;
+    if (command.startAt !== undefined) {
+      if (command.startAt === null) {
+        mergedStartAt = null;
+      } else {
+        const parsed = tryParseDateTime(command.startAt);
+        if (parsed === null) {
+          throw Object.assign(
+            new Error('startAt must be a valid ISO 8601 datetime string with time (e.g. "2026-06-01T12:00:00Z")'),
+            { code: 'VALIDATION_ERROR' },
+          );
+        }
+        mergedStartAt = parsed;
+      }
+    } else {
+      mergedStartAt = draft.candidateStartAt;
+    }
+
+    let mergedEndAt: Date | null;
+    if (command.endAt !== undefined) {
+      if (command.endAt === null) {
+        mergedEndAt = null;
+      } else {
+        const parsed = tryParseDateTime(command.endAt);
+        if (parsed === null) {
+          throw Object.assign(
+            new Error('endAt must be a valid ISO 8601 datetime string with time (e.g. "2026-06-01T13:00:00Z")'),
+            { code: 'VALIDATION_ERROR' },
+          );
+        }
+        mergedEndAt = parsed;
+      }
+    } else {
+      mergedEndAt = draft.candidateEndAt;
+    }
 
     // Re-run validation with the merged candidates.
     const { issues, resolvedGroupId } = await this.pipeline.revalidate(caller, {
