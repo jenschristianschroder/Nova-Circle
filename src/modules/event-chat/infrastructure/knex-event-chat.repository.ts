@@ -75,9 +75,9 @@ export class KnexEventChatRepository implements EventChatRepositoryPort {
   async listMessages(threadId: string, options?: ListMessagesOptions): Promise<EventChatMessage[]> {
     const limit = Math.min(options?.limit ?? DEFAULT_MESSAGE_LIMIT, MAX_MESSAGE_LIMIT);
 
+    // Include soft-deleted messages so callers can render a placeholder for deleted entries.
     let query = this.db<MessageRow>('event_chat_messages')
       .where({ thread_id: threadId })
-      .whereNull('deleted_at')
       .orderBy('posted_at', 'asc')
       .limit(limit);
 

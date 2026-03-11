@@ -39,8 +39,8 @@ export function createEventChatRouter(
   const editMessage = new EditMessageUseCase(eventRepo, invitationRepo, chatRepo);
   const deleteMessage = new DeleteMessageUseCase(eventRepo, invitationRepo, chatRepo, memberRepo);
 
-  // GET /api/v1/events/:eventId/chat/messages
-  router.get('/messages', async (req: Request, res: Response) => {
+  // GET /api/v1/events/:eventId/chat
+  router.get('/', async (req: Request, res: Response) => {
     const identity = req.identity;
     if (!identity) {
       res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
@@ -76,7 +76,11 @@ export function createEventChatRouter(
         ...(before !== undefined ? { before } : {}),
         ...(after !== undefined ? { after } : {}),
       });
-      res.json({ messages });
+      // Mask content of soft-deleted messages – return a placeholder instead of the original text.
+      const masked = messages.map((m) =>
+        m.deletedAt !== null ? { ...m, content: '[deleted]' } : m,
+      );
+      res.json({ messages: masked });
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
@@ -90,8 +94,8 @@ export function createEventChatRouter(
     }
   });
 
-  // POST /api/v1/events/:eventId/chat/messages
-  router.post('/messages', async (req: Request, res: Response) => {
+  // POST /api/v1/events/:eventId/chat
+  router.post('/', async (req: Request, res: Response) => {
     const identity = req.identity;
     if (!identity) {
       res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
@@ -126,8 +130,8 @@ export function createEventChatRouter(
     }
   });
 
-  // PUT /api/v1/events/:eventId/chat/messages/:messageId
-  router.put('/messages/:messageId', async (req: Request, res: Response) => {
+  // PUT /api/v1/events/:eventId/chat/:messageId
+  router.put('/:messageId', async (req: Request, res: Response) => {
     const identity = req.identity;
     if (!identity) {
       res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
@@ -176,8 +180,8 @@ export function createEventChatRouter(
     }
   });
 
-  // DELETE /api/v1/events/:eventId/chat/messages/:messageId
-  router.delete('/messages/:messageId', async (req: Request, res: Response) => {
+  // DELETE /api/v1/events/:eventId/chat/:messageId
+  router.delete('/:messageId', async (req: Request, res: Response) => {
     const identity = req.identity;
     if (!identity) {
       res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });

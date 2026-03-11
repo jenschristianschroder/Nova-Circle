@@ -59,20 +59,20 @@ describe('Event Chat API', () => {
   });
 
   it.skipIf(skipReason !== undefined)('GET messages returns 401 without auth', async () => {
-    const res = await request(app).get(`/api/v1/events/${eventId}/chat/messages`);
+    const res = await request(app).get(`/api/v1/events/${eventId}/chat`);
     expect(res.status).toBe(401);
   });
 
   it.skipIf(skipReason !== undefined)('GET returns 404 for non-invited user', async () => {
     const res = await request(app)
-      .get(`/api/v1/events/${eventId}/chat/messages`)
+      .get(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(outsider.userId, outsider.displayName));
     expect(res.status).toBe(404);
   });
 
   it.skipIf(skipReason !== undefined)('GET returns empty messages for invited user', async () => {
     const res = await request(app)
-      .get(`/api/v1/events/${eventId}/chat/messages`)
+      .get(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(owner.userId, owner.displayName));
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ messages: [] });
@@ -80,7 +80,7 @@ describe('Event Chat API', () => {
 
   it.skipIf(skipReason !== undefined)('POST returns 400 for missing content', async () => {
     const res = await request(app)
-      .post(`/api/v1/events/${eventId}/chat/messages`)
+      .post(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(owner.userId, owner.displayName))
       .send({});
     expect(res.status).toBe(400);
@@ -88,7 +88,7 @@ describe('Event Chat API', () => {
 
   it.skipIf(skipReason !== undefined)('POST returns 404 for non-invited user', async () => {
     const res = await request(app)
-      .post(`/api/v1/events/${eventId}/chat/messages`)
+      .post(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(outsider.userId, outsider.displayName))
       .send({ content: 'Hello!' });
     expect(res.status).toBe(404);
@@ -96,7 +96,7 @@ describe('Event Chat API', () => {
 
   it.skipIf(skipReason !== undefined)('POST creates message (201)', async () => {
     const res = await request(app)
-      .post(`/api/v1/events/${eventId}/chat/messages`)
+      .post(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(owner.userId, owner.displayName))
       .send({ content: 'Hello everyone!' });
     expect(res.status).toBe(201);
@@ -109,13 +109,13 @@ describe('Event Chat API', () => {
 
   it.skipIf(skipReason !== undefined)('invited member can also post and read', async () => {
     const postRes = await request(app)
-      .post(`/api/v1/events/${eventId}/chat/messages`)
+      .post(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(member.userId, member.displayName))
       .send({ content: 'Hi from member!' });
     expect(postRes.status).toBe(201);
 
     const getRes = await request(app)
-      .get(`/api/v1/events/${eventId}/chat/messages`)
+      .get(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(member.userId, member.displayName));
     expect(getRes.status).toBe(200);
     const getBody = getRes.body as { messages: unknown[] };
@@ -125,13 +125,13 @@ describe('Event Chat API', () => {
   it.skipIf(skipReason !== undefined)('PUT edits own message', async () => {
     // Post a message to edit.
     const postRes = await request(app)
-      .post(`/api/v1/events/${eventId}/chat/messages`)
+      .post(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(owner.userId, owner.displayName))
       .send({ content: 'Original content' });
     const msgId = (postRes.body as { id: string }).id;
 
     const editRes = await request(app)
-      .put(`/api/v1/events/${eventId}/chat/messages/${msgId}`)
+      .put(`/api/v1/events/${eventId}/chat/${msgId}`)
       .set(testAuthHeaders(owner.userId, owner.displayName))
       .send({ content: 'Edited content' });
     expect(editRes.status).toBe(200);
@@ -144,13 +144,13 @@ describe('Event Chat API', () => {
     'PUT returns 403 when editing another user message',
     async () => {
       const postRes = await request(app)
-        .post(`/api/v1/events/${eventId}/chat/messages`)
+        .post(`/api/v1/events/${eventId}/chat`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ content: 'Owner message' });
       const msgId = (postRes.body as { id: string }).id;
 
       const editRes = await request(app)
-        .put(`/api/v1/events/${eventId}/chat/messages/${msgId}`)
+        .put(`/api/v1/events/${eventId}/chat/${msgId}`)
         .set(testAuthHeaders(member.userId, member.displayName))
         .send({ content: 'Hacked content' });
       expect(editRes.status).toBe(403);
@@ -159,24 +159,27 @@ describe('Event Chat API', () => {
 
   it.skipIf(skipReason !== undefined)('DELETE soft-deletes own message', async () => {
     const postRes = await request(app)
-      .post(`/api/v1/events/${eventId}/chat/messages`)
+      .post(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(owner.userId, owner.displayName))
       .send({ content: 'To be deleted' });
     const msgId = (postRes.body as { id: string }).id;
 
     const delRes = await request(app)
-      .delete(`/api/v1/events/${eventId}/chat/messages/${msgId}`)
+      .delete(`/api/v1/events/${eventId}/chat/${msgId}`)
       .set(testAuthHeaders(owner.userId, owner.displayName));
     expect(delRes.status).toBe(200);
     const delBody = delRes.body as { deletedAt: string | null };
     expect(delBody.deletedAt).not.toBeNull();
 
-    // Deleted message should not appear in list.
+    // Soft-deleted messages appear in the list with a placeholder, not the original content.
     const listRes = await request(app)
-      .get(`/api/v1/events/${eventId}/chat/messages`)
+      .get(`/api/v1/events/${eventId}/chat`)
       .set(testAuthHeaders(owner.userId, owner.displayName));
-    const messages = (listRes.body as { messages: Array<{ id: string }> }).messages;
-    expect(messages.find((m) => m.id === msgId)).toBeUndefined();
+    const messages = (listRes.body as { messages: Array<{ id: string; content: string }> })
+      .messages;
+    const deleted = messages.find((m) => m.id === msgId);
+    expect(deleted).toBeDefined();
+    expect(deleted?.content).toBe('[deleted]');
   });
 
   it.skipIf(skipReason !== undefined)('group event list does not include chat data', async () => {
