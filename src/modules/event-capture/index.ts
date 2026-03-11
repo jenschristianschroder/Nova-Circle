@@ -23,4 +23,5 @@ export type {
   IImageExtractionAdapter,
   ExtractionCandidate,
 } from './application/image-extraction.port.js';
+export type { IBlobStorageAdapter } from './application/blob-storage.port.js';
 export type { CaptureResult } from './application/capture-pipeline.service.js';
