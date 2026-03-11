@@ -202,7 +202,8 @@ export function createEventChatRouter(
 
     try {
       const message = await deleteMessage.execute(identity, eventId, messageId);
-      res.json(message);
+      // Mask content in the delete response – the message is now soft-deleted.
+      res.json(message.deletedAt !== null ? { ...message, content: '[deleted]' } : message);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });

@@ -168,8 +168,10 @@ describe('Event Chat API', () => {
       .delete(`/api/v1/events/${eventId}/chat/${msgId}`)
       .set(testAuthHeaders(owner.userId, owner.displayName));
     expect(delRes.status).toBe(200);
-    const delBody = delRes.body as { deletedAt: string | null };
+    const delBody = delRes.body as { deletedAt: string | null; content: string };
     expect(delBody.deletedAt).not.toBeNull();
+    // DELETE response must also return the placeholder, not the original content.
+    expect(delBody.content).toBe('[deleted]');
 
     // Soft-deleted messages appear in the list with a placeholder, not the original content.
     const listRes = await request(app)

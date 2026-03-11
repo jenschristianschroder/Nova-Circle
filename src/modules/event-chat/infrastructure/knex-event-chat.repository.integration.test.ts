@@ -89,17 +89,24 @@ describe('KnexEventChatRepository integration', () => {
     async () => {
       const thread = await chatRepo.findOrCreateThread(eventId);
 
-      await chatRepo.postMessage(thread.id, 'First', AUTHOR_ID);
-      await chatRepo.postMessage(thread.id, 'Second', AUTHOR_ID);
-      await chatRepo.postMessage(thread.id, 'Third', AUTHOR_ID);
+      const first = await chatRepo.postMessage(thread.id, 'First', AUTHOR_ID);
+      const second = await chatRepo.postMessage(thread.id, 'Second', AUTHOR_ID);
+      const third = await chatRepo.postMessage(thread.id, 'Third', AUTHOR_ID);
 
       const messages = await chatRepo.listMessages(thread.id);
-      const contents = messages.map((m) => m.content);
 
-      // Messages seeded earlier in this suite may also appear; just verify ordering.
-      const seededIndices = ['First', 'Second', 'Third'].map((c) => contents.indexOf(c));
-      expect(seededIndices[0]).toBeLessThan(seededIndices[1]!);
-      expect(seededIndices[1]).toBeLessThan(seededIndices[2]!);
+      // Messages seeded earlier in this suite may also appear; verify ordering of the
+      // messages created in this test by their IDs, not by content.
+      const firstIndex = messages.findIndex((m) => m.id === first.id);
+      const secondIndex = messages.findIndex((m) => m.id === second.id);
+      const thirdIndex = messages.findIndex((m) => m.id === third.id);
+
+      expect(firstIndex).toBeGreaterThanOrEqual(0);
+      expect(secondIndex).toBeGreaterThanOrEqual(0);
+      expect(thirdIndex).toBeGreaterThanOrEqual(0);
+
+      expect(firstIndex).toBeLessThan(secondIndex);
+      expect(secondIndex).toBeLessThan(thirdIndex);
     },
   );
 });
