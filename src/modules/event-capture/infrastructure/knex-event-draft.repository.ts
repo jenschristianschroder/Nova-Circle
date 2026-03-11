@@ -92,17 +92,20 @@ export class KnexEventDraftRepository implements EventDraftRepositoryPort {
   }
 
   async updateCandidates(draftId: string, data: UpdateDraftCandidates): Promise<EventDraft | null> {
+    const updatePayload: Record<string, unknown> = {
+      issues: JSON.stringify(data.issues),
+      updated_at: new Date(),
+    };
+
+    if (data.groupId !== undefined) updatePayload['group_id'] = data.groupId;
+    if (data.candidateTitle !== undefined) updatePayload['candidate_title'] = data.candidateTitle;
+    if (data.candidateDescription !== undefined) updatePayload['candidate_description'] = data.candidateDescription;
+    if (data.candidateStartAt !== undefined) updatePayload['candidate_start_at'] = data.candidateStartAt;
+    if (data.candidateEndAt !== undefined) updatePayload['candidate_end_at'] = data.candidateEndAt;
+
     const rows = await this.db<EventDraftRow>('event_drafts')
       .where({ id: draftId })
-      .update({
-        group_id: data.groupId !== undefined ? data.groupId : this.db.raw('group_id'),
-        candidate_title: data.candidateTitle !== undefined ? data.candidateTitle : this.db.raw('candidate_title'),
-        candidate_description: data.candidateDescription !== undefined ? data.candidateDescription : this.db.raw('candidate_description'),
-        candidate_start_at: data.candidateStartAt !== undefined ? data.candidateStartAt : this.db.raw('candidate_start_at'),
-        candidate_end_at: data.candidateEndAt !== undefined ? data.candidateEndAt : this.db.raw('candidate_end_at'),
-        issues: JSON.stringify(data.issues),
-        updated_at: new Date(),
-      })
+      .update(updatePayload)
       .returning('*');
 
     const row = rows[0];

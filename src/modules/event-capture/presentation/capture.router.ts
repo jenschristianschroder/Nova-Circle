@@ -29,6 +29,11 @@ function isConflictError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'CONFLICT';
 }
 
+/** Returns the groupId string if it is a non-empty string, or null otherwise. */
+function resolveOptionalGroupId(groupId: unknown): string | null {
+  return typeof groupId === 'string' && groupId.length > 0 ? groupId : null;
+}
+
 export function createCaptureRouter(
   draftRepo: EventDraftRepositoryPort,
   eventCreator: EventCreationPort,
@@ -63,7 +68,7 @@ export function createCaptureRouter(
       res.status(400).json({ error: 'text is required', code: 'VALIDATION_ERROR' });
       return;
     }
-    const resolvedGroupId = typeof groupId === 'string' ? groupId : null;
+    const resolvedGroupId = resolveOptionalGroupId(groupId);
 
     try {
       const result = await captureText.execute(identity, { text, groupId: resolvedGroupId });
@@ -94,7 +99,7 @@ export function createCaptureRouter(
       res.status(400).json({ error: 'audioBlobUri is required', code: 'VALIDATION_ERROR' });
       return;
     }
-    const resolvedGroupId = typeof groupId === 'string' ? groupId : null;
+    const resolvedGroupId = resolveOptionalGroupId(groupId);
 
     try {
       const result = await captureVoice.execute(identity, { audioBlobUri, groupId: resolvedGroupId });
@@ -125,7 +130,7 @@ export function createCaptureRouter(
       res.status(400).json({ error: 'imageBlobUri is required', code: 'VALIDATION_ERROR' });
       return;
     }
-    const resolvedGroupId = typeof groupId === 'string' ? groupId : null;
+    const resolvedGroupId = resolveOptionalGroupId(groupId);
 
     try {
       const result = await captureImage.execute(identity, { imageBlobUri, groupId: resolvedGroupId });
@@ -210,7 +215,7 @@ export function createCaptureRouter(
     try {
       const draft = await updateDraft.execute(identity, {
         draftId,
-        ...(groupId !== undefined ? { groupId: typeof groupId === 'string' ? groupId : null } : {}),
+        ...(groupId !== undefined ? { groupId: resolveOptionalGroupId(groupId) } : {}),
         ...(title !== undefined ? { title: typeof title === 'string' ? title : null } : {}),
         ...(description !== undefined ? { description: typeof description === 'string' ? description : null } : {}),
         ...(startAt !== undefined ? { startAt: typeof startAt === 'string' ? startAt : null } : {}),

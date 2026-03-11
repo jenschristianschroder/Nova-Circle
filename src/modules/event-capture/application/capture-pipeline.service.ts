@@ -144,12 +144,13 @@ export class CapturePipelineService {
         inviteeIds.push(caller.userId);
       }
 
+      const hasValidTimeRange = !issues.some((i) => i.code === 'invalid_time_range');
       const event = await this.eventCreator.createEventWithInvitations({
         groupId: resolvedGroupId,
         title: candidates.title!.value.trim(),
         description: candidates.description?.value ?? null,
         startAt: parsedStart,
-        endAt: (parsedEnd && !issues.some((i) => i.code === 'invalid_time_range')) ? parsedEnd : null,
+        endAt: (parsedEnd && hasValidTimeRange) ? parsedEnd : null,
         createdBy: caller.userId,
         inviteeIds,
       });
