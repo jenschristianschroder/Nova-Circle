@@ -8,4 +8,3 @@
 export type { Event, EventStatus, CreateEventData, UpdateEventData } from './domain/event.js';
 export type { EventInvitation, InvitationStatus } from './domain/event-invitation.js';
 export type { CreateEventCommand } from './application/create-event.usecase.js';
-export type { EditEventCommand } from './application/edit-event.usecase.js';
