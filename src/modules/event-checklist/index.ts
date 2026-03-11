@@ -5,7 +5,10 @@
  * Internal domain, application, and infrastructure details must not be exported here.
  */
 
-// Domain types and interfaces will be exported here as they are defined.
-// Application use-case command and query types will be exported here.
-
-export {};
+export type {
+  EventChecklist,
+  EventChecklistItem,
+  AddChecklistItemData,
+  UpdateChecklistItemData,
+} from './domain/event-checklist.js';
+export type { EventChecklistRepositoryPort } from './domain/event-checklist.repository.port.js';
