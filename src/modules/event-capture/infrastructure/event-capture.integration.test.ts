@@ -8,9 +8,11 @@ import { KnexGroupMemberRepository } from '../../group-membership/infrastructure
 import { KnexEventCreationService } from '../../event-management/infrastructure/knex-event-creation.service.js';
 import { CapturePipelineService } from '../application/capture-pipeline.service.js';
 import { CaptureTextUseCase } from '../application/capture-text.usecase.js';
+import { CaptureVoiceUseCase } from '../application/capture-voice.usecase.js';
 import { PromoteDraftUseCase } from '../application/promote-draft.usecase.js';
 import { AbandonDraftUseCase } from '../application/abandon-draft.usecase.js';
 import { FakeEventFieldExtractor } from './fake-event-field-extractor.js';
+import { FakeSpeechToTextAdapter } from './fake-speech-to-text.adapter.js';
 import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 
 const skipReason = !process.env['TEST_DATABASE_URL']
@@ -155,6 +157,116 @@ describe('Event capture infrastructure integration', () => {
 
       const promotedDraft = await draftRepo.findById(draft.id);
       expect(promotedDraft!.status).toBe('promoted');
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // CaptureVoiceUseCase – integration tests confirming same outcomes as text
+  // ---------------------------------------------------------------------------
+
+  it.skipIf(skipReason !== undefined)(
+    'voice input with incomplete STT transcript produces the same draft issue codes as the same text via text input',
+    async () => {
+      const transcript = 'Team lunch with no date specified';
+      const extractor = new FakeEventFieldExtractor({});
+      const memberRepo = new KnexGroupMemberRepository(db);
+      const eventCreator = new KnexEventCreationService(db);
+      const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
+
+      const sttAdapter = new FakeSpeechToTextAdapter({ transcript, confidence: 0.9 });
+      const voiceUseCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
+
+      const textUseCase = new CaptureTextUseCase(pipeline);
+
+      const voiceResult = await voiceUseCase.execute(creator, {
+        audioBlobUri: 'blob://audio/incomplete.wav',
+        groupId,
+      });
+      // Text input uses the exact transcript the STT adapter would return, so both paths
+      // normalize to the same text before entering the shared pipeline.
+      const textResult = await textUseCase.execute(creator, {
+        text: transcript,
+        groupId,
+      });
+
+      // Both inputs produce drafts because required fields are missing.
+      expect(voiceResult.type).toBe('draft');
+      expect(textResult.type).toBe('draft');
+
+      if (voiceResult.type === 'draft' && textResult.type === 'draft') {
+        const voiceIssueCodes = voiceResult.draft.issues.map((i) => i.code).sort();
+        const textIssueCodes = textResult.draft.issues.map((i) => i.code).sort();
+        expect(voiceIssueCodes).toEqual(textIssueCodes);
+      }
+    },
+  );
+
+  it.skipIf(skipReason !== undefined)(
+    'voice input with a complete STT transcript creates an event with the same outcome as the same text via text input',
+    async () => {
+      const transcript = 'Voice standup on September first at nine';
+      const extractor = new FakeEventFieldExtractor({
+        title: { value: 'Voice Standup', confidence: 0.95 },
+        startDateTime: { value: '2026-09-01T09:00:00Z', confidence: 0.95 },
+      });
+      const memberRepo = new KnexGroupMemberRepository(db);
+      const eventCreator = new KnexEventCreationService(db);
+      const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
+
+      const sttAdapter = new FakeSpeechToTextAdapter({ transcript, confidence: 0.92 });
+      const voiceUseCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
+      const textUseCase = new CaptureTextUseCase(pipeline);
+
+      const voiceResult = await voiceUseCase.execute(creator, {
+        audioBlobUri: 'blob://audio/standup.wav',
+        groupId,
+      });
+      // Text input uses the exact transcript the STT adapter would return, so both paths
+      // normalize to the same text before entering the shared pipeline.
+      const textResult = await textUseCase.execute(creator, {
+        text: transcript,
+        groupId,
+      });
+
+      // Both inputs create an event because the extractor returns all required fields.
+      expect(voiceResult.type).toBe('event');
+      expect(textResult.type).toBe('event');
+
+      if (voiceResult.type === 'event' && textResult.type === 'event') {
+        expect(voiceResult.eventId).toBeTruthy();
+        expect(textResult.eventId).toBeTruthy();
+      }
+    },
+  );
+
+  it.skipIf(skipReason !== undefined)(
+    'voice draft is persisted with rawInputType "voice" and audioBlobReference set',
+    async () => {
+      const extractor = new FakeEventFieldExtractor({});
+      const memberRepo = new KnexGroupMemberRepository(db);
+      const eventCreator = new KnexEventCreationService(db);
+      const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
+
+      const sttAdapter = new FakeSpeechToTextAdapter({ transcript: '', confidence: 0.0 });
+      const voiceUseCase = new CaptureVoiceUseCase(sttAdapter, pipeline);
+
+      const result = await voiceUseCase.execute(creator, {
+        audioBlobUri: 'blob://audio/traceable.wav',
+        groupId,
+      });
+
+      expect(result.type).toBe('draft');
+      if (result.type === 'draft') {
+        expect(result.draft.rawInputType).toBe('voice');
+        expect(result.draft.audioBlobReference).toBe('blob://audio/traceable.wav');
+        expect(result.draft.imageBlobReference).toBeNull();
+
+        // Verify draft is persisted and can be retrieved with correct traceability fields.
+        const fetched = await draftRepo.findById(result.draft.id);
+        expect(fetched).not.toBeNull();
+        expect(fetched!.rawInputType).toBe('voice');
+        expect(fetched!.audioBlobReference).toBe('blob://audio/traceable.wav');
+      }
     },
   );
 });
