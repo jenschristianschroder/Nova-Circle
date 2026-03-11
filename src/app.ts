@@ -21,11 +21,26 @@ import { KnexEventChatRepository } from './modules/event-chat/infrastructure/kne
 import { createEventLocationRouter } from './modules/event-location/presentation/event-location.router.js';
 import { createEventChecklistRouter } from './modules/event-checklist/presentation/event-checklist.router.js';
 import { createEventChatRouter } from './modules/event-chat/presentation/event-chat.router.js';
+import { KnexEventDraftRepository } from './modules/event-capture/infrastructure/knex-event-draft.repository.js';
+import { FakeEventFieldExtractor } from './modules/event-capture/infrastructure/fake-event-field-extractor.js';
+import { FakeSpeechToTextAdapter } from './modules/event-capture/infrastructure/fake-speech-to-text.adapter.js';
+import { FakeImageExtractionAdapter } from './modules/event-capture/infrastructure/fake-image-extraction.adapter.js';
+import { createCaptureRouter } from './modules/event-capture/presentation/capture.router.js';
+import type { IEventFieldExtractor } from './modules/event-capture/application/event-field-extractor.port.js';
+import type { ISpeechToTextAdapter } from './modules/event-capture/application/speech-to-text.port.js';
+import type { IImageExtractionAdapter } from './modules/event-capture/application/image-extraction.port.js';
 
 export interface AppDependencies {
   db?: Knex;
   /** JWT token validator. Required in NODE_ENV=production; optional elsewhere. */
   tokenValidator?: TokenValidatorPort;
+  /**
+   * AI/ML adapter overrides. When not provided, deterministic fake adapters are used.
+   * In production, inject real Azure AI Service adapters.
+   */
+  eventFieldExtractor?: IEventFieldExtractor;
+  speechToTextAdapter?: ISpeechToTextAdapter;
+  imageExtractionAdapter?: IImageExtractionAdapter;
 }
 
 /**
@@ -89,6 +104,16 @@ export function createApp(deps?: AppDependencies): express.Application {
     app.use(
       '/api/v1/events/:eventId/chat',
       createEventChatRouter(eventRepo, invitationRepo, chatRepo, memberRepo),
+    );
+
+    const draftRepo = new KnexEventDraftRepository(db);
+    const extractor = deps.eventFieldExtractor ?? new FakeEventFieldExtractor();
+    const sttAdapter = deps.speechToTextAdapter ?? new FakeSpeechToTextAdapter();
+    const imageAdapter = deps.imageExtractionAdapter ?? new FakeImageExtractionAdapter();
+
+    app.use(
+      '/api/v1/capture',
+      createCaptureRouter(draftRepo, eventCreator, memberRepo, extractor, sttAdapter, imageAdapter),
     );
   }
 
