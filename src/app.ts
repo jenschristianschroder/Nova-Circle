@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { Knex } from 'knex';
 import { createAuthMiddleware } from './shared/auth/auth-middleware.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
+import { logger } from './shared/logger/logger.js';
 import { KnexUserProfileRepository } from './modules/identity-profile/infrastructure/knex-user-profile.repository.js';
 import { KnexGroupRepository } from './modules/group-management/infrastructure/knex-group.repository.js';
 import { KnexGroupCreationService } from './modules/group-management/infrastructure/knex-group-creation.service.js';
@@ -156,7 +157,7 @@ export function createApp(deps?: AppDependencies): express.Application {
 
   // Structured error handler – must have 4 parameters for Express to treat it as an error handler.
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('Unhandled error:', err);
+    logger.error('Unhandled error', err);
     res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
   });
 

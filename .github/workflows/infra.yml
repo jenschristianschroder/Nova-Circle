@@ -1,0 +1,77 @@
+name: Infra
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+  pull_request:
+    paths:
+      - 'infra/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Bicep build – compiles and lints all Bicep templates.
+  # Catches syntax errors and policy violations without touching Azure.
+  # ──────────────────────────────────────────────────────────────────────────
+  bicep-build:
+    name: Bicep build (lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bicep CLI
+        run: az bicep install
+
+      - name: Build main.bicep (lint + compile)
+        run: az bicep build --file infra/main.bicep
+
+      - name: Build individual modules
+        run: |
+          for f in infra/modules/*.bicep; do
+            echo "Building $f ..."
+            az bicep build --file "$f"
+          done
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # What-if – previews changes against a real (empty) resource group.
+  # Runs only on manual dispatch so it never blocks PRs by accident.
+  # Requires the AZURE_CREDENTIALS secret to be configured in the repository.
+  # ──────────────────────────────────────────────────────────────────────────
+  what-if:
+    name: Deployment what-if
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    needs: bicep-build
+    environment: infra-preview
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ensure resource group exists
+        run: |
+          az group create \
+            --name "${{ vars.AZURE_RESOURCE_GROUP || 'rg-nova-circle-dev' }}" \
+            --location "${{ vars.AZURE_LOCATION || 'westeurope' }}" \
+            --output none
+
+      - name: Run what-if
+        run: |
+          az deployment group create \
+            --what-if \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP || 'rg-nova-circle-dev' }}" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.bicepparam \
+            --parameters \
+              postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
+              azureTenantId="${{ vars.AZURE_TENANT_ID || '' }}" \
+              azureClientId="${{ vars.AZURE_CLIENT_ID || '' }}"

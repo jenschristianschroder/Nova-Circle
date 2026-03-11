@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import type { AuditLogPort } from '../domain/audit-log.port.js';
 import type { RecordAuditEntryData } from '../domain/audit-event.js';
+import { logger } from '../../../shared/logger/logger.js';
 
 export class KnexAuditLogRepository implements AuditLogPort {
   constructor(private readonly db: Knex) {}
@@ -19,13 +20,12 @@ export class KnexAuditLogRepository implements AuditLogPort {
     } catch (error) {
       // Audit logging must be tolerant of transient failures: log and continue.
       // Only safe, non-sensitive fields are included in the log message.
-      console.error('Failed to record audit log entry', {
+      logger.error('Failed to record audit log entry', error, {
         actorId: entry.actorId,
         action: entry.action,
         resourceType: entry.resourceType,
         resourceId: entry.resourceId,
         groupId: entry.groupId ?? null,
-        error,
       });
     }
   }

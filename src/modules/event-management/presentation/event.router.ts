@@ -15,6 +15,7 @@ import { ListEventInviteesUseCase } from '../application/list-event-invitees.use
 import { AddEventInviteeUseCase } from '../application/add-event-invitee.usecase.js';
 import { RemoveEventInviteeUseCase } from '../application/remove-event-invitee.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
+import { logger } from '../../../shared/logger/logger.js';
 
 function isNotFoundError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'NOT_FOUND';
@@ -132,7 +133,7 @@ export function createEventRouter(
           groupId,
         });
       } catch (auditErr) {
-        console.error('Audit log failed for event.created:', auditErr);
+        logger.error('Audit log failed for event.created', auditErr);
       }
       res.status(201).json(event);
     } catch (err: unknown) {
@@ -330,7 +331,7 @@ export function createEventRouter(
           groupId,
         });
       } catch (auditErr) {
-        console.error('Audit log failed for event.cancelled:', auditErr);
+        logger.error('Audit log failed for event.cancelled', auditErr);
       }
       res.status(204).send();
     } catch (err: unknown) {
@@ -381,7 +382,7 @@ export function createEventRouter(
           groupId,
         });
       } catch (auditErr) {
-        console.error('Audit log failed for event.cancelled:', auditErr);
+        logger.error('Audit log failed for event.cancelled', auditErr);
       }
       res.status(204).send();
     } catch (err: unknown) {

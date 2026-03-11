@@ -104,6 +104,7 @@ jobs:
     env:
       NODE_ENV: test
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nova_circle_test
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ''
     steps:
       - uses: actions/checkout@v4
 
@@ -152,6 +153,7 @@ jobs:
     env:
       NODE_ENV: test
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nova_circle_test
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ''
     steps:
       - uses: actions/checkout@v4
 
@@ -234,6 +236,7 @@ jobs:
     env:
       NODE_ENV: test
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nova_circle_test
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ''
     steps:
       - uses: actions/checkout@v4
 
