@@ -228,7 +228,7 @@ describe('DeleteChecklistItemUseCase', () => {
       }),
       makeMemberRepo(),
     );
-    await expect(useCase.execute(caller, 'event-1', 'item-other')).rejects.toMatchObject({
+    await expect(useCase.execute(caller, 'event-1', 'item-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });
@@ -289,7 +289,7 @@ describe('CompleteChecklistItemUseCase', () => {
         findItem: vi.fn().mockResolvedValue(item),
       }),
     );
-    await expect(useCase.execute(caller, 'event-1', 'item-other', true)).rejects.toMatchObject({
+    await expect(useCase.execute(caller, 'event-1', 'item-1', true)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });

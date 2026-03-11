@@ -179,7 +179,7 @@ describe('EditMessageUseCase', () => {
       }),
     );
     await expect(
-      useCase.execute(caller, 'event-1', 'msg-other', 'Updated content'),
+      useCase.execute(caller, 'event-1', 'msg-1', 'Updated content'),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
@@ -276,7 +276,7 @@ describe('DeleteMessageUseCase', () => {
       }),
       makeMemberRepo(),
     );
-    await expect(useCase.execute(caller, 'event-1', 'msg-other')).rejects.toMatchObject({
+    await expect(useCase.execute(caller, 'event-1', 'msg-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });

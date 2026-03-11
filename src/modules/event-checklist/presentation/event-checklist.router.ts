@@ -163,7 +163,7 @@ export function createEventChecklistRouter(
         });
         return;
       }
-      updatePayload.assignedToUserId = body.assignedToUserId as string | null;
+      updatePayload.assignedToUserId = body.assignedToUserId;
     }
 
     if (body.dueAt !== undefined) {
