@@ -129,8 +129,8 @@ module/
 | M1 – Foundation | Repo setup, CI, testing infrastructure, DB migrations, module skeletons | ✅ Complete |
 | M2 – Groups and membership | Users, groups, memberships, basic auth wiring | ✅ Complete |
 | M3 – Private event MVP | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ✅ Complete |
-| M4 – Event management | Edit, cancel, invitation changes, privacy and audit hardening | ⬜ Planned |
-| M5 – Event collaboration | Event-scoped location, checklist, and chat | ⬜ Planned |
+| M4 – Event management | Edit, cancel, invitation changes, privacy and audit hardening | ✅ Complete |
+| M5 – Event collaboration | Event-scoped location, checklist, and chat | ✅ Complete |
 | M6 – Natural event capture | Text, voice, and image-based event capture via shared pipeline | ⬜ Planned |
 | M7 – UI polish | Theme support, palette support, accessibility, visual cleanup | ⬜ Planned |
 
@@ -167,6 +167,27 @@ All M3 work is complete:
 - [x] Explicit invitation model – group membership alone never grants event access after save; access is controlled exclusively by `EventInvitation` rows
 - [x] Privacy enforcement – non-invited callers always receive `404 Not Found` (not `403 Forbidden`) to prevent event-existence disclosure
 - [x] Database migration – `20260310000005_event_management.ts`: creates `events` and `event_invitations` tables with proper constraints, FK cascade rules, and status `CHECK` constraints
+
+### Milestone 4 – Event management ✅
+
+All M4 work is complete:
+
+- [x] Update event – `PATCH /api/v1/groups/:groupId/events/:eventId`: creator or group admin/owner can patch title, description, startAt, endAt; validates time range; non-invited callers receive `404` to prevent existence disclosure; cancelled events cannot be edited
+- [x] Cancel event – `POST /api/v1/groups/:groupId/events/:eventId/cancel` (dedicated cancel endpoint) plus existing `DELETE`
+- [x] List event invitations – `GET /api/v1/groups/:groupId/events/:eventId/invitations`: returns invitation list to authorised callers
+- [x] Add event invitee – `POST /api/v1/groups/:groupId/events/:eventId/invitations`: creator or admin/owner can invite an existing group member; emits audit log entry; prevents duplicate invitations
+- [x] Remove event invitee – `DELETE /api/v1/groups/:groupId/events/:eventId/invitations/:userId`: creator or admin/owner can remove an invitee; emits audit log entry
+- [x] Audit security module – `AuditLogPort`, `KnexAuditLogRepository`, structured audit event type; sensitive invitation and event actions are recorded; migration `20260310000006_audit_security.ts`
+- [x] Privacy hardening – all new use cases follow the `NOT_FOUND` (not `FORBIDDEN`) pattern; dedicated `information-disclosure.api.test.ts` validates non-invited callers cannot probe event existence through edit, cancel, or invitation endpoints
+
+### Milestone 5 – Event collaboration ✅
+
+All M5 work is complete:
+
+- [x] Event chat – `GET/POST /api/v1/groups/:groupId/events/:eventId/chat/messages`, `PUT/DELETE /:messageId`: post, list, edit, and soft-delete text messages; access inherits event invitation; chat policy unit-tested; integration-tested
+- [x] Event checklist – `GET /api/v1/groups/:groupId/events/:eventId/checklist` plus `POST/PUT/DELETE` for items, complete/uncomplete toggle, and reorder: full checklist lifecycle; items have text, optional assignee, optional due date, and ordering; access inherits event invitation; checklist policy unit-tested
+- [x] Event location – `GET/PUT/DELETE /api/v1/groups/:groupId/events/:eventId/location`: set, retrieve, and clear event location; supports freeform text, structured address fields, coordinates, and virtual meeting URL; access inherits event invitation; location policy unit-tested
+- [x] Collaboration migration – `20260311000007_event_collaboration.ts`: creates `event_chat_messages`, `event_checklist_items`, and `event_locations` tables with proper constraints, FK cascade rules, and indexes
 
 ---
 
