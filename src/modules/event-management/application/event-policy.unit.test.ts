@@ -11,7 +11,7 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
-import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import type { Event } from '../domain/event.js';
 import type { EventInvitation } from '../domain/event-invitation.js';
 import type { GroupMember } from '../../group-membership/domain/group-member.js';
@@ -68,7 +68,7 @@ function makeMemberRepo(overrides?: Partial<GroupMemberRepositoryPort>): GroupMe
 }
 
 function makeAuditLog(): AuditLogPort {
-  return { log: vi.fn().mockResolvedValue(undefined) };
+  return { record: vi.fn().mockResolvedValue(undefined) };
 }
 
 function makeEventCreator(event: Event = makeEvent()): EventCreationPort {
@@ -593,7 +593,7 @@ describe('AddEventInviteeUseCase', () => {
     const result = await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
     expect(result.userId).toBe(memberUser.userId);
     expect(invitationRepo.add).toHaveBeenCalledWith('event-1', memberUser.userId);
-    expect(auditLog.log).toHaveBeenCalledWith(
+    expect(auditLog.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'event_invitation.added' }),
     );
   });

@@ -2,7 +2,7 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
-import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 
 export class RemoveEventInviteeUseCase {
   constructor(
@@ -56,7 +56,7 @@ export class RemoveEventInviteeUseCase {
 
     await this.invitationRepo.remove(eventId, targetUserId);
 
-    await this.auditLog.log({
+    await this.auditLog.record({
       action: 'event_invitation.removed',
       actorId: caller.userId,
       resourceType: 'event_invitation',
