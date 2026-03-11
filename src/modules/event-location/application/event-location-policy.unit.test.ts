@@ -115,7 +115,6 @@ describe('validateSetLocationData', () => {
   });
 
   it('rejects a physical location without displayText or streetAddress', () => {
-    expect(() => validateSetLocationData({ locationType: 'physical' })).toThrow();
     let err: unknown;
     try {
       validateSetLocationData({ locationType: 'physical' });

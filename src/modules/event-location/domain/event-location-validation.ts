@@ -54,6 +54,8 @@ export function validateSetLocationData(data: SetLocationData): void {
   }
 
   if (data.countryCode != null && data.countryCode.trim().length > 0) {
+    // Validates format only (2 uppercase letters); does not verify the code
+    // exists in the official ISO 3166-1 alpha-2 list.
     if (!/^[A-Z]{2}$/.test(data.countryCode)) {
       validationError('countryCode must be a valid ISO 3166-1 alpha-2 code (e.g. "US")');
     }

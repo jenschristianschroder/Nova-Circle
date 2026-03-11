@@ -40,6 +40,9 @@ function toMessage(row: MessageRow): EventChatMessage {
   };
 }
 
+const DEFAULT_MESSAGE_LIMIT = 50;
+const MAX_MESSAGE_LIMIT = 100;
+
 export class KnexEventChatRepository implements EventChatRepositoryPort {
   constructor(private readonly db: Knex) {}
 
@@ -72,7 +75,7 @@ export class KnexEventChatRepository implements EventChatRepositoryPort {
     threadId: string,
     options?: ListMessagesOptions,
   ): Promise<EventChatMessage[]> {
-    const limit = Math.min(options?.limit ?? 50, 100);
+    const limit = Math.min(options?.limit ?? DEFAULT_MESSAGE_LIMIT, MAX_MESSAGE_LIMIT);
 
     let query = this.db<MessageRow>('event_chat_messages')
       .where({ thread_id: threadId })
@@ -81,11 +84,23 @@ export class KnexEventChatRepository implements EventChatRepositoryPort {
       .limit(limit);
 
     if (options?.before) {
-      query = query.where('posted_at', '<', new Date(options.before));
+      const before = new Date(options.before);
+      if (isNaN(before.getTime())) {
+        throw Object.assign(new Error('Invalid "before" cursor: must be a valid ISO timestamp'), {
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      query = query.where('posted_at', '<', before);
     }
 
     if (options?.after) {
-      query = query.where('posted_at', '>', new Date(options.after));
+      const after = new Date(options.after);
+      if (isNaN(after.getTime())) {
+        throw Object.assign(new Error('Invalid "after" cursor: must be a valid ISO timestamp'), {
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      query = query.where('posted_at', '>', after);
     }
 
     const rows = await query;

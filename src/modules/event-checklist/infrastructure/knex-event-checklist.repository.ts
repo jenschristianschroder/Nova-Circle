@@ -184,12 +184,22 @@ export class KnexEventChecklistRepository implements EventChecklistRepositoryPor
   }
 
   async reorderItems(checklistId: string, orderedItemIds: string[]): Promise<void> {
-    await this.db.transaction(async (trx) => {
-      for (let i = 0; i < orderedItemIds.length; i++) {
-        await trx('event_checklist_items')
-          .where({ id: orderedItemIds[i], checklist_id: checklistId })
-          .update({ display_order: i, updated_at: new Date() });
-      }
-    });
+    if (orderedItemIds.length === 0) return;
+
+    // Build a single UPDATE with a CASE expression to avoid N round-trips.
+    const now = new Date();
+    const caseClause = orderedItemIds
+      .map((_, i) => `WHEN id = ? THEN ${i}`)
+      .join(' ');
+    const params: unknown[] = [...orderedItemIds, now, checklistId, ...orderedItemIds];
+
+    await this.db.raw(
+      `UPDATE event_checklist_items
+       SET display_order = CASE ${caseClause} END,
+           updated_at = ?
+       WHERE checklist_id = ?
+         AND id IN (${orderedItemIds.map(() => '?').join(', ')})`,
+      params,
+    );
   }
 }
