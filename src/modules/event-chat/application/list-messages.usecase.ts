@@ -26,7 +26,11 @@ export class ListMessagesUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
-    const thread = await this.chatRepo.findOrCreateThread(eventId);
+    // Use findThreadByEvent to avoid creating empty threads on read.
+    const thread = await this.chatRepo.findThreadByEvent(eventId);
+    if (!thread) {
+      return [];
+    }
     return this.chatRepo.listMessages(thread.id, options);
   }
 }

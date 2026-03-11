@@ -61,9 +61,18 @@ export function createEventChatRouter(
 
     const parsedLimit = limit !== undefined ? parseInt(limit, 10) : undefined;
 
+    // Reject non-positive or non-numeric limits before hitting the use case.
+    if (parsedLimit !== undefined && (isNaN(parsedLimit) || parsedLimit < 1)) {
+      res.status(400).json({
+        error: 'limit must be a positive integer',
+        code: 'VALIDATION_ERROR',
+      });
+      return;
+    }
+
     try {
       const messages = await listMessages.execute(identity, eventId, {
-        ...(parsedLimit !== undefined && !isNaN(parsedLimit) ? { limit: parsedLimit } : {}),
+        ...(parsedLimit !== undefined ? { limit: parsedLimit } : {}),
         ...(before !== undefined ? { before } : {}),
         ...(after !== undefined ? { after } : {}),
       });
@@ -71,6 +80,10 @@ export function createEventChatRouter(
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });

@@ -31,17 +31,35 @@ export class ReorderChecklistUseCase {
     }
 
     const existingItems = await this.checklistRepo.listItems(checklist.id);
-    const existingIds = new Set(existingItems.map((i) => i.id));
-    const providedIds = new Set(orderedItemIds);
+    const existingItemIds = existingItems.map((item) => item.id);
+    const existingIdSet = new Set(existingItemIds);
 
-    // All existing item IDs must be present in the provided order list.
-    for (const id of existingIds) {
-      if (!providedIds.has(id)) {
+    // orderedItemIds must be an exact permutation of existing checklist item IDs:
+    // same count, all IDs belong to this checklist, and no duplicates.
+    if (orderedItemIds.length !== existingItemIds.length) {
+      throw Object.assign(
+        new Error('orderedItemIds must include all existing checklist items exactly once'),
+        { code: 'VALIDATION_ERROR' },
+      );
+    }
+
+    const seenIds = new Set<string>();
+    for (const id of orderedItemIds) {
+      if (!existingIdSet.has(id)) {
         throw Object.assign(
-          new Error('orderedItemIds must include all existing checklist items'),
+          new Error('orderedItemIds must only contain IDs of existing checklist items'),
           { code: 'VALIDATION_ERROR' },
         );
       }
+
+      if (seenIds.has(id)) {
+        throw Object.assign(
+          new Error('orderedItemIds must not contain duplicate item IDs'),
+          { code: 'VALIDATION_ERROR' },
+        );
+      }
+
+      seenIds.add(id);
     }
 
     await this.checklistRepo.reorderItems(checklist.id, orderedItemIds);

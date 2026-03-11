@@ -29,8 +29,20 @@ export class EditMessageUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
+    // Resolve the chat thread for this event to enforce event-scoped message edits.
+    // Do not create a thread as part of an edit.
+    const thread = await this.chatRepo.findThreadByEvent(eventId);
+    if (!thread) {
+      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+    }
+
     const message = await this.chatRepo.findMessage(messageId);
     if (!message) {
+      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+    }
+
+    // Ensure the message actually belongs to the authorized event's thread.
+    if (message.threadId !== thread.id) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 

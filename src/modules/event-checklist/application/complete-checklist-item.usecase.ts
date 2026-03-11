@@ -27,8 +27,14 @@ export class CompleteChecklistItemUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
+    // Scope the item lookup to this event's checklist to prevent cross-event IDOR.
+    const checklist = await this.checklistRepo.findChecklistByEvent(eventId);
+    if (!checklist) {
+      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+    }
+
     const item = await this.checklistRepo.findItem(itemId);
-    if (!item) {
+    if (!item || item.checklistId !== checklist.id) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
