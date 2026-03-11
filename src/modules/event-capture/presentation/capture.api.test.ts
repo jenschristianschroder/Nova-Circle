@@ -16,6 +16,7 @@ interface DraftBody {
   status: string;
   issues: DraftIssue[];
   candidateTitle?: string | null;
+  imageBlobReference?: string | null;
 }
 
 interface CaptureResponseBody {
@@ -185,16 +186,44 @@ describe('Capture API', () => {
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
       const res = await request(app)
         .post('/api/v1/capture/image')
-        .send({ imageBlobUri: 'blob://images/poster.jpg', groupId });
+        .attach('image', Buffer.from('fake-image-bytes'), {
+          filename: 'poster.jpg',
+          contentType: 'image/jpeg',
+        })
+        .field('groupId', groupId);
       expect(res.status).toBe(401);
     });
 
-    it.skipIf(skipReason !== undefined)('returns 400 when imageBlobUri is missing', async () => {
+    it.skipIf(skipReason !== undefined)('returns 400 when image file is missing', async () => {
       const res = await request(app)
         .post('/api/v1/capture/image')
         .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ groupId });
+        .field('groupId', groupId);
       expect(res.status).toBe(400);
+    });
+
+    it.skipIf(skipReason !== undefined)('returns 400 for unsupported image type', async () => {
+      const res = await request(app)
+        .post('/api/v1/capture/image')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .attach('image', Buffer.from('not-an-image'), {
+          filename: 'document.pdf',
+          contentType: 'application/pdf',
+        })
+        .field('groupId', groupId);
+      expect(res.status).toBe(400);
+    });
+
+    it.skipIf(skipReason !== undefined)('returns 413 when image exceeds size limit', async () => {
+      // Create a buffer slightly larger than the 10 MB limit.
+      const oversized = Buffer.alloc(10 * 1024 * 1024 + 1);
+      const res = await request(app)
+        .post('/api/v1/capture/image')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .attach('image', oversized, { filename: 'huge.jpg', contentType: 'image/jpeg' })
+        .field('groupId', groupId);
+      expect(res.status).toBe(413);
+      expect((res.body as { code: string }).code).toBe('VALIDATION_ERROR');
     });
 
     it.skipIf(skipReason !== undefined)(
@@ -203,12 +232,62 @@ describe('Capture API', () => {
         const res = await request(app)
           .post('/api/v1/capture/image')
           .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ imageBlobUri: 'blob://images/poster.jpg', groupId });
+          .attach('image', Buffer.from('fake-image-bytes'), {
+            filename: 'poster.jpg',
+            contentType: 'image/jpeg',
+          })
+          .field('groupId', groupId);
 
         // Fake image extractor returns nothing → draft.
         expect(res.status).toBe(202);
         const body = res.body as CaptureResponseBody;
         expect(body.type).toBe('draft');
+        expect(body.draft).toBeDefined();
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'draft has imageBlobReference set for traceability',
+      async () => {
+        const captureRes = await request(app)
+          .post('/api/v1/capture/image')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .attach('image', Buffer.from('fake-image-bytes'), {
+            filename: 'event-flyer.png',
+            contentType: 'image/png',
+          })
+          .field('groupId', groupId);
+
+        expect(captureRes.status).toBe(202);
+        const draftId = (captureRes.body as CaptureResponseBody).draft!.id;
+
+        // Fetch the draft and verify imageBlobReference is populated.
+        const draftRes = await request(app)
+          .get(`/api/v1/capture/drafts/${draftId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+
+        expect(draftRes.status).toBe(200);
+        const draft = draftRes.body as DraftBody & { imageBlobReference?: string };
+        expect(draft.imageBlobReference).toBeTruthy();
+        expect(typeof draft.imageBlobReference).toBe('string');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 202 with missing_group when no groupId is provided',
+      async () => {
+        const res = await request(app)
+          .post('/api/v1/capture/image')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .attach('image', Buffer.from('fake-image-bytes'), {
+            filename: 'flyer.jpg',
+            contentType: 'image/jpeg',
+          });
+
+        expect(res.status).toBe(202);
+        const body = res.body as CaptureResponseBody;
+        expect(body.type).toBe('draft');
+        expect(body.draft!.issues.some((i) => i.code === 'missing_group')).toBe(true);
       },
     );
   });

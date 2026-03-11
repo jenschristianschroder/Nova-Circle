@@ -26,10 +26,12 @@ import { KnexEventDraftRepository } from './modules/event-capture/infrastructure
 import { FakeEventFieldExtractor } from './modules/event-capture/infrastructure/fake-event-field-extractor.js';
 import { FakeSpeechToTextAdapter } from './modules/event-capture/infrastructure/fake-speech-to-text.adapter.js';
 import { FakeImageExtractionAdapter } from './modules/event-capture/infrastructure/fake-image-extraction.adapter.js';
+import { FakeBlobStorageAdapter } from './modules/event-capture/infrastructure/fake-blob-storage.adapter.js';
 import { createCaptureRouter } from './modules/event-capture/presentation/capture.router.js';
 import type { IEventFieldExtractor } from './modules/event-capture/application/event-field-extractor.port.js';
 import type { ISpeechToTextAdapter } from './modules/event-capture/application/speech-to-text.port.js';
 import type { IImageExtractionAdapter } from './modules/event-capture/application/image-extraction.port.js';
+import type { IBlobStorageAdapter } from './modules/event-capture/application/blob-storage.port.js';
 
 export interface AppDependencies {
   db?: Knex;
@@ -42,6 +44,11 @@ export interface AppDependencies {
   eventFieldExtractor?: IEventFieldExtractor;
   speechToTextAdapter?: ISpeechToTextAdapter;
   imageExtractionAdapter?: IImageExtractionAdapter;
+  /**
+   * Blob storage adapter for image uploads. When not provided, a fake in-memory adapter is used.
+   * In production, inject a real Azure Blob Storage adapter.
+   */
+  blobStorageAdapter?: IBlobStorageAdapter;
 }
 
 /**
@@ -115,6 +122,7 @@ export function createApp(deps?: AppDependencies): express.Application {
       if (!deps?.eventFieldExtractor) missingAdapters.push('eventFieldExtractor');
       if (!deps?.speechToTextAdapter) missingAdapters.push('speechToTextAdapter');
       if (!deps?.imageExtractionAdapter) missingAdapters.push('imageExtractionAdapter');
+      if (!deps?.blobStorageAdapter) missingAdapters.push('blobStorageAdapter');
       if (missingAdapters.length > 0) {
         throw new Error(
           `Missing required AI adapters in production: ${missingAdapters.join(', ')}. ` +
@@ -126,10 +134,19 @@ export function createApp(deps?: AppDependencies): express.Application {
     const extractor = deps?.eventFieldExtractor ?? new FakeEventFieldExtractor();
     const sttAdapter = deps?.speechToTextAdapter ?? new FakeSpeechToTextAdapter();
     const imageAdapter = deps?.imageExtractionAdapter ?? new FakeImageExtractionAdapter();
+    const blobStorage = deps?.blobStorageAdapter ?? new FakeBlobStorageAdapter();
 
     app.use(
       '/api/v1/capture',
-      createCaptureRouter(draftRepo, eventCreator, memberRepo, extractor, sttAdapter, imageAdapter),
+      createCaptureRouter(
+        draftRepo,
+        eventCreator,
+        memberRepo,
+        extractor,
+        sttAdapter,
+        imageAdapter,
+        blobStorage,
+      ),
     );
   }
 

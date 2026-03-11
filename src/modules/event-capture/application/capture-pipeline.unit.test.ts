@@ -409,6 +409,43 @@ describe('CaptureImageUseCase', () => {
     expect(imageAdapter.extractFields).toHaveBeenCalledWith('blob://images/poster.jpg');
     expect(result.type).toBe('event');
   });
+
+  it('links imageBlobReference to the draft for traceability', async () => {
+    const caller = FakeIdentity.random();
+    const draftRepo = makeDraftRepo();
+    const pipeline = makePipeline({}, draftRepo, makeEventCreator(), false);
+
+    const imageAdapter: IImageExtractionAdapter = {
+      extractFields: vi.fn().mockResolvedValue({ extractedText: null, fields: {} }),
+    };
+
+    const useCase = new CaptureImageUseCase(imageAdapter, pipeline);
+    const result = await useCase.execute(caller, {
+      imageBlobUri: 'blob://fake-storage/uuid/poster.jpg',
+      groupId: GROUP_ID,
+    });
+
+    expect(result.type).toBe('draft');
+    expect(draftRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageBlobReference: 'blob://fake-storage/uuid/poster.jpg',
+        rawInputType: 'image',
+      }),
+    );
+  });
+
+  it('throws VALIDATION_ERROR when imageBlobUri is blank', async () => {
+    const caller = FakeIdentity.random();
+    const pipeline = makePipeline({});
+    const imageAdapter: IImageExtractionAdapter = {
+      extractFields: vi.fn().mockResolvedValue({ extractedText: null, fields: {} }),
+    };
+
+    const useCase = new CaptureImageUseCase(imageAdapter, pipeline);
+    await expect(
+      useCase.execute(caller, { imageBlobUri: '   ', groupId: GROUP_ID }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
 });
 
 // ---------------------------------------------------------------------------
