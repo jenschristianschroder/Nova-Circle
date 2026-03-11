@@ -1,0 +1,160 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import type { Knex } from 'knex';
+import { createTestDb } from '../../../infrastructure/test-db.js';
+import { KnexEventDraftRepository } from './knex-event-draft.repository.js';
+import { KnexUserProfileRepository } from '../../identity-profile/infrastructure/knex-user-profile.repository.js';
+import { KnexGroupCreationService } from '../../group-management/infrastructure/knex-group-creation.service.js';
+import { KnexGroupMemberRepository } from '../../group-membership/infrastructure/knex-group-member.repository.js';
+import { KnexEventCreationService } from '../../event-management/infrastructure/knex-event-creation.service.js';
+import { CapturePipelineService } from '../application/capture-pipeline.service.js';
+import { CaptureTextUseCase } from '../application/capture-text.usecase.js';
+import { PromoteDraftUseCase } from '../application/promote-draft.usecase.js';
+import { AbandonDraftUseCase } from '../application/abandon-draft.usecase.js';
+import { FakeEventFieldExtractor } from './fake-event-field-extractor.js';
+import type { IdentityContext } from '../../../shared/auth/identity-context.js';
+
+const skipReason = !process.env['TEST_DATABASE_URL']
+  ? 'TEST_DATABASE_URL is not set – skipping database integration tests'
+  : undefined;
+
+const CREATOR_ID = 'bbbbbbbb-0000-4000-8000-000000000001';
+
+describe('Event capture infrastructure integration', () => {
+  let db: Knex;
+  let draftRepo: KnexEventDraftRepository;
+  let groupId: string;
+  let creator: IdentityContext;
+
+  beforeAll(async () => {
+    if (skipReason) return;
+    db = createTestDb();
+    await db.migrate.latest();
+
+    const profileRepo = new KnexUserProfileRepository(db);
+    await profileRepo.upsert({ userId: CREATOR_ID, displayName: 'Capture Creator' });
+
+    const groupCreator = new KnexGroupCreationService(db);
+    const group = await groupCreator.createGroupWithOwner({
+      name: 'Capture Test Group',
+      description: null,
+      ownerId: CREATOR_ID,
+    });
+    groupId = group.id;
+
+    draftRepo = new KnexEventDraftRepository(db);
+    creator = { userId: CREATOR_ID, displayName: 'Capture Creator' };
+  });
+
+  afterAll(async () => {
+    if (db) await db.destroy();
+  });
+
+  it.skipIf(skipReason !== undefined)(
+    'persists a draft with issue codes when required fields are missing',
+    async () => {
+      const extractor = new FakeEventFieldExtractor({
+        // No title, no start date – should produce draft with issues.
+      });
+      const memberRepo = new KnexGroupMemberRepository(db);
+      const eventCreator = new KnexEventCreationService(db);
+      const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
+      const useCase = new CaptureTextUseCase(pipeline);
+
+      const result = await useCase.execute(creator, {
+        text: 'Some vague meeting text',
+        groupId,
+      });
+
+      expect(result.type).toBe('draft');
+      if (result.type === 'draft') {
+        expect(result.draft.id).toBeTruthy();
+        expect(result.draft.issues.length).toBeGreaterThan(0);
+        expect(result.draft.issues.some((i) => i.code === 'missing_title')).toBe(true);
+        expect(result.draft.status).toBe('pending_review');
+
+        // Verify draft is persisted and can be retrieved.
+        const fetched = await draftRepo.findById(result.draft.id);
+        expect(fetched).not.toBeNull();
+        expect(fetched!.issues.length).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it.skipIf(skipReason !== undefined)(
+    'creates an event directly when all required fields are present and valid',
+    async () => {
+      const extractor = new FakeEventFieldExtractor({
+        title: { value: 'Team Standup', confidence: 0.95 },
+        startDateTime: { value: '2026-06-15T09:00:00Z', confidence: 0.95 },
+      });
+      const memberRepo = new KnexGroupMemberRepository(db);
+      const eventCreator = new KnexEventCreationService(db);
+      const pipeline = new CapturePipelineService(extractor, draftRepo, eventCreator, memberRepo);
+      const useCase = new CaptureTextUseCase(pipeline);
+
+      const result = await useCase.execute(creator, {
+        text: 'Team standup tomorrow at 9am',
+        groupId,
+      });
+
+      expect(result.type).toBe('event');
+      if (result.type === 'event') {
+        expect(result.eventId).toBeTruthy();
+      }
+    },
+  );
+
+  it.skipIf(skipReason !== undefined)('abandoning a draft marks it as abandoned', async () => {
+    const draft = await draftRepo.create({
+      createdByUserId: CREATOR_ID,
+      groupId,
+      rawInputType: 'text',
+      rawTextContent: 'some text',
+      audioBlobReference: null,
+      imageBlobReference: null,
+      candidateTitle: null,
+      candidateDescription: null,
+      candidateStartAt: null,
+      candidateEndAt: null,
+      issues: [{ code: 'missing_title', message: 'No title' }],
+    });
+
+    const useCase = new AbandonDraftUseCase(draftRepo);
+    const abandoned = await useCase.execute(creator, draft.id);
+
+    expect(abandoned.status).toBe('abandoned');
+
+    // Abandoned draft should not appear in listByUser (only pending_review are listed).
+    const userDrafts = await draftRepo.listByUser(CREATOR_ID);
+    expect(userDrafts.some((d) => d.id === draft.id)).toBe(false);
+  });
+
+  it.skipIf(skipReason !== undefined)(
+    'promoting a resolved draft creates an event and marks the draft as promoted',
+    async () => {
+      const draft = await draftRepo.create({
+        createdByUserId: CREATOR_ID,
+        groupId,
+        rawInputType: 'text',
+        rawTextContent: 'Board meeting next week',
+        audioBlobReference: null,
+        imageBlobReference: null,
+        candidateTitle: 'Board Meeting',
+        candidateDescription: null,
+        candidateStartAt: new Date('2026-07-01T10:00:00Z'),
+        candidateEndAt: null,
+        issues: [],
+      });
+
+      const memberRepo = new KnexGroupMemberRepository(db);
+      const eventCreator = new KnexEventCreationService(db);
+      const useCase = new PromoteDraftUseCase(draftRepo, eventCreator, memberRepo);
+      const result = await useCase.execute(creator, draft.id);
+
+      expect(result.eventId).toBeTruthy();
+
+      const promotedDraft = await draftRepo.findById(draft.id);
+      expect(promotedDraft!.status).toBe('promoted');
+    },
+  );
+});
