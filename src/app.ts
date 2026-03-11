@@ -137,7 +137,15 @@ export function createApp(deps?: AppDependencies): express.Application {
 
     app.use(
       '/api/v1/capture',
-      createCaptureRouter(draftRepo, eventCreator, memberRepo, extractor, sttAdapter, imageAdapter, blobStorage),
+      createCaptureRouter(
+        draftRepo,
+        eventCreator,
+        memberRepo,
+        extractor,
+        sttAdapter,
+        imageAdapter,
+        blobStorage,
+      ),
     );
   }
 
