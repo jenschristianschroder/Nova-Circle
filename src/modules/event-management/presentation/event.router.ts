@@ -47,8 +47,13 @@ export function createEventRouter(
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
   const updateEvent = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
   const listInvitees = new ListEventInviteesUseCase(eventRepo, invitationRepo);
-  const addInvitee = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
-  const removeInvitee = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+  const addInvitee = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
+  const removeInvitee = new RemoveEventInviteeUseCase(
+    eventRepo,
+    invitationRepo,
+    memberRepo,
+    auditLog,
+  );
 
   // POST /api/v1/groups/:groupId/events
   router.post('/', async (req: Request, res: Response) => {

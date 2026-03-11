@@ -11,6 +11,7 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
+import type { AuditLogPort } from '../../audit-security/index.js';
 import type { Event } from '../domain/event.js';
 import type { EventInvitation } from '../domain/event-invitation.js';
 import type { GroupMember } from '../../group-membership/domain/group-member.js';
@@ -64,6 +65,10 @@ function makeMemberRepo(overrides?: Partial<GroupMemberRepositoryPort>): GroupMe
     getRole: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
+}
+
+function makeAuditLog(): AuditLogPort {
+  return { record: vi.fn().mockResolvedValue(undefined) };
 }
 
 function makeEventCreator(event: Event = makeEvent()): EventCreationPort {
@@ -582,11 +587,15 @@ describe('AddEventInviteeUseCase', () => {
       getRole: vi.fn().mockResolvedValue(null),
       isMember: vi.fn().mockResolvedValue(true),
     });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const auditLog = makeAuditLog();
+    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo, auditLog);
 
     const result = await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
     expect(result.userId).toBe(memberUser.userId);
     expect(invitationRepo.add).toHaveBeenCalledWith('event-1', memberUser.userId);
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'event_invitation.added' }),
+    );
   });
 
   it('allows group admin to add invitee without their own invitation', async () => {
@@ -604,7 +613,12 @@ describe('AddEventInviteeUseCase', () => {
       getRole: vi.fn().mockResolvedValue('admin'),
       isMember: vi.fn().mockResolvedValue(true),
     });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await useCase.execute(admin, 'group-1', 'event-1', memberUser.userId);
     expect(invitationRepo.add).toHaveBeenCalled();
@@ -616,7 +630,12 @@ describe('AddEventInviteeUseCase', () => {
     });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(memberUser, 'group-1', 'event-1', outsider.userId),
@@ -635,7 +654,12 @@ describe('AddEventInviteeUseCase', () => {
       getRole: vi.fn().mockResolvedValue(null),
       isMember: vi.fn().mockResolvedValue(false),
     });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', outsider.userId),
@@ -655,7 +679,12 @@ describe('AddEventInviteeUseCase', () => {
       getRole: vi.fn().mockResolvedValue(null),
       isMember: vi.fn().mockResolvedValue(true),
     });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', memberUser.userId),
@@ -677,7 +706,12 @@ describe('AddEventInviteeUseCase', () => {
       getRole: vi.fn().mockResolvedValue(null),
       isMember: vi.fn().mockResolvedValue(true),
     });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     const result = await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
     expect(result.status).toBe('invited');
@@ -695,7 +729,12 @@ describe('AddEventInviteeUseCase', () => {
       getRole: vi.fn().mockResolvedValue(null),
       isMember: vi.fn().mockResolvedValue(true),
     });
-    const useCase = new AddEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new AddEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', memberUser.userId),
@@ -719,7 +758,12 @@ describe('RemoveEventInviteeUseCase', () => {
       remove: vi.fn().mockResolvedValue(undefined),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await useCase.execute(creator, 'group-1', 'event-1', memberUser.userId);
     expect(invitationRepo.remove).toHaveBeenCalledWith('event-1', memberUser.userId);
@@ -737,7 +781,12 @@ describe('RemoveEventInviteeUseCase', () => {
       remove: vi.fn().mockResolvedValue(undefined),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('admin') });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await useCase.execute(admin, 'group-1', 'event-1', memberUser.userId);
     expect(invitationRepo.remove).toHaveBeenCalled();
@@ -749,7 +798,12 @@ describe('RemoveEventInviteeUseCase', () => {
     });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue('member') });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(memberUser, 'group-1', 'event-1', outsider.userId),
@@ -762,7 +816,12 @@ describe('RemoveEventInviteeUseCase', () => {
     });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(true) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', creator.userId),
@@ -778,7 +837,12 @@ describe('RemoveEventInviteeUseCase', () => {
       findByEventAndUser: vi.fn().mockResolvedValue(null),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', outsider.userId),
@@ -795,7 +859,12 @@ describe('RemoveEventInviteeUseCase', () => {
       findByEventAndUser: vi.fn().mockResolvedValue(removed),
     });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(creator, 'group-1', 'event-1', memberUser.userId),
@@ -806,7 +875,12 @@ describe('RemoveEventInviteeUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(makeEvent()) });
     const invitationRepo = makeInvitationRepo({ hasAccess: vi.fn().mockResolvedValue(false) });
     const memberRepo = makeMemberRepo({ getRole: vi.fn().mockResolvedValue(null) });
-    const useCase = new RemoveEventInviteeUseCase(eventRepo, invitationRepo, memberRepo);
+    const useCase = new RemoveEventInviteeUseCase(
+      eventRepo,
+      invitationRepo,
+      memberRepo,
+      makeAuditLog(),
+    );
 
     await expect(
       useCase.execute(outsider, 'group-1', 'event-1', memberUser.userId),
