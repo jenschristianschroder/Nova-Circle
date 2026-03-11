@@ -151,6 +151,7 @@ jobs:
           # ── Call LLM for each batch ────────────────────────────────────
           all_findings = []
           call_count = 0
+          failed_batches = 0
 
           for module_name, file_list in modules.items():
               batches = build_batches(file_list, MAX_CODE_CHARS_PER_BATCH)
@@ -179,10 +180,17 @@ jobs:
                         f"{len(batch_entries)} files, ~{estimated_tokens} est. tokens, "
                         f"{len(payload_json)} chars")
 
-                  # If still too large, skip with a warning
+                  # If still too large, fail hard so we never silently omit files from review
                   if len(payload_json) > 28000:  # ~7k tokens safety margin
-                      print(f"  ⚠️  Batch too large ({len(payload_json)} chars), skipping")
-                      continue
+                      error_message = (
+                          f"Batch too large for module '{module_name}' "
+                          f"(batch {batch_idx+1}/{len(batches)}, {len(payload_json)} chars). "
+                          "Architecture review cannot safely proceed under current limits. "
+                          "Please reduce MAX_CODE_CHARS_PER_BATCH, adjust module size, or "
+                          "modify batching configuration to ensure all files are reviewed."
+                      )
+                      print(f"  ERROR: {error_message}")
+                      raise SystemExit(1)
 
                   # Rate limit: wait between calls
                   if call_count > 0:
@@ -204,20 +212,36 @@ jobs:
                       capture_output=True, text=True,
                   )
 
+                  # Explicitly check curl exit code to surface network/auth failures
+                  if result.returncode != 0:
+                      print(f"  WARNING: curl exited with code {result.returncode} for {module_name} batch {batch_idx+1}, skipping batch")
+                      if result.stderr:
+                          stderr_snippet = result.stderr.strip().replace("\n", " ")[:500]
+                          print(f"     stderr: {stderr_snippet}")
+                      failed_batches += 1
+                      continue
+
                   call_count += 1
                   lines = result.stdout.strip().rsplit("\n", 1)
                   if len(lines) != 2:
-                      print(f"  ���️  Unexpected curl output, skipping batch")
+                      print(f"  WARNING: Unexpected curl output for {module_name} batch {batch_idx+1}, skipping batch")
+                      if result.stderr:
+                          stderr_snippet = result.stderr.strip().replace("\n", " ")[:500]
+                          print(f"     stderr: {stderr_snippet}")
+                      stdout_snippet = result.stdout.strip().replace("\n", " ")[:500]
+                      print(f"     raw stdout (truncated): {stdout_snippet}")
+                      failed_batches += 1
                       continue
 
                   body, http_code = lines[0], lines[1].strip()
 
                   if http_code != "200":
-                      print(f"  ⚠️  HTTP {http_code} for {module_name} batch {batch_idx+1}, skipping")
+                      print(f"  WARNING: HTTP {http_code} for {module_name} batch {batch_idx+1}, skipping")
                       print(f"     {body[:300]}")
                       # If rate limited, wait longer
                       if http_code in ("429", "413"):
                           time.sleep(15)
+                      failed_batches += 1
                       continue
 
                   # Parse response
@@ -236,16 +260,37 @@ jobs:
                       else:
                           print(f"  ⚠️  Response was not a list, skipping")
                   except (json.JSONDecodeError, KeyError, IndexError) as e:
-                      print(f"  ⚠️  Failed to parse response: {e}")
+                      print(f"  WARNING: Failed to parse response: {e}")
+                      failed_batches += 1
                       continue
 
-          # ── Deduplicate findings by title ──────────────────────────────
-          seen_titles = set()
+          # ── Fail if no calls succeeded ─────────────────────────────────
+          if call_count == 0:
+              print("ERROR: No LLM calls succeeded. Architecture review did not execute.")
+              sys.exit(1)
+
+          if failed_batches > 0:
+              total_attempted = call_count + failed_batches
+              failure_pct = failed_batches / total_attempted * 100
+              print(f"WARNING: {failed_batches} batch(es) failed ({failure_pct:.0f}% failure rate)")
+
+          # ── Deduplicate findings by stable composite key ───────────────
+          seen_keys = set()
           unique_findings = []
           for f in all_findings:
-              title_key = f.get("title", "").lower().strip()
-              if title_key and title_key not in seen_titles:
-                  seen_titles.add(title_key)
+              title = f.get("title", "")
+              file_id = f.get("file", "")
+              # Support both 'principle' and 'principle_violated' since LLM responses
+              # may vary despite the system prompt requesting 'principle_violated'.
+              principle = f.get("principle", "") or f.get("principle_violated", "")
+              key_parts = [
+                  str(title).lower().strip(),
+                  str(file_id).lower().strip(),
+                  str(principle).lower().strip(),
+              ]
+              composite_key = "||".join(key_parts)
+              if composite_key and composite_key not in seen_keys:
+                  seen_keys.add(composite_key)
                   unique_findings.append(f)
 
           # Sort by severity
