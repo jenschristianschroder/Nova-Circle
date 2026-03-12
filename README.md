@@ -8,10 +8,10 @@ Privacy-first, security-first group calendar for friends, families, and private 
 
 ### Prerequisites
 
-| Tool | Version |
-|------|---------|
-| Node.js | ≥ 20 |
-| npm | ≥ 10 |
+| Tool       | Version          |
+| ---------- | ---------------- |
+| Node.js    | ≥ 20             |
+| npm        | ≥ 10             |
 | PostgreSQL | ≥ 15 (or Docker) |
 
 ### First-time setup
@@ -124,15 +124,15 @@ module/
 
 ## Roadmap
 
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| M1 – Foundation | Repo setup, CI, testing infrastructure, DB migrations, module skeletons | ✅ Complete |
-| M2 – Groups and membership | Users, groups, memberships, basic auth wiring | ✅ Complete |
-| M3 – Private event MVP | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ✅ Complete |
-| M4 – Event management | Edit, cancel, invitation changes, privacy and audit hardening | ✅ Complete |
-| M5 – Event collaboration | Event-scoped location, checklist, and chat | ✅ Complete |
-| M6 – Natural event capture | Text, voice, and image-based event capture via shared pipeline | ⬜ Planned |
-| M7 – UI polish | Theme support, palette support, accessibility, visual cleanup | ⬜ Planned |
+| Milestone                  | Description                                                                               | Status      |
+| -------------------------- | ----------------------------------------------------------------------------------------- | ----------- |
+| M1 – Foundation            | Repo setup, CI, testing infrastructure, DB migrations, module skeletons                   | ✅ Complete |
+| M2 – Groups and membership | Users, groups, memberships, basic auth wiring                                             | ✅ Complete |
+| M3 – Private event MVP     | Event creation, invite-all, remove invitees, explicit invitations, access-controlled list | ✅ Complete |
+| M4 – Event management      | Edit, cancel, invitation changes, privacy and audit hardening                             | ✅ Complete |
+| M5 – Event collaboration   | Event-scoped location, checklist, and chat                                                | ✅ Complete |
+| M6 – Natural event capture | Text, voice, and image-based event capture via shared pipeline                            | ✅ Complete |
+| M7 – UI polish             | Theme support, palette support, accessibility, visual cleanup                             | ⬜ Planned  |
 
 ### Milestone 1 – Foundation ✅
 
@@ -189,24 +189,38 @@ All M5 work is complete:
 - [x] Event location – `GET/PUT/DELETE /api/v1/groups/:groupId/events/:eventId/location`: set, retrieve, and clear event location; supports freeform text, structured address fields, coordinates, and virtual meeting URL; access inherits event invitation; location policy unit-tested
 - [x] Collaboration migration – `20260311000007_event_collaboration.ts`: creates `event_chat_messages`, `event_checklist_items`, and `event_locations` tables with proper constraints, FK cascade rules, and indexes
 
+### Milestone 6 – Natural event capture ✅
+
+All M6 work is complete:
+
+- [x] Shared capture pipeline – `CapturePipelineService`: normalise → extract → validate → persist; all three input types (text, voice, image) feed into the same downstream flow
+- [x] Text capture – `POST /api/v1/capture/text`: natural-language text input parsed and promoted to an event or saved as a structured draft
+- [x] Voice capture – `POST /api/v1/capture/voice`: audio uploaded, transcribed via `SpeechToTextPort`, then fed into the shared pipeline
+- [x] Image capture – `POST /api/v1/capture/image`: image uploaded (jpeg/png/gif/webp/heic/heif, max 10 MB), stored via `IBlobStorageAdapter`, extracted via `ImageExtractionPort`, then fed into the shared pipeline
+- [x] Draft flow – incomplete or low-confidence input creates a first-class `EventDraft` with structured `DraftIssueCode` values (e.g. `missing_title`, `ambiguous_date`, `low_confidence_extraction`); no silent guessing of uncertain fields
+- [x] Draft management – `GET /api/v1/capture/drafts`, `GET /api/v1/capture/drafts/:draftId`, `PATCH /api/v1/capture/drafts/:draftId` (update fields), `POST /api/v1/capture/drafts/:draftId/promote` (convert to real event), `DELETE /api/v1/capture/drafts/:draftId` (abandon)
+- [x] AI adapter boundary – `EventFieldExtractorPort`, `SpeechToTextPort`, and `ImageExtractionPort` are interfaces; real Azure AI adapters injected in production; deterministic fake adapters used in CI so no live model calls are required
+- [x] Database migration – `20260311000008_event_capture.ts`: creates `event_drafts` and `event_draft_issues` tables with proper constraints and FK cascade rules
+- [x] Full test coverage – unit tests for pipeline logic (`capture-pipeline.unit.test.ts`), fake adapter unit tests, integration tests for repository layer, API tests for all capture and draft endpoints
+
 ---
 
 ## Architecture and conventions
 
 The `docs/architecture/` directory contains the authoritative architecture documentation:
 
-| Document | Contents |
-|---|---|
-| [docs/architecture/overview.md](docs/architecture/overview.md) | System architecture, module boundaries, deployment model, security and privacy rules |
-| [docs/architecture/access-control.md](docs/architecture/access-control.md) | Full authorization model, event visibility rules, invitation seeding, authorization test matrix |
-| [docs/architecture/event-management.md](docs/architecture/event-management.md) | Event domain, lifecycle, invitation seeding |
-| [docs/architecture/event-capture.md](docs/architecture/event-capture.md) | Text/voice/image capture pipeline, AI adapter boundary, draft flow |
-| [docs/architecture/event-chat.md](docs/architecture/event-chat.md) | Event-scoped chat design and authorization |
-| [docs/architecture/event-checklist.md](docs/architecture/event-checklist.md) | Event-scoped checklist design and authorization |
-| [docs/architecture/event-location.md](docs/architecture/event-location.md) | Event-scoped location design and privacy rules |
-| [docs/architecture/testing.md](docs/architecture/testing.md) | Full test strategy, deterministic design, CI integration |
-| [docs/architecture/ci-cd.md](docs/architecture/ci-cd.md) | GitHub Actions pipelines, quality gates, merge blockers |
-| [docs/architecture/module-template.md](docs/architecture/module-template.md) | Template for new module documentation |
+| Document                                                                       | Contents                                                                                        |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| [docs/architecture/overview.md](docs/architecture/overview.md)                 | System architecture, module boundaries, deployment model, security and privacy rules            |
+| [docs/architecture/access-control.md](docs/architecture/access-control.md)     | Full authorization model, event visibility rules, invitation seeding, authorization test matrix |
+| [docs/architecture/event-management.md](docs/architecture/event-management.md) | Event domain, lifecycle, invitation seeding                                                     |
+| [docs/architecture/event-capture.md](docs/architecture/event-capture.md)       | Text/voice/image capture pipeline, AI adapter boundary, draft flow                              |
+| [docs/architecture/event-chat.md](docs/architecture/event-chat.md)             | Event-scoped chat design and authorization                                                      |
+| [docs/architecture/event-checklist.md](docs/architecture/event-checklist.md)   | Event-scoped checklist design and authorization                                                 |
+| [docs/architecture/event-location.md](docs/architecture/event-location.md)     | Event-scoped location design and privacy rules                                                  |
+| [docs/architecture/testing.md](docs/architecture/testing.md)                   | Full test strategy, deterministic design, CI integration                                        |
+| [docs/architecture/ci-cd.md](docs/architecture/ci-cd.md)                       | GitHub Actions pipelines, quality gates, merge blockers                                         |
+| [docs/architecture/module-template.md](docs/architecture/module-template.md)   | Template for new module documentation                                                           |
 
 For AI-assisted development conventions (coding style, test patterns, module conventions), see [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
