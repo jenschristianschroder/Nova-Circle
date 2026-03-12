@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Button snapshot > danger variant in dark mode 1`] = `
+exports[`Button DOM snapshot > danger variant 1`] = `
 <button
   class="_button_0829c1 _danger_0829c1 _md_0829c1"
 >
@@ -8,15 +8,7 @@ exports[`Button snapshot > danger variant in dark mode 1`] = `
 </button>
 `;
 
-exports[`Button snapshot > danger variant in light mode 1`] = `
-<button
-  class="_button_0829c1 _danger_0829c1 _md_0829c1"
->
-  Delete
-</button>
-`;
-
-exports[`Button snapshot > disabled state in dark mode 1`] = `
+exports[`Button DOM snapshot > disabled state 1`] = `
 <button
   class="_button_0829c1 _primary_0829c1 _md_0829c1"
   disabled=""
@@ -25,16 +17,7 @@ exports[`Button snapshot > disabled state in dark mode 1`] = `
 </button>
 `;
 
-exports[`Button snapshot > disabled state in light mode 1`] = `
-<button
-  class="_button_0829c1 _primary_0829c1 _md_0829c1"
-  disabled=""
->
-  Disabled
-</button>
-`;
-
-exports[`Button snapshot > primary variant in dark mode 1`] = `
+exports[`Button DOM snapshot > primary variant 1`] = `
 <button
   class="_button_0829c1 _primary_0829c1 _md_0829c1"
 >
@@ -42,23 +25,7 @@ exports[`Button snapshot > primary variant in dark mode 1`] = `
 </button>
 `;
 
-exports[`Button snapshot > primary variant in light mode 1`] = `
-<button
-  class="_button_0829c1 _primary_0829c1 _md_0829c1"
->
-  Save
-</button>
-`;
-
-exports[`Button snapshot > secondary variant in dark mode 1`] = `
-<button
-  class="_button_0829c1 _secondary_0829c1 _md_0829c1"
->
-  Cancel
-</button>
-`;
-
-exports[`Button snapshot > secondary variant in light mode 1`] = `
+exports[`Button DOM snapshot > secondary variant 1`] = `
 <button
   class="_button_0829c1 _secondary_0829c1 _md_0829c1"
 >
