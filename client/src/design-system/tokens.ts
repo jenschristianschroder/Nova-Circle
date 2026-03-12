@@ -72,6 +72,20 @@ export const TOKEN_NAMES = {
   fontFamilyHeading: '--nc-font-family-heading',
   /** Monospace font family */
   fontFamilyMono: '--nc-font-family-mono',
+  /** Font size – extra-small: 12px (h6, labels, captions) */
+  fontSizeXs: '--nc-font-size-xs',
+  /** Font size – small: 14px (h5, secondary text, small controls) */
+  fontSizeSm: '--nc-font-size-sm',
+  /** Font size – base: 16px (h4, body text, medium controls) */
+  fontSizeBase: '--nc-font-size-base',
+  /** Font size – medium: 18px (lead text, brand name) */
+  fontSizeMd: '--nc-font-size-md',
+  /** Font size – large: 20px (h3, section titles) */
+  fontSizeLg: '--nc-font-size-lg',
+  /** Font size – extra-large: 25px (h2) */
+  fontSizeXl: '--nc-font-size-xl',
+  /** Font size – 2× extra-large: 32px (h1) */
+  fontSize2xl: '--nc-font-size-2xl',
 
   // ─── Spacing scale ───────────────────────────────────────────────────────
   /** Extra-small: 4px */

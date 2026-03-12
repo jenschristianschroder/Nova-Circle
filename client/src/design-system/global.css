@@ -39,7 +39,9 @@ body {
 
 /* ─────────────────────────────────────────────────────────────────────────
    Typography scale
-   Based on a minor third (1.250) modular scale
+   Based on a minor third (1.250) modular scale.
+   Font sizes are expressed via CSS custom properties so any future change
+   to the scale only needs to be made in one place (tokens → themes.ts).
 ───────────────────────────────────────────────────────────────────────── */
 h1,
 h2,
@@ -55,28 +57,28 @@ h6 {
 }
 
 h1 {
-  font-size: 2rem; /* 32px */
+  font-size: var(--nc-font-size-2xl); /* 32px */
 }
 
 h2 {
-  font-size: 1.563rem; /* 25px */
+  font-size: var(--nc-font-size-xl); /* ~25px */
 }
 
 h3 {
-  font-size: 1.25rem; /* 20px */
+  font-size: var(--nc-font-size-lg); /* 20px */
 }
 
 h4 {
-  font-size: 1rem; /* 16px */
+  font-size: var(--nc-font-size-base); /* 16px */
 }
 
 h5 {
-  font-size: 0.875rem; /* 14px */
+  font-size: var(--nc-font-size-sm); /* 14px */
   font-weight: 500;
 }
 
 h6 {
-  font-size: 0.75rem; /* 12px */
+  font-size: var(--nc-font-size-xs); /* 12px */
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;

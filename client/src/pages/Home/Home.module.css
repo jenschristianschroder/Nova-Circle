@@ -42,7 +42,7 @@
 }
 
 .brandName {
-  font-size: 1.125rem;
+  font-size: var(--nc-font-size-md);
   font-weight: 700;
   color: var(--nc-content-primary);
 }
@@ -94,7 +94,7 @@
 }
 
 .heroSubtitle {
-  font-size: 1.125rem;
+  font-size: var(--nc-font-size-md);
   color: var(--nc-content-secondary);
   max-width: 48ch;
   line-height: 1.6;
@@ -114,13 +114,13 @@
 }
 
 .sectionTitle {
-  font-size: 1.25rem;
+  font-size: var(--nc-font-size-lg);
   font-weight: 600;
 }
 
 .sectionSubtitle {
   color: var(--nc-content-secondary);
-  font-size: 0.9375rem;
+  font-size: var(--nc-font-size-sm);
 }
 
 /* ─── Card ──────────────────────────────────────────────────────────────── */
@@ -136,7 +136,7 @@
 }
 
 .cardTitle {
-  font-size: 1rem;
+  font-size: var(--nc-font-size-base);
   font-weight: 600;
   color: var(--nc-content-primary);
 }
@@ -183,7 +183,7 @@
 }
 
 .tokenSwatchLabel {
-  font-size: 0.75rem;
+  font-size: var(--nc-font-size-xs);
   color: var(--nc-content-secondary);
   font-family: var(--nc-font-family-mono);
 }
@@ -197,6 +197,6 @@
 }
 
 .footerText {
-  font-size: 0.875rem;
+  font-size: var(--nc-font-size-sm);
   color: var(--nc-content-secondary);
 }

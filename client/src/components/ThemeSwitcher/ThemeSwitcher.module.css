@@ -13,7 +13,7 @@
 }
 
 .legend {
-  font-size: 0.75rem;
+  font-size: var(--nc-font-size-xs);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -50,7 +50,7 @@
   padding: var(--nc-space-xs) var(--nc-space-sm);
   border: 1.5px solid var(--nc-border-default);
   border-radius: var(--nc-radius-md);
-  font-size: 0.875rem;
+  font-size: var(--nc-font-size-sm);
   color: var(--nc-content-secondary);
   background-color: var(--nc-surface-subtle);
   transition:
@@ -102,7 +102,7 @@
 }
 
 .paletteSwatch:hover {
-  transform: scale(1.12);
+  transform: scale(1.06);
 }
 
 .paletteSwatchActive {

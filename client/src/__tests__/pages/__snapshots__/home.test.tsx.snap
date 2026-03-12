@@ -1,0 +1,1079 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`App snapshot > renders correctly in dark mode 1`] = `
+<a
+  class="_skipLink_70641a"
+  href="#main-content"
+>
+  Skip to main content
+</a>
+`;
+
+exports[`App snapshot > renders correctly in light mode 1`] = `
+<a
+  class="_skipLink_70641a"
+  href="#main-content"
+>
+  Skip to main content
+</a>
+`;
+
+exports[`Home page snapshot > renders correctly in dark mode 1`] = `
+<div
+  class="_page_650bde"
+>
+  <header
+    class="_header_650bde"
+    role="banner"
+  >
+    <div
+      class="_headerInner_650bde"
+    >
+      <div
+        class="_brand_650bde"
+      >
+        <span
+          aria-hidden="true"
+          class="_brandIcon_650bde"
+        >
+          ◎
+        </span>
+        <span
+          class="_brandName_650bde"
+        >
+          Nova-Circle
+        </span>
+      </div>
+      <nav
+        aria-label="Primary navigation"
+      >
+        <ul
+          class="_navList_650bde"
+        >
+          <li>
+            <a
+              class="_navLink_650bde"
+              href="#groups"
+            >
+              Groups
+            </a>
+          </li>
+          <li>
+            <a
+              class="_navLink_650bde"
+              href="#events"
+            >
+              Events
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main
+    class="_main_650bde"
+    id="main-content"
+  >
+    <section
+      aria-labelledby="hero-heading"
+      class="_hero_650bde"
+    >
+      <h1
+        class="_heroTitle_650bde"
+        id="hero-heading"
+      >
+        Your private group calendar
+      </h1>
+      <p
+        class="_heroSubtitle_650bde"
+      >
+        Organise events with friends and family. Privacy-first, no tracking.
+      </p>
+      <div
+        class="_heroActions_650bde"
+      >
+        <button
+          class="_button_0829c1 _primary_0829c1 _lg_0829c1"
+        >
+          Get started
+        </button>
+        <button
+          class="_button_0829c1 _secondary_0829c1 _lg_0829c1"
+        >
+          Learn more
+        </button>
+      </div>
+    </section>
+    <section
+      aria-labelledby="appearance-heading"
+      class="_section_650bde"
+    >
+      <div
+        class="_card_650bde"
+      >
+        <h2
+          class="_sectionTitle_650bde"
+          id="appearance-heading"
+        >
+          Appearance
+        </h2>
+        <p
+          class="_sectionSubtitle_650bde"
+        >
+          Currently: 
+          <strong>
+            dark
+             mode
+          </strong>
+           with
+           
+          <strong>
+            default
+             palette
+          </strong>
+        </p>
+        <div
+          aria-label="Appearance settings"
+          class="_container_e7ffc6"
+          role="group"
+        >
+          <fieldset
+            class="_fieldset_e7ffc6"
+          >
+            <legend
+              class="_legend_e7ffc6"
+            >
+              Colour mode
+            </legend>
+            <div
+              aria-label="Colour mode"
+              class="_modeButtons_e7ffc6"
+              role="radiogroup"
+            >
+              <label
+                class="_modeLabel_e7ffc6"
+              >
+                <input
+                  class="_hiddenRadio_e7ffc6"
+                  name="theme-mode"
+                  type="radio"
+                  value="light"
+                />
+                <span
+                  class="_modeButton_e7ffc6"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="_modeIcon_e7ffc6"
+                  >
+                    ☀️
+                  </span>
+                  <span>
+                    Light
+                  </span>
+                </span>
+              </label>
+              <label
+                class="_modeLabel_e7ffc6"
+              >
+                <input
+                  checked=""
+                  class="_hiddenRadio_e7ffc6"
+                  name="theme-mode"
+                  type="radio"
+                  value="dark"
+                />
+                <span
+                  class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="_modeIcon_e7ffc6"
+                  >
+                    🌙
+                  </span>
+                  <span>
+                    Dark
+                  </span>
+                </span>
+              </label>
+              <label
+                class="_modeLabel_e7ffc6"
+              >
+                <input
+                  class="_hiddenRadio_e7ffc6"
+                  name="theme-mode"
+                  type="radio"
+                  value="system"
+                />
+                <span
+                  class="_modeButton_e7ffc6"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="_modeIcon_e7ffc6"
+                  >
+                    💻
+                  </span>
+                  <span>
+                    System
+                  </span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset
+            class="_fieldset_e7ffc6"
+          >
+            <legend
+              class="_legend_e7ffc6"
+            >
+              Colour palette
+            </legend>
+            <div
+              aria-label="Colour palette"
+              class="_paletteSwatches_e7ffc6"
+              role="radiogroup"
+            >
+              <label
+                title="Default – Calm indigo/violet tones"
+              >
+                <input
+                  aria-label="Default palette – Calm indigo/violet tones"
+                  checked=""
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="default"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
+                  style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
+                />
+              </label>
+              <label
+                title="Ocean – Cool teal and cyan tones"
+              >
+                <input
+                  aria-label="Ocean palette – Cool teal and cyan tones"
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="ocean"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6"
+                  style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
+                />
+              </label>
+              <label
+                title="Forest – Warm green and emerald tones"
+              >
+                <input
+                  aria-label="Forest palette – Warm green and emerald tones"
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="forest"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6"
+                  style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
+                />
+              </label>
+              <label
+                title="Sunset – Warm amber and orange tones"
+              >
+                <input
+                  aria-label="Sunset palette – Warm amber and orange tones"
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="sunset"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6"
+                  style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
+                />
+              </label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+    </section>
+    <section
+      aria-labelledby="components-heading"
+      class="_section_650bde"
+    >
+      <h2
+        class="_sectionTitle_650bde"
+        id="components-heading"
+      >
+        Component showcase
+      </h2>
+      <div
+        class="_card_650bde"
+      >
+        <h3
+          class="_cardTitle_650bde"
+        >
+          Buttons
+        </h3>
+        <div
+          class="_showcase_650bde"
+        >
+          <div
+            class="_showcaseRow_650bde"
+          >
+            <button
+              class="_button_0829c1 _primary_0829c1 _sm_0829c1"
+            >
+              Small
+            </button>
+            <button
+              class="_button_0829c1 _primary_0829c1 _md_0829c1"
+            >
+              Medium
+            </button>
+            <button
+              class="_button_0829c1 _primary_0829c1 _lg_0829c1"
+            >
+              Large
+            </button>
+          </div>
+          <div
+            class="_showcaseRow_650bde"
+          >
+            <button
+              class="_button_0829c1 _secondary_0829c1 _md_0829c1"
+            >
+              Secondary
+            </button>
+            <button
+              class="_button_0829c1 _danger_0829c1 _md_0829c1"
+            >
+              Danger
+            </button>
+            <button
+              class="_button_0829c1 _primary_0829c1 _md_0829c1"
+              disabled=""
+            >
+              Disabled
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="_card_650bde"
+      >
+        <h3
+          class="_cardTitle_650bde"
+        >
+          Typography
+        </h3>
+        <div
+          class="_typographyShowcase_650bde"
+        >
+          <h1>
+            Heading 1 — 2rem
+          </h1>
+          <h2>
+            Heading 2 — 1.563rem
+          </h2>
+          <h3>
+            Heading 3 — 1.25rem
+          </h3>
+          <h4>
+            Heading 4 — 1rem
+          </h4>
+          <p>
+            Body text — system-ui. Nova-Circle keeps your events and group activity private. Only explicitly invited members can see event details.
+          </p>
+          <small>
+            Small text — secondary colour
+          </small>
+        </div>
+      </div>
+      <div
+        class="_card_650bde"
+      >
+        <h3
+          class="_cardTitle_650bde"
+        >
+          Semantic colour tokens
+        </h3>
+        <div
+          aria-label="Colour token swatches"
+          class="_tokenGrid_650bde"
+          role="list"
+        >
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-surface-background);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              surface.background
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-surface-card);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              surface.card
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-surface-subtle);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              surface.subtle
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-accent-default);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              accent.default
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-accent-hover);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              accent.hover
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-accent-subtle);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              accent.subtle
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-danger-default);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              danger.default
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-success-default);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              success.default
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer
+    class="_footer_650bde"
+    role="contentinfo"
+  >
+    <p
+      class="_footerText_650bde"
+    >
+      Nova-Circle — privacy-first group calendar. No tracking. No ads.
+    </p>
+  </footer>
+</div>
+`;
+
+exports[`Home page snapshot > renders correctly in light mode 1`] = `
+<div
+  class="_page_650bde"
+>
+  <header
+    class="_header_650bde"
+    role="banner"
+  >
+    <div
+      class="_headerInner_650bde"
+    >
+      <div
+        class="_brand_650bde"
+      >
+        <span
+          aria-hidden="true"
+          class="_brandIcon_650bde"
+        >
+          ◎
+        </span>
+        <span
+          class="_brandName_650bde"
+        >
+          Nova-Circle
+        </span>
+      </div>
+      <nav
+        aria-label="Primary navigation"
+      >
+        <ul
+          class="_navList_650bde"
+        >
+          <li>
+            <a
+              class="_navLink_650bde"
+              href="#groups"
+            >
+              Groups
+            </a>
+          </li>
+          <li>
+            <a
+              class="_navLink_650bde"
+              href="#events"
+            >
+              Events
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main
+    class="_main_650bde"
+    id="main-content"
+  >
+    <section
+      aria-labelledby="hero-heading"
+      class="_hero_650bde"
+    >
+      <h1
+        class="_heroTitle_650bde"
+        id="hero-heading"
+      >
+        Your private group calendar
+      </h1>
+      <p
+        class="_heroSubtitle_650bde"
+      >
+        Organise events with friends and family. Privacy-first, no tracking.
+      </p>
+      <div
+        class="_heroActions_650bde"
+      >
+        <button
+          class="_button_0829c1 _primary_0829c1 _lg_0829c1"
+        >
+          Get started
+        </button>
+        <button
+          class="_button_0829c1 _secondary_0829c1 _lg_0829c1"
+        >
+          Learn more
+        </button>
+      </div>
+    </section>
+    <section
+      aria-labelledby="appearance-heading"
+      class="_section_650bde"
+    >
+      <div
+        class="_card_650bde"
+      >
+        <h2
+          class="_sectionTitle_650bde"
+          id="appearance-heading"
+        >
+          Appearance
+        </h2>
+        <p
+          class="_sectionSubtitle_650bde"
+        >
+          Currently: 
+          <strong>
+            light
+             mode
+          </strong>
+           with
+           
+          <strong>
+            default
+             palette
+          </strong>
+        </p>
+        <div
+          aria-label="Appearance settings"
+          class="_container_e7ffc6"
+          role="group"
+        >
+          <fieldset
+            class="_fieldset_e7ffc6"
+          >
+            <legend
+              class="_legend_e7ffc6"
+            >
+              Colour mode
+            </legend>
+            <div
+              aria-label="Colour mode"
+              class="_modeButtons_e7ffc6"
+              role="radiogroup"
+            >
+              <label
+                class="_modeLabel_e7ffc6"
+              >
+                <input
+                  checked=""
+                  class="_hiddenRadio_e7ffc6"
+                  name="theme-mode"
+                  type="radio"
+                  value="light"
+                />
+                <span
+                  class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="_modeIcon_e7ffc6"
+                  >
+                    ☀️
+                  </span>
+                  <span>
+                    Light
+                  </span>
+                </span>
+              </label>
+              <label
+                class="_modeLabel_e7ffc6"
+              >
+                <input
+                  class="_hiddenRadio_e7ffc6"
+                  name="theme-mode"
+                  type="radio"
+                  value="dark"
+                />
+                <span
+                  class="_modeButton_e7ffc6"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="_modeIcon_e7ffc6"
+                  >
+                    🌙
+                  </span>
+                  <span>
+                    Dark
+                  </span>
+                </span>
+              </label>
+              <label
+                class="_modeLabel_e7ffc6"
+              >
+                <input
+                  class="_hiddenRadio_e7ffc6"
+                  name="theme-mode"
+                  type="radio"
+                  value="system"
+                />
+                <span
+                  class="_modeButton_e7ffc6"
+                >
+                  <span
+                    aria-hidden="true"
+                    class="_modeIcon_e7ffc6"
+                  >
+                    💻
+                  </span>
+                  <span>
+                    System
+                  </span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset
+            class="_fieldset_e7ffc6"
+          >
+            <legend
+              class="_legend_e7ffc6"
+            >
+              Colour palette
+            </legend>
+            <div
+              aria-label="Colour palette"
+              class="_paletteSwatches_e7ffc6"
+              role="radiogroup"
+            >
+              <label
+                title="Default – Calm indigo/violet tones"
+              >
+                <input
+                  aria-label="Default palette – Calm indigo/violet tones"
+                  checked=""
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="default"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
+                  style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
+                />
+              </label>
+              <label
+                title="Ocean – Cool teal and cyan tones"
+              >
+                <input
+                  aria-label="Ocean palette – Cool teal and cyan tones"
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="ocean"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6"
+                  style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
+                />
+              </label>
+              <label
+                title="Forest – Warm green and emerald tones"
+              >
+                <input
+                  aria-label="Forest palette – Warm green and emerald tones"
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="forest"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6"
+                  style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
+                />
+              </label>
+              <label
+                title="Sunset – Warm amber and orange tones"
+              >
+                <input
+                  aria-label="Sunset palette – Warm amber and orange tones"
+                  class="_hiddenRadio_e7ffc6"
+                  name="palette"
+                  type="radio"
+                  value="sunset"
+                />
+                <span
+                  aria-hidden="true"
+                  class="_paletteSwatch_e7ffc6"
+                  style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
+                />
+              </label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+    </section>
+    <section
+      aria-labelledby="components-heading"
+      class="_section_650bde"
+    >
+      <h2
+        class="_sectionTitle_650bde"
+        id="components-heading"
+      >
+        Component showcase
+      </h2>
+      <div
+        class="_card_650bde"
+      >
+        <h3
+          class="_cardTitle_650bde"
+        >
+          Buttons
+        </h3>
+        <div
+          class="_showcase_650bde"
+        >
+          <div
+            class="_showcaseRow_650bde"
+          >
+            <button
+              class="_button_0829c1 _primary_0829c1 _sm_0829c1"
+            >
+              Small
+            </button>
+            <button
+              class="_button_0829c1 _primary_0829c1 _md_0829c1"
+            >
+              Medium
+            </button>
+            <button
+              class="_button_0829c1 _primary_0829c1 _lg_0829c1"
+            >
+              Large
+            </button>
+          </div>
+          <div
+            class="_showcaseRow_650bde"
+          >
+            <button
+              class="_button_0829c1 _secondary_0829c1 _md_0829c1"
+            >
+              Secondary
+            </button>
+            <button
+              class="_button_0829c1 _danger_0829c1 _md_0829c1"
+            >
+              Danger
+            </button>
+            <button
+              class="_button_0829c1 _primary_0829c1 _md_0829c1"
+              disabled=""
+            >
+              Disabled
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        class="_card_650bde"
+      >
+        <h3
+          class="_cardTitle_650bde"
+        >
+          Typography
+        </h3>
+        <div
+          class="_typographyShowcase_650bde"
+        >
+          <h1>
+            Heading 1 — 2rem
+          </h1>
+          <h2>
+            Heading 2 — 1.563rem
+          </h2>
+          <h3>
+            Heading 3 — 1.25rem
+          </h3>
+          <h4>
+            Heading 4 — 1rem
+          </h4>
+          <p>
+            Body text — system-ui. Nova-Circle keeps your events and group activity private. Only explicitly invited members can see event details.
+          </p>
+          <small>
+            Small text — secondary colour
+          </small>
+        </div>
+      </div>
+      <div
+        class="_card_650bde"
+      >
+        <h3
+          class="_cardTitle_650bde"
+        >
+          Semantic colour tokens
+        </h3>
+        <div
+          aria-label="Colour token swatches"
+          class="_tokenGrid_650bde"
+          role="list"
+        >
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-surface-background);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              surface.background
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-surface-card);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              surface.card
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-surface-subtle);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              surface.subtle
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-accent-default);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              accent.default
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-accent-hover);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              accent.hover
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-accent-subtle);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              accent.subtle
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-danger-default);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              danger.default
+            </span>
+          </div>
+          <div
+            class="_tokenSwatch_650bde"
+            role="listitem"
+          >
+            <span
+              aria-hidden="true"
+              class="_tokenSwatchColour_650bde"
+              style="background-color: var(--nc-success-default);"
+            />
+            <span
+              class="_tokenSwatchLabel_650bde"
+            >
+              success.default
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer
+    class="_footer_650bde"
+    role="contentinfo"
+  >
+    <p
+      class="_footerText_650bde"
+    >
+      Nova-Circle — privacy-first group calendar. No tracking. No ads.
+    </p>
+  </footer>
+</div>
+`;
