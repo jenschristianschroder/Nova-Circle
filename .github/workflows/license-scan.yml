@@ -1,0 +1,85 @@
+name: License Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # License scan – backend
+  # Checks that every production dependency of the Node.js backend declares a
+  # license that is compatible with this project's terms of use.  Fails the
+  # build if any package carries a copyleft or restrictive license (GPL,
+  # AGPL, LGPL, SSPL, EUPL).  A full JSON report is uploaded as an artifact
+  # so that reviewers can audit the complete set of declared licenses.
+  # ──────────────────────────────────────────────────────────────────────────
+  license-scan-backend:
+    name: License scan – backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: npm run license:check
+
+      - name: Export license report
+        if: always()
+        run: npm run license:report
+
+      - name: Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report-backend
+          path: license-report.json
+          if-no-files-found: ignore
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # License scan – client
+  # Same policy applied to the React web client's production dependencies.
+  # ──────────────────────────────────────────────────────────────────────────
+  license-scan-client:
+    name: License scan – client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: npm run license:check
+
+      - name: Export license report
+        if: always()
+        run: npm run license:report
+
+      - name: Upload license report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report-client
+          path: client/license-report.json
+          if-no-files-found: ignore

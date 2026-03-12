@@ -179,3 +179,7 @@ $RECYCLE.BIN/
 
 # Client build output
 client/dist/
+
+# Generated license reports (uploaded as CI artifacts, not committed)
+license-report.json
+client/license-report.json
