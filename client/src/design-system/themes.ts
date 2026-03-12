@@ -105,6 +105,14 @@ export function buildTokenValues(
     [TOKEN_NAMES.fontFamilyMono]:
       "'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', Menlo, Consolas, monospace",
 
+    // ─── Font size scale ──────────────────────────────────────────────────
+    [TOKEN_NAMES.fontSizeXs]: '0.75rem', //  12px
+    [TOKEN_NAMES.fontSizeSm]: '0.875rem', //  14px
+    [TOKEN_NAMES.fontSizeMd]: '1rem', //  16px
+    [TOKEN_NAMES.fontSizeLg]: '1.25rem', //  20px
+    [TOKEN_NAMES.fontSizeXl]: '1.563rem', //  25px
+    [TOKEN_NAMES.fontSize2xl]: '2rem', //  32px
+
     // ─── Spacing scale ────────────────────────────────────────────────────
     [TOKEN_NAMES.spaceXs]: '0.25rem', //  4px
     [TOKEN_NAMES.spaceSm]: '0.5rem', //  8px

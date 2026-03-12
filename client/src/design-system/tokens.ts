@@ -73,6 +73,20 @@ export const TOKEN_NAMES = {
   /** Monospace font family */
   fontFamilyMono: '--nc-font-family-mono',
 
+  // ─── Font size scale ─────────────────────────────────────────────────────
+  /** Extra-small: 0.75rem (12px) */
+  fontSizeXs: '--nc-font-size-xs',
+  /** Small: 0.875rem (14px) */
+  fontSizeSm: '--nc-font-size-sm',
+  /** Medium: 1rem (16px) */
+  fontSizeMd: '--nc-font-size-md',
+  /** Large: 1.25rem (20px) */
+  fontSizeLg: '--nc-font-size-lg',
+  /** Extra-large: 1.563rem (25px) */
+  fontSizeXl: '--nc-font-size-xl',
+  /** 2× extra-large: 2rem (32px) */
+  fontSize2xl: '--nc-font-size-2xl',
+
   // ─── Spacing scale ───────────────────────────────────────────────────────
   /** Extra-small: 4px */
   spaceXs: '--nc-space-xs',

@@ -211,7 +211,7 @@ All M7 work is complete:
 - [x] **Semantic design token system** – `tokens.ts` defines all CSS custom properties by role (surface, content, border, accent, danger, success, typography, spacing, radius, shadow); components reference only tokens, never hardcoded values
 - [x] **Curated colour palettes** – `palettes.ts` provides four palettes (Default / Ocean / Forest / Sunset); all colour combinations meet WCAG 2.1 AA contrast requirements (≥ 4.5:1 for normal text, ≥ 3:1 for large text and UI components)
 - [x] **Theme system** – `themes.ts` maps semantic tokens to concrete palette values for light and dark modes; `ThemeContext.tsx` provides a React context that resolves and applies the full token set to the `<html>` element via CSS custom properties
-- [x] **Light / dark mode + palette switching** – `ThemeProvider` exposes `toggleMode()` and `setPalette()` hooks; preference is persisted to `localStorage` and restored on load
+- [x] **Light / dark mode + palette switching** – `ThemeProvider` exposes a `useTheme()` hook with `setMode(mode)` and `setPaletteId(id)`; preference is persisted to `localStorage` and restored on load
 - [x] **Global CSS baseline** – `global.css` applies a CSS reset, sets the token-driven type scale on `h1`–`h6`, and wires the default font families
 - [x] **Typography scale tokens** – `--nc-font-size-xs` (0.75 rem) through `--nc-font-size-2xl` (2 rem) defined in `tokens.ts`; all heading and body styles use these variables instead of hardcoded values
 - [x] **ThemeSwitcher component** – accessible button group for toggling light/dark mode and selecting a palette; uses only design tokens; keyboard and screen-reader friendly
