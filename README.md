@@ -198,7 +198,7 @@ All M6 work is complete:
 - [x] Voice capture – `POST /api/v1/capture/voice`: audio uploaded, transcribed via `SpeechToTextPort`, then fed into the shared pipeline
 - [x] Image capture – `POST /api/v1/capture/image`: image uploaded (jpeg/png/gif/webp/heic/heif, max 10 MB), stored via `IBlobStorageAdapter`, extracted via `ImageExtractionPort`, then fed into the shared pipeline
 - [x] Draft flow – incomplete or low-confidence input creates a first-class `EventDraft` with structured `DraftIssueCode` values (e.g. `missing_title`, `ambiguous_date`, `low_confidence_extraction`); no silent guessing of uncertain fields
-- [x] Draft management – `GET /api/v1/capture/drafts`, `GET /:draftId`, `PATCH /:draftId` (update fields), `POST /:draftId/promote` (convert to real event), `DELETE /:draftId` (abandon)
+- [x] Draft management – `GET /api/v1/capture/drafts`, `GET /api/v1/capture/drafts/:draftId`, `PATCH /api/v1/capture/drafts/:draftId` (update fields), `POST /api/v1/capture/drafts/:draftId/promote` (convert to real event), `DELETE /api/v1/capture/drafts/:draftId` (abandon)
 - [x] AI adapter boundary – `EventFieldExtractorPort`, `SpeechToTextPort`, and `ImageExtractionPort` are interfaces; real Azure AI adapters injected in production; deterministic fake adapters used in CI so no live model calls are required
 - [x] Database migration – `20260311000008_event_capture.ts`: creates `event_drafts` and `event_draft_issues` tables with proper constraints and FK cascade rules
 - [x] Full test coverage – unit tests for pipeline logic (`capture-pipeline.unit.test.ts`), fake adapter unit tests, integration tests for repository layer, API tests for all capture and draft endpoints
