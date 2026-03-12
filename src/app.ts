@@ -85,16 +85,19 @@ export function createApp(deps?: AppDependencies): express.Application {
   app.set('trust proxy', 1);
 
   // Rate limiting – protects against brute-force and DoS on the API.
-  app.use(
-    '/api/',
-    rateLimit({
-      windowMs: 15 * 60 * 1000, // 15-minute window
-      max: 100, // limit each IP to 100 requests per window
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: { error: 'Too many requests, please try again later.', code: 'RATE_LIMITED' },
-    }),
-  );
+  // Disabled in test environment to avoid false 429s during API test suites.
+  if (process.env['NODE_ENV'] !== 'test') {
+    app.use(
+      '/api/',
+      rateLimit({
+        windowMs: 15 * 60 * 1000, // 15-minute window
+        max: 100, // limit each IP to 100 requests per window
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many requests, please try again later.', code: 'RATE_LIMITED' },
+      }),
+    );
+  }
 
   app.use(express.json({ limit: '1mb' }));
 
