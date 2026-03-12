@@ -42,7 +42,7 @@
 }
 
 .brandName {
-  font-size: var(--nc-font-size-md);
+  font-size: 1.125rem;
   font-weight: 700;
   color: var(--nc-content-primary);
 }
@@ -94,7 +94,7 @@
 }
 
 .heroSubtitle {
-  font-size: var(--nc-font-size-md);
+  font-size: 1.125rem;
   color: var(--nc-content-secondary);
   max-width: 48ch;
   line-height: 1.6;
@@ -120,7 +120,7 @@
 
 .sectionSubtitle {
   color: var(--nc-content-secondary);
-  font-size: var(--nc-font-size-sm);
+  font-size: 0.9375rem;
 }
 
 /* ─── Card ──────────────────────────────────────────────────────────────── */
@@ -136,7 +136,7 @@
 }
 
 .cardTitle {
-  font-size: var(--nc-font-size-base);
+  font-size: var(--nc-font-size-md);
   font-weight: 600;
   color: var(--nc-content-primary);
 }

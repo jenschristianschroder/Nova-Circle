@@ -104,13 +104,14 @@ export function buildTokenValues(
       "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     [TOKEN_NAMES.fontFamilyMono]:
       "'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', Menlo, Consolas, monospace",
-    [TOKEN_NAMES.fontSizeXs]: '0.75rem', //  12px – h6, labels, captions
-    [TOKEN_NAMES.fontSizeSm]: '0.875rem', //  14px – h5, secondary text
-    [TOKEN_NAMES.fontSizeBase]: '1rem', //  16px – h4, body, medium controls
-    [TOKEN_NAMES.fontSizeMd]: '1.125rem', //  18px – lead text, brand name
-    [TOKEN_NAMES.fontSizeLg]: '1.25rem', //  20px – h3, section titles
-    [TOKEN_NAMES.fontSizeXl]: '1.563rem', // ~25px – h2
-    [TOKEN_NAMES.fontSize2xl]: '2rem', //  32px – h1
+
+    // ─── Font size scale ──────────────────────────────────────────────────
+    [TOKEN_NAMES.fontSizeXs]: '0.75rem', //  12px
+    [TOKEN_NAMES.fontSizeSm]: '0.875rem', //  14px
+    [TOKEN_NAMES.fontSizeMd]: '1rem', //  16px
+    [TOKEN_NAMES.fontSizeLg]: '1.25rem', //  20px
+    [TOKEN_NAMES.fontSizeXl]: '1.563rem', //  25px
+    [TOKEN_NAMES.fontSize2xl]: '2rem', //  32px
 
     // ─── Spacing scale ────────────────────────────────────────────────────
     [TOKEN_NAMES.spaceXs]: '0.25rem', //  4px
