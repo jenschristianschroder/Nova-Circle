@@ -154,30 +154,6 @@ small {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Skip link
-───────────────────────────────────────────────────────────────────────── */
-.skip-link {
-  position: absolute;
-  top: -100%;
-  left: var(--nc-space-md);
-  z-index: 9999;
-  padding: var(--nc-space-sm) var(--nc-space-md);
-  background-color: var(--nc-surface-card);
-  color: var(--nc-content-primary);
-  border: 2px solid var(--nc-border-focus);
-  border-radius: var(--nc-radius-md);
-  font-weight: 600;
-  text-decoration: none;
-  transition: top 150ms ease;
-}
-
-.skip-link:focus {
-  top: var(--nc-space-md);
-  outline: 2px solid var(--nc-border-focus);
-  outline-offset: 2px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
    Form elements: base normalisation
 ───────────────────────────────────────────────────────────────────────── */
 input,

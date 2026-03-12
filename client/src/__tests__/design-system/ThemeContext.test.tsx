@@ -35,6 +35,43 @@ function ThemeController() {
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+/**
+ * A controllable matchMedia mock that captures the 'change' event listener so
+ * tests can simulate OS preference changes programmatically.
+ */
+function createControllableMatchMedia(initialMatches: boolean) {
+  let currentMatches = initialMatches;
+  const listeners: Array<() => void> = [];
+
+  const mql = {
+    get matches() {
+      return currentMatches;
+    },
+    media: '(prefers-color-scheme: dark)',
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn((_event: string, handler: () => void) => {
+      listeners.push(handler);
+    }),
+    removeEventListener: vi.fn((_event: string, handler: () => void) => {
+      const idx = listeners.indexOf(handler);
+      if (idx !== -1) listeners.splice(idx, 1);
+    }),
+    dispatchEvent: vi.fn(),
+    /** Test helper: simulate an OS preference change */
+    simulateChange(newMatches: boolean) {
+      currentMatches = newMatches;
+      listeners.forEach((fn) => fn());
+    },
+  };
+
+  return {
+    mql,
+    mockFn: vi.fn().mockReturnValue(mql),
+  };
+}
+
 const mockMatchMedia = (matches: boolean) => {
   return vi.fn().mockImplementation((query: string) => ({
     matches,
@@ -136,6 +173,52 @@ describe('ThemeProvider', () => {
       </ThemeProvider>,
     );
     expect(screen.getByTestId('resolved-mode').textContent).toBe('dark');
+  });
+
+  it('updates resolvedMode in context when OS preference changes (system mode)', () => {
+    const { mql, mockFn } = createControllableMatchMedia(false); // starts light
+    Object.defineProperty(window, 'matchMedia', { writable: true, value: mockFn });
+
+    render(
+      <ThemeProvider>
+        <ThemeConsumer />
+      </ThemeProvider>,
+    );
+
+    // Initial state: OS prefers light
+    expect(screen.getByTestId('resolved-mode').textContent).toBe('light');
+
+    // Simulate OS switching to dark
+    act(() => {
+      mql.simulateChange(true);
+    });
+
+    expect(screen.getByTestId('resolved-mode').textContent).toBe('dark');
+  });
+
+  it('does not update resolvedMode from OS changes when mode is explicitly set', () => {
+    const { mql, mockFn } = createControllableMatchMedia(false);
+    Object.defineProperty(window, 'matchMedia', { writable: true, value: mockFn });
+
+    render(
+      <ThemeProvider>
+        <ThemeConsumer />
+        <ThemeController />
+      </ThemeProvider>,
+    );
+
+    // Explicitly set to light (no longer 'system')
+    act(() => {
+      fireEvent.click(screen.getByText('Set light'));
+    });
+    expect(screen.getByTestId('resolved-mode').textContent).toBe('light');
+
+    // OS switches to dark – should have no effect since mode !== 'system'
+    act(() => {
+      mql.simulateChange(true);
+    });
+
+    expect(screen.getByTestId('resolved-mode').textContent).toBe('light');
   });
 });
 

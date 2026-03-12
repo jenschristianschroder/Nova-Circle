@@ -66,28 +66,33 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [mode, setModeState] = useState<Mode>(readStoredMode);
   const [paletteId, setPaletteIdState] = useState<PaletteId>(readStoredPaletteId);
 
-  const resolvedMode = useMemo(() => resolveMode(mode), [mode]);
+  // resolvedMode is stored in state so that OS preference changes (when
+  // mode === 'system') cause a re-render in all consuming components.
+  const [resolvedMode, setResolvedMode] = useState<'light' | 'dark'>(() => resolveMode(mode));
 
-  // Apply tokens whenever mode or palette changes
+  // Sync resolvedMode whenever the explicit mode selection changes.
+  useEffect(() => {
+    setResolvedMode(resolveMode(mode));
+  }, [mode]);
+
+  // Apply tokens to the DOM whenever resolvedMode or palette changes.
   useEffect(() => {
     const palette = getPaletteById(paletteId);
     const tokenValues = buildTokenValues(palette, resolvedMode);
     applyTokensToRoot(tokenValues, resolvedMode, paletteId);
   }, [resolvedMode, paletteId]);
 
-  // Listen for OS colour-scheme changes when mode === 'system'
+  // Listen for OS colour-scheme changes when mode === 'system' and update
+  // resolvedMode state so consuming components re-render correctly.
   useEffect(() => {
     if (mode !== 'system') return;
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
-      const palette = getPaletteById(paletteId);
-      const newResolved = mql.matches ? 'dark' : 'light';
-      const tokenValues = buildTokenValues(palette, newResolved);
-      applyTokensToRoot(tokenValues, newResolved, paletteId);
+      setResolvedMode(mql.matches ? 'dark' : 'light');
     };
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);
-  }, [mode, paletteId]);
+  }, [mode]);
 
   const setMode = useCallback((newMode: Mode) => {
     setModeState(newMode);
