@@ -1,0 +1,35 @@
+# Backend .dockerignore
+# Excludes files not needed inside the backend Docker build context.
+
+# Development dependencies / tooling
+node_modules/
+
+# TypeScript output (rebuilt inside the image)
+dist/
+
+# Frontend (separate image)
+client/
+
+# Infrastructure, docs, and CI config
+infra/
+docs/
+.github/
+
+# Test artefacts
+test-results/
+coverage/
+*.test.ts
+*.spec.ts
+
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Editor and OS noise
+.git/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
