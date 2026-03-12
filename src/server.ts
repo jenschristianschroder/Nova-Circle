@@ -29,6 +29,13 @@ const databaseUrl = process.env['DATABASE_URL'];
 
 const isProduction = process.env['NODE_ENV'] === 'production';
 
+// Fail fast in production when DATABASE_URL is missing so the container never
+// becomes "ready" in a misconfigured state (health checks would otherwise pass).
+if (isProduction && !databaseUrl) {
+  logger.error('DATABASE_URL is required in production');
+  process.exit(1);
+}
+
 const db = databaseUrl
   ? knex({
       client: 'pg',
@@ -62,10 +69,17 @@ const server = app.listen(port, () => {
 // Ensures in-flight requests complete and database connections are released
 // before the process exits (important for container orchestration).
 const SHUTDOWN_TIMEOUT_MS = 30_000;
+let shuttingDown = false;
 
 function gracefulShutdown(signal: string): void {
+  // Idempotent: ignore repeated signals while already shutting down.
+  if (shuttingDown) return;
+  shuttingDown = true;
+
   logger.info('Shutdown initiated', { signal });
 
+  // Stop accepting new connections and close idle keep-alive sockets so the
+  // server can drain quickly (Node >= 18.2).
   server.close(() => {
     const cleanup = db ? db.destroy() : Promise.resolve();
     cleanup
@@ -79,6 +93,7 @@ function gracefulShutdown(signal: string): void {
         process.exit(1);
       });
   });
+  server.closeIdleConnections();
 
   // Force exit after timeout to avoid hanging pods.
   setTimeout(() => {

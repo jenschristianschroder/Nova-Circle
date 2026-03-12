@@ -79,6 +79,11 @@ export function createApp(deps?: AppDependencies): express.Application {
     }),
   );
 
+  // Trust the first proxy (Azure Container Apps / reverse-proxy) so that
+  // rate-limiting keys on the real client IP from X-Forwarded-For, not the
+  // proxy IP.
+  app.set('trust proxy', 1);
+
   // Rate limiting – protects against brute-force and DoS on the API.
   app.use(
     '/api/',

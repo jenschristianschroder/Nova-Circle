@@ -14,7 +14,7 @@ export async function up(knex: Knex): Promise<void> {
     table.index('group_id', 'idx_events_group_id');
   });
   await knex.schema.alterTable('events', (table) => {
-    table.index('created_by_user_id', 'idx_events_created_by_user_id');
+    table.index('created_by', 'idx_events_created_by');
   });
 
   // ── event_invitations ────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ export async function up(knex: Knex): Promise<void> {
 
   // ── event_chat_messages ──────────────────────────────────────────────────
   await knex.schema.alterTable('event_chat_messages', (table) => {
-    table.index('author_id', 'idx_event_chat_messages_author_id');
+    table.index('author_user_id', 'idx_event_chat_messages_author_user_id');
   });
 
   // ── event_checklist_items ────────────────────────────────────────────────
@@ -40,19 +40,19 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await knex.schema.alterTable('event_checklist_items', (table) => {
-    table.dropIndex([], 'idx_event_checklist_items_assigned_to');
+    table.dropIndex('assigned_to_user_id', 'idx_event_checklist_items_assigned_to');
   });
   await knex.schema.alterTable('event_chat_messages', (table) => {
-    table.dropIndex([], 'idx_event_chat_messages_author_id');
+    table.dropIndex('author_user_id', 'idx_event_chat_messages_author_user_id');
   });
   await knex.schema.alterTable('group_members', (table) => {
-    table.dropIndex([], 'idx_group_members_user_id');
+    table.dropIndex('user_id', 'idx_group_members_user_id');
   });
   await knex.schema.alterTable('event_invitations', (table) => {
-    table.dropIndex([], 'idx_event_invitations_user_id');
+    table.dropIndex('user_id', 'idx_event_invitations_user_id');
   });
   await knex.schema.alterTable('events', (table) => {
-    table.dropIndex([], 'idx_events_created_by_user_id');
-    table.dropIndex([], 'idx_events_group_id');
+    table.dropIndex('created_by', 'idx_events_created_by');
+    table.dropIndex('group_id', 'idx_events_group_id');
   });
 }
