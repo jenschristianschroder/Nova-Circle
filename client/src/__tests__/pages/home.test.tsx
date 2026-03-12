@@ -87,7 +87,7 @@ describe('App snapshot', () => {
       value: mockMatchMedia(false),
     });
     const { container } = render(<App />);
-    expect(container.firstChild).toMatchSnapshot();
+    expect(container).toMatchSnapshot();
   });
 
   it('renders correctly in dark mode', () => {
@@ -97,7 +97,7 @@ describe('App snapshot', () => {
       value: mockMatchMedia(true),
     });
     const { container } = render(<App />);
-    expect(container.firstChild).toMatchSnapshot();
+    expect(container).toMatchSnapshot();
   });
 });
 
@@ -141,8 +141,9 @@ describe('Home page structure', () => {
   });
 
   it('colour token swatches are present', () => {
-    const { getAllByRole } = renderHomeWithMode('light');
-    const swatches = getAllByRole('listitem');
+    const { getByRole } = renderHomeWithMode('light');
+    const swatchList = getByRole('list', { name: /colour token swatches/i });
+    const swatches = Array.from(swatchList.querySelectorAll('[role="listitem"]'));
     expect(swatches.length).toBeGreaterThanOrEqual(8);
   });
 });
