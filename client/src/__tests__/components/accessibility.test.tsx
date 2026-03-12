@@ -13,9 +13,9 @@
  * values for every palette × mode combination.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import axe from 'axe-core';
+import * as axe from 'axe-core';
 import { Button } from '../../components/Button';
 import { SkipLink } from '../../components/SkipLink';
 import { VisuallyHidden } from '../../components/VisuallyHidden';
@@ -44,6 +44,21 @@ beforeEach(() => {
     writable: true,
     value: mockMatchMedia(false),
   });
+});
+
+afterEach(() => {
+  // ThemeProvider writes CSS custom properties and data-* attributes onto
+  // document.documentElement via applyTokensToRoot and does not clean up on
+  // unmount. Remove them here so each test starts with a clean document.
+  const root = document.documentElement;
+  Array.from(root.style).forEach((prop) => {
+    if (prop.startsWith('--nc-')) {
+      root.style.removeProperty(prop);
+    }
+  });
+  root.removeAttribute('data-theme');
+  root.removeAttribute('data-palette');
+  root.style.colorScheme = '';
 });
 
 // ─── axe helpers ─────────────────────────────────────────────────────────────
