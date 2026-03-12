@@ -132,7 +132,7 @@ module/
 | M4 – Event management      | Edit, cancel, invitation changes, privacy and audit hardening                             | ✅ Complete |
 | M5 – Event collaboration   | Event-scoped location, checklist, and chat                                                | ✅ Complete |
 | M6 – Natural event capture | Text, voice, and image-based event capture via shared pipeline                            | ✅ Complete |
-| M7 – UI polish             | Theme support, palette support, accessibility, visual cleanup                             | ⬜ Planned  |
+| M7 – UI polish             | Theme support, palette support, accessibility, visual cleanup                             | ✅ Complete |
 
 ### Milestone 1 – Foundation ✅
 
@@ -202,6 +202,27 @@ All M6 work is complete:
 - [x] AI adapter boundary – `EventFieldExtractorPort`, `SpeechToTextPort`, and `ImageExtractionPort` are interfaces; real Azure AI adapters injected in production; deterministic fake adapters used in CI so no live model calls are required
 - [x] Database migration – `20260311000008_event_capture.ts`: creates `event_drafts` and `event_draft_issues` tables with proper constraints and FK cascade rules
 - [x] Full test coverage – unit tests for pipeline logic (`capture-pipeline.unit.test.ts`), fake adapter unit tests, integration tests for repository layer, API tests for all capture and draft endpoints
+
+### Milestone 7 – UI polish ✅
+
+All M7 work is complete:
+
+- [x] **Client frontend** – React + TypeScript + Vite project scaffolded under `client/`; separate `package.json`, `tsconfig.json`, and Vitest configuration
+- [x] **Semantic design token system** – `tokens.ts` defines all CSS custom properties by role (surface, content, border, accent, danger, success, typography, spacing, radius, shadow); components reference only tokens, never hardcoded values
+- [x] **Curated colour palettes** – `palettes.ts` provides four palettes (Default / Ocean / Forest / Sunset); all colour combinations meet WCAG 2.1 AA contrast requirements (≥ 4.5:1 for normal text, ≥ 3:1 for large text and UI components)
+- [x] **Theme system** – `themes.ts` maps semantic tokens to concrete palette values for light and dark modes; `ThemeContext.tsx` provides a React context that resolves and applies the full token set to the `<html>` element via CSS custom properties
+- [x] **Light / dark mode + palette switching** – `ThemeProvider` exposes `toggleMode()` and `setPalette()` hooks; preference is persisted to `localStorage` and restored on load
+- [x] **Global CSS baseline** – `global.css` applies a CSS reset, sets the token-driven type scale on `h1`–`h6`, and wires the default font families
+- [x] **Typography scale tokens** – `--nc-font-size-xs` (0.75 rem) through `--nc-font-size-2xl` (2 rem) defined in `tokens.ts`; all heading and body styles use these variables instead of hardcoded values
+- [x] **ThemeSwitcher component** – accessible button group for toggling light/dark mode and selecting a palette; uses only design tokens; keyboard and screen-reader friendly
+- [x] **Button component** – primary / secondary / danger variants with sm / md / lg sizes and disabled state; CSS Modules with full token coverage
+- [x] **SkipLink component** – WCAG 2.1 AA skip-navigation link rendered before page content; visually hidden until focused
+- [x] **VisuallyHidden component** – reusable utility for screen-reader-only text; used by SkipLink and other accessible components
+- [x] **WCAG 2.1 AA contrast validation** – `contrast.test.ts` programmatically verifies contrast ratios for all theme + palette combinations; CI fails if any combination drops below AA thresholds
+- [x] **axe-core accessibility audits** – `accessibility.test.tsx` runs automated axe-core audits across all themed component combinations; integrated into the `client` CI job so accessibility regressions block merge
+- [x] **Theme and palette snapshot tests** – `theme-snapshots.test.ts` and `themed-components.test.tsx` lock in resolved token values and rendered output for all theme / palette combinations; catch accidental visual regressions
+- [x] **Design system unit tests** – `tokens.test.ts` validates token completeness and naming conventions; `palettes.test.ts` validates palette structure and scale lengths; `ThemeContext.test.tsx` verifies mode switching, palette switching, and localStorage persistence
+- [x] **Client CI job** – dedicated GitHub Actions `client` job runs format check, typecheck, and the full Vitest suite (including axe-core audits and contrast checks) on every pull request
 
 ---
 
