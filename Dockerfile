@@ -21,7 +21,11 @@ FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
-ENV NODE_ENV=production
+# NODE_ENV is intentionally NOT hard-coded here.
+# Set it at runtime via the Container App environment configuration
+# (Bicep injects NODE_ENV=production for production deployments).
+# This allows the same image to be used in staging/dev without enforcing
+# production-only requirements (e.g. mandatory AI adapter injection).
 
 # Install production dependencies only
 COPY package*.json ./

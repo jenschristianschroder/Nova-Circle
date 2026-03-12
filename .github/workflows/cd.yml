@@ -27,11 +27,15 @@ jobs:
       image-tag: ${{ steps.set-tag.outputs.tag }}
 
     steps:
+      # Check out the exact commit that passed CI to ensure images are built
+      # from the same source tree that was tested — not a later commit.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set image tag (full commit SHA for traceability)
         id: set-tag
-        run: echo "tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
 
       # Authenticate to Azure using OIDC federated credentials.
       # No secrets required — only the three repository variables listed below.
@@ -87,7 +91,10 @@ jobs:
     environment: production
 
     steps:
+      # Check out the same commit that was built and tested.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -96,31 +103,36 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Deploy (or update) all Azure resources via the idempotent Bicep template.
-      # The new backend image tag is passed so the Container App is updated in
-      # the same operation.
+      # Keep the currently running image while infra resources are updated.
+      # This prevents the new (un-migrated) revision from going live before
+      # migrations have run.
+      - name: Get current Container App image
+        id: current-image
+        run: |
+          CURRENT=$(az containerapp show \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.template.containers[0].image" \
+            --output tsv 2>/dev/null \
+            || echo "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest")
+          echo "image=${CURRENT}" >> "$GITHUB_OUTPUT"
+
+      # Update all Azure infrastructure (networking, DB, Container App env, etc.)
+      # but keep the Container App on its current image so no new revision starts
+      # against the old schema.
       - name: Deploy infrastructure (Bicep)
         run: |
           az deployment group create \
+            --name "nova-circle-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --template-file infra/main.bicep \
             --parameters infra/main.bicepparam \
             --parameters \
-              containerImage="${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-api:${{ needs.build-and-push.outputs.image-tag }}" \
+              containerImage="${{ steps.current-image.outputs.image }}" \
               postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
-              azureTenantId="${{ vars.AZURE_TENANT_ID }}" \
-              azureClientId="${{ vars.AZURE_CLIENT_ID }}" \
+              azureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
+              azureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
             --output none
-
-      - name: Get deployment outputs
-        id: deploy-outputs
-        run: |
-          API_URL=$(az deployment group show \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name main \
-            --query "properties.outputs.apiUrl.value" \
-            --output tsv)
-          echo "api-url=${API_URL}" >> "$GITHUB_OUTPUT"
 
       # Run Knex migrations directly from the workflow runner.
       # Requires the PostgreSQL firewall to allow the GitHub Actions runner IP
@@ -138,6 +150,26 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run migrate
+
+      # Only after migrations succeed, switch the Container App to the new image.
+      # This ensures the new revision starts against a fully migrated schema.
+      - name: Switch Container App to new image
+        run: |
+          az containerapp update \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-api:${{ needs.build-and-push.outputs.image-tag }}" \
+            --output none
+
+      - name: Get API URL
+        id: deploy-outputs
+        run: |
+          API_URL=$(az deployment group show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "nova-circle-${{ github.run_id }}" \
+            --query "properties.outputs.apiUrl.value" \
+            --output tsv)
+          echo "api-url=${API_URL}" >> "$GITHUB_OUTPUT"
 
       # Wait for the Container App to stabilise then assert the health endpoint
       # returns HTTP 200.  Retries up to 6 times (60 s total) to allow for

@@ -169,11 +169,14 @@ These are non-secret values safe to store as plain variables.
 
 | Variable | Example value | Description |
 |---|---|---|
-| `AZURE_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | App registration client ID |
-| `AZURE_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra ID tenant ID |
+| `AZURE_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | CD service principal client ID (used for `azure/login` OIDC) |
+| `AZURE_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra ID tenant ID (used for `azure/login` OIDC) |
 | `AZURE_SUBSCRIPTION_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Azure subscription ID |
 | `AZURE_RESOURCE_GROUP` | `rg-nova-circle-dev` | Target resource group name |
+| `AZURE_ENVIRONMENT_NAME` | `dev` | Short environment suffix used in resource names (e.g. `ca-nova-circle-dev`) |
 | `AZURE_REGISTRY_LOGIN_SERVER` | `crnovadev1a2b3c.azurecr.io` | ACR login server (from `registryLoginServer` output after first Bicep deploy) |
+| `API_AZURE_TENANT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra tenant ID injected into the API container for JWT validation. May match `AZURE_TENANT_ID` but is intentionally separate — the CD principal and the API audience are different app registrations. |
+| `API_AZURE_CLIENT_ID` | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` | Entra client ID (app registration audience) injected into the API container for JWT validation. **Must not** be the same as the CD `AZURE_CLIENT_ID`. |
 
 Retrieve the registry login server after the first manual Bicep deploy:
 
@@ -224,9 +227,13 @@ Image tags always include the full commit SHA for traceability. The `:latest` ta
 
 Runs after `build-and-push` and requires `production` environment approval.
 
-1. **Bicep deploy** — idempotent `az deployment group create` with the new `containerImage` tag. Updates all Azure resources without recreating them if unchanged.
-2. **Migrations** — `npm run migrate` against `DATABASE_URL` from the secret.
-3. **Smoke test** — polls `GET /health` (up to 6 attempts, 10 s apart) to confirm the Container App started cleanly after the possible scale-from-zero cold start.
+The deploy steps are ordered to prevent a new app revision from starting against an unmigrated schema:
+
+1. **Get current image** — reads the image currently running in the Container App so it can be preserved during the infra update.
+2. **Bicep deploy** — idempotent `az deployment group create` (named `nova-circle-<run-id>`) that updates all Azure infrastructure but keeps the Container App on its existing image. `azureTenantId` and `azureClientId` are sourced from `API_AZURE_TENANT_ID` / `API_AZURE_CLIENT_ID` — the API's own app registration, not the CD service principal.
+3. **Migrations** — `npm run migrate` against `DATABASE_URL` from the secret.
+4. **Switch image** — `az containerapp update --image` switches the Container App to the new SHA-tagged image only after migrations succeed.
+5. **Smoke test** — polls `GET /health` (up to 6 attempts, 10 s apart) to confirm the new revision started cleanly.
 
 ---
 
@@ -341,9 +348,10 @@ Follow this sequence for a brand-new environment:
 
 ## Security notes
 
-- No static credentials are stored in GitHub. Authentication uses ephemeral OIDC tokens.
-- The OIDC subject is scoped to `ref:refs/heads/main` and the `production` environment, so only main-branch workflows can deploy.
+- The CD workflow (`.github/workflows/cd.yml`) does not use static cloud credentials; it authenticates to Azure using ephemeral OIDC tokens scoped to `ref:refs/heads/main` and the `production` environment.
+- The infra workflow (`.github/workflows/infra.yml`) uses an Azure service principal credential stored as the `AZURE_CREDENTIALS` secret for manual `what-if` operations. Ensure this secret is least-privilege, rotated regularly, and not reused outside this repository.
 - `POSTGRES_ADMIN_PASSWORD` and `DATABASE_URL` are stored as encrypted GitHub secrets and never logged.
 - The Container App's database URL is assembled and injected by Bicep as a secret — it is not visible in workflow logs.
 - Images run as a non-root user (`nova`) inside the backend container.
 - `adminUserEnabled: false` on the ACR; pull access uses the Container App's system-assigned managed identity.
+- `AZURE_CLIENT_ID` (CD principal) and `API_AZURE_CLIENT_ID` (API audience) are intentionally separate app registrations to prevent audience confusion during JWT validation.
