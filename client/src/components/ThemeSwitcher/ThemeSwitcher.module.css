@@ -1,0 +1,119 @@
+/* ThemeSwitcher styles – all colours via CSS custom properties */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-md);
+}
+
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legend {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nc-content-secondary);
+  margin-bottom: var(--nc-space-sm);
+}
+
+/* ─── Mode buttons ──────────────────────────────────────────────────────── */
+.modeButtons {
+  display: flex;
+  gap: var(--nc-space-xs);
+}
+
+.hiddenRadio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.modeLabel {
+  cursor: pointer;
+}
+
+.modeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nc-space-xs);
+  padding: var(--nc-space-xs) var(--nc-space-sm);
+  border: 1.5px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  font-size: 0.875rem;
+  color: var(--nc-content-secondary);
+  background-color: var(--nc-surface-subtle);
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.modeLabel:hover .modeButton {
+  border-color: var(--nc-border-interactive);
+  color: var(--nc-content-primary);
+}
+
+.modeButtonActive {
+  border-color: var(--nc-accent-default);
+  color: var(--nc-accent-default);
+  background-color: var(--nc-accent-subtle);
+  font-weight: 500;
+}
+
+/* Focus ring for the hidden radio, forwarded to the visible button */
+.hiddenRadio:focus-visible + .modeButton {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 2px;
+}
+
+.modeIcon {
+  font-size: 1em;
+  line-height: 1;
+}
+
+/* ─── Palette swatches ──────────────────────────────────────────────────── */
+.paletteSwatches {
+  display: flex;
+  gap: var(--nc-space-sm);
+}
+
+.paletteSwatch {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--nc-radius-full);
+  border: 2px solid transparent;
+  background: linear-gradient(135deg, var(--swatch-accent-light) 0%, var(--swatch-accent) 100%);
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease;
+}
+
+.paletteSwatch:hover {
+  transform: scale(1.12);
+}
+
+.paletteSwatchActive {
+  border-color: var(--nc-accent-default);
+  box-shadow:
+    0 0 0 2px var(--nc-surface-background),
+    0 0 0 4px var(--nc-accent-default);
+}
+
+/* Focus ring forwarded from hidden radio */
+.hiddenRadio:focus-visible + .paletteSwatch {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 2px;
+}

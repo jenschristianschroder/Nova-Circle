@@ -282,3 +282,41 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Client – lint, typecheck, and tests for the web client (M7 UI polish)
+  # ──────────────────────────────────────────────────────────────────────────
+  client:
+    name: Client (UI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/client.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-client
+          path: client/test-results/client.xml
+          if-no-files-found: ignore

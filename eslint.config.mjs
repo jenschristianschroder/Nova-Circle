@@ -5,7 +5,8 @@ import prettierConfig from 'eslint-config-prettier';
 export default tseslint.config(
   {
     // Ignore generated and dependency directories for all rules.
-    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '*.mjs'],
+    // The client/ directory has its own ESLint/Prettier setup.
+    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '*.mjs', 'client/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
