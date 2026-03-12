@@ -74,7 +74,7 @@ export function createApp(deps?: AppDependencies): express.Application {
   const corsOrigin = process.env['CORS_ORIGIN'];
   app.use(
     cors({
-      origin: corsOrigin ? corsOrigin.split(',') : false,
+      origin: corsOrigin ? corsOrigin.split(',').map((s) => s.trim()) : false,
       credentials: true,
     }),
   );

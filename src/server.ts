@@ -61,6 +61,8 @@ const server = app.listen(port, () => {
 // ── Graceful shutdown ──────────────────────────────────────────────────────
 // Ensures in-flight requests complete and database connections are released
 // before the process exits (important for container orchestration).
+const SHUTDOWN_TIMEOUT_MS = 30_000;
+
 function gracefulShutdown(signal: string): void {
   logger.info('Shutdown initiated', { signal });
 
@@ -78,11 +80,11 @@ function gracefulShutdown(signal: string): void {
       });
   });
 
-  // Force exit after 30 seconds to avoid hanging pods.
+  // Force exit after timeout to avoid hanging pods.
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
     process.exit(1);
-  }, 30_000).unref();
+  }, SHUTDOWN_TIMEOUT_MS).unref();
 }
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
