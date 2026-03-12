@@ -1,0 +1,415 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Button snapshot > danger variant in dark mode 1`] = `
+<button
+  class="_button_0829c1 _danger_0829c1 _md_0829c1"
+>
+  Delete
+</button>
+`;
+
+exports[`Button snapshot > danger variant in light mode 1`] = `
+<button
+  class="_button_0829c1 _danger_0829c1 _md_0829c1"
+>
+  Delete
+</button>
+`;
+
+exports[`Button snapshot > disabled state in dark mode 1`] = `
+<button
+  class="_button_0829c1 _primary_0829c1 _md_0829c1"
+  disabled=""
+>
+  Disabled
+</button>
+`;
+
+exports[`Button snapshot > disabled state in light mode 1`] = `
+<button
+  class="_button_0829c1 _primary_0829c1 _md_0829c1"
+  disabled=""
+>
+  Disabled
+</button>
+`;
+
+exports[`Button snapshot > primary variant in dark mode 1`] = `
+<button
+  class="_button_0829c1 _primary_0829c1 _md_0829c1"
+>
+  Save
+</button>
+`;
+
+exports[`Button snapshot > primary variant in light mode 1`] = `
+<button
+  class="_button_0829c1 _primary_0829c1 _md_0829c1"
+>
+  Save
+</button>
+`;
+
+exports[`Button snapshot > secondary variant in dark mode 1`] = `
+<button
+  class="_button_0829c1 _secondary_0829c1 _md_0829c1"
+>
+  Cancel
+</button>
+`;
+
+exports[`Button snapshot > secondary variant in light mode 1`] = `
+<button
+  class="_button_0829c1 _secondary_0829c1 _md_0829c1"
+>
+  Cancel
+</button>
+`;
+
+exports[`ThemeSwitcher snapshot > renders correctly in dark mode 1`] = `
+<div
+  aria-label="Appearance settings"
+  class="_container_e7ffc6"
+  role="group"
+>
+  <fieldset
+    class="_fieldset_e7ffc6"
+  >
+    <legend
+      class="_legend_e7ffc6"
+    >
+      Colour mode
+    </legend>
+    <div
+      aria-label="Colour mode"
+      class="_modeButtons_e7ffc6"
+      role="radiogroup"
+    >
+      <label
+        class="_modeLabel_e7ffc6"
+      >
+        <input
+          class="_hiddenRadio_e7ffc6"
+          name="theme-mode"
+          type="radio"
+          value="light"
+        />
+        <span
+          class="_modeButton_e7ffc6"
+        >
+          <span
+            aria-hidden="true"
+            class="_modeIcon_e7ffc6"
+          >
+            ☀️
+          </span>
+          <span>
+            Light
+          </span>
+        </span>
+      </label>
+      <label
+        class="_modeLabel_e7ffc6"
+      >
+        <input
+          checked=""
+          class="_hiddenRadio_e7ffc6"
+          name="theme-mode"
+          type="radio"
+          value="dark"
+        />
+        <span
+          class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
+        >
+          <span
+            aria-hidden="true"
+            class="_modeIcon_e7ffc6"
+          >
+            🌙
+          </span>
+          <span>
+            Dark
+          </span>
+        </span>
+      </label>
+      <label
+        class="_modeLabel_e7ffc6"
+      >
+        <input
+          class="_hiddenRadio_e7ffc6"
+          name="theme-mode"
+          type="radio"
+          value="system"
+        />
+        <span
+          class="_modeButton_e7ffc6"
+        >
+          <span
+            aria-hidden="true"
+            class="_modeIcon_e7ffc6"
+          >
+            💻
+          </span>
+          <span>
+            System
+          </span>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+  <fieldset
+    class="_fieldset_e7ffc6"
+  >
+    <legend
+      class="_legend_e7ffc6"
+    >
+      Colour palette
+    </legend>
+    <div
+      aria-label="Colour palette"
+      class="_paletteSwatches_e7ffc6"
+      role="radiogroup"
+    >
+      <label
+        title="Default – Calm indigo/violet tones"
+      >
+        <input
+          aria-label="Default palette – Calm indigo/violet tones"
+          checked=""
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="default"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
+          style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
+        />
+      </label>
+      <label
+        title="Ocean – Cool teal and cyan tones"
+      >
+        <input
+          aria-label="Ocean palette – Cool teal and cyan tones"
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="ocean"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6"
+          style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
+        />
+      </label>
+      <label
+        title="Forest – Warm green and emerald tones"
+      >
+        <input
+          aria-label="Forest palette – Warm green and emerald tones"
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="forest"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6"
+          style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
+        />
+      </label>
+      <label
+        title="Sunset – Warm amber and orange tones"
+      >
+        <input
+          aria-label="Sunset palette – Warm amber and orange tones"
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="sunset"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6"
+          style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
+        />
+      </label>
+    </div>
+  </fieldset>
+</div>
+`;
+
+exports[`ThemeSwitcher snapshot > renders correctly in light mode 1`] = `
+<div
+  aria-label="Appearance settings"
+  class="_container_e7ffc6"
+  role="group"
+>
+  <fieldset
+    class="_fieldset_e7ffc6"
+  >
+    <legend
+      class="_legend_e7ffc6"
+    >
+      Colour mode
+    </legend>
+    <div
+      aria-label="Colour mode"
+      class="_modeButtons_e7ffc6"
+      role="radiogroup"
+    >
+      <label
+        class="_modeLabel_e7ffc6"
+      >
+        <input
+          checked=""
+          class="_hiddenRadio_e7ffc6"
+          name="theme-mode"
+          type="radio"
+          value="light"
+        />
+        <span
+          class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
+        >
+          <span
+            aria-hidden="true"
+            class="_modeIcon_e7ffc6"
+          >
+            ☀️
+          </span>
+          <span>
+            Light
+          </span>
+        </span>
+      </label>
+      <label
+        class="_modeLabel_e7ffc6"
+      >
+        <input
+          class="_hiddenRadio_e7ffc6"
+          name="theme-mode"
+          type="radio"
+          value="dark"
+        />
+        <span
+          class="_modeButton_e7ffc6"
+        >
+          <span
+            aria-hidden="true"
+            class="_modeIcon_e7ffc6"
+          >
+            🌙
+          </span>
+          <span>
+            Dark
+          </span>
+        </span>
+      </label>
+      <label
+        class="_modeLabel_e7ffc6"
+      >
+        <input
+          class="_hiddenRadio_e7ffc6"
+          name="theme-mode"
+          type="radio"
+          value="system"
+        />
+        <span
+          class="_modeButton_e7ffc6"
+        >
+          <span
+            aria-hidden="true"
+            class="_modeIcon_e7ffc6"
+          >
+            💻
+          </span>
+          <span>
+            System
+          </span>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+  <fieldset
+    class="_fieldset_e7ffc6"
+  >
+    <legend
+      class="_legend_e7ffc6"
+    >
+      Colour palette
+    </legend>
+    <div
+      aria-label="Colour palette"
+      class="_paletteSwatches_e7ffc6"
+      role="radiogroup"
+    >
+      <label
+        title="Default – Calm indigo/violet tones"
+      >
+        <input
+          aria-label="Default palette – Calm indigo/violet tones"
+          checked=""
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="default"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
+          style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
+        />
+      </label>
+      <label
+        title="Ocean – Cool teal and cyan tones"
+      >
+        <input
+          aria-label="Ocean palette – Cool teal and cyan tones"
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="ocean"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6"
+          style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
+        />
+      </label>
+      <label
+        title="Forest – Warm green and emerald tones"
+      >
+        <input
+          aria-label="Forest palette – Warm green and emerald tones"
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="forest"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6"
+          style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
+        />
+      </label>
+      <label
+        title="Sunset – Warm amber and orange tones"
+      >
+        <input
+          aria-label="Sunset palette – Warm amber and orange tones"
+          class="_hiddenRadio_e7ffc6"
+          name="palette"
+          type="radio"
+          value="sunset"
+        />
+        <span
+          aria-hidden="true"
+          class="_paletteSwatch_e7ffc6"
+          style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
+        />
+      </label>
+    </div>
+  </fieldset>
+</div>
+`;
