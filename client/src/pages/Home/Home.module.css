@@ -114,7 +114,7 @@
 }
 
 .sectionTitle {
-  font-size: 1.25rem;
+  font-size: var(--nc-font-size-lg);
   font-weight: 600;
 }
 
@@ -136,7 +136,7 @@
 }
 
 .cardTitle {
-  font-size: 1rem;
+  font-size: var(--nc-font-size-md);
   font-weight: 600;
   color: var(--nc-content-primary);
 }
@@ -183,7 +183,7 @@
 }
 
 .tokenSwatchLabel {
-  font-size: 0.75rem;
+  font-size: var(--nc-font-size-xs);
   color: var(--nc-content-secondary);
   font-family: var(--nc-font-family-mono);
 }
@@ -197,6 +197,6 @@
 }
 
 .footerText {
-  font-size: 0.875rem;
+  font-size: var(--nc-font-size-sm);
   color: var(--nc-content-secondary);
 }
