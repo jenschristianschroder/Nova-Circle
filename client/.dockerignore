@@ -1,0 +1,24 @@
+# Frontend .dockerignore
+# Excludes files not needed inside the client Docker build context.
+
+# Development dependencies (reinstalled inside the image)
+node_modules/
+
+# Vite build output (rebuilt inside the image)
+dist/
+
+# Test artefacts
+test-results/
+coverage/
+
+# Local secrets and environment files
+.env
+.env.*
+
+# Editor and OS noise
+.git/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
