@@ -61,7 +61,7 @@ jobs:
         run: |
           az group create \
             --name "${{ vars.AZURE_RESOURCE_GROUP || 'rg-nova-circle-dev' }}" \
-            --location "${{ vars.AZURE_LOCATION || 'westeurope' }}" \
+            --location "${{ vars.AZURE_LOCATION || 'swedencentral' }}" \
             --output none
 
       - name: Run what-if
