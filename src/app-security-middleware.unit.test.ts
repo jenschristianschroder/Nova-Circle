@@ -6,6 +6,10 @@ import { createApp } from './app.js';
  * Tests for security middleware: rate limiting, CORS, and trust proxy.
  * These run as unit tests (no database required) since they exercise the
  * Express middleware layer only.
+ *
+ * Trust proxy: verifies the Express 'trust proxy' setting is toggled via the
+ * TRUST_PROXY env var so that rate-limiting keys on the real client IP when
+ * running behind Azure Container Apps.
  */
 
 describe('Rate limiting', () => {
@@ -61,6 +65,51 @@ describe('Rate limiting', () => {
       error: 'Too many requests, please try again later.',
       code: 'RATE_LIMITED',
     });
+  });
+});
+
+describe('Trust proxy', () => {
+  const savedEnv: Record<string, string | undefined> = {};
+
+  function saveEnv(...keys: string[]): void {
+    for (const k of keys) savedEnv[k] = process.env[k];
+  }
+  function restoreEnv(): void {
+    for (const [k, v] of Object.entries(savedEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+
+  beforeEach(() => {
+    saveEnv('TRUST_PROXY');
+  });
+  afterEach(() => {
+    restoreEnv();
+  });
+
+  it('enables trust proxy when TRUST_PROXY=1', () => {
+    process.env['TRUST_PROXY'] = '1';
+    const app = createApp();
+    expect(app.get('trust proxy')).toBe(1);
+  });
+
+  it('enables trust proxy when TRUST_PROXY=true', () => {
+    process.env['TRUST_PROXY'] = 'true';
+    const app = createApp();
+    expect(app.get('trust proxy')).toBe(1);
+  });
+
+  it('does not enable trust proxy when TRUST_PROXY is unset', () => {
+    delete process.env['TRUST_PROXY'];
+    const app = createApp();
+    expect(app.get('trust proxy')).toBeFalsy();
+  });
+
+  it('does not enable trust proxy for arbitrary TRUST_PROXY values', () => {
+    process.env['TRUST_PROXY'] = 'yes';
+    const app = createApp();
+    expect(app.get('trust proxy')).toBeFalsy();
   });
 });
 
