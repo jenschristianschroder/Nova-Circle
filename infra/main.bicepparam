@@ -1,12 +1,21 @@
 // infra/main.bicepparam
 // Non-secret default parameter values for the Nova-Circle dev environment.
 //
-// Secrets (postgresAdminPassword) MUST be supplied on the command line or via
-// a secure pipeline variable — never committed to source control.
+// postgresAdminPassword is intentionally absent from this file.
+// The VS Code Bicep extension re-evaluates .bicepparam on every deploy, so any
+// default expression (e.g. readEnvironmentVariable) would overwrite the value
+// typed in the deploy form with an empty string before the request reaches ARM.
+// Leave postgresAdminPassword out of this file so the extension sends exactly
+// what the user types in the "postgresAdminPassword" form field.
+//
+// For CLI deploys, pass it on the command line:
+//   az deployment group create ... --parameters main.bicepparam \
+//       postgresAdminPassword='<secret>'
+// CI/CD pipelines inject it as a secret environment variable via cd.yml.
 //
 // Override any of these at deploy time:
 //   az deployment group create ... --parameters main.bicepparam \
-//       --parameters environmentName=prod containerImage=<acr>/nova-circle:2.0.0
+//       environmentName=prod containerImage=<acr>/nova-circle:2.0.0
 
 using 'main.bicep'
 
@@ -18,13 +27,6 @@ param environmentName = 'dev'
 param containerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 param postgresAdminUser = 'ncadmin'
-
-// Secret — read from the POSTGRES_ADMIN_PASSWORD environment variable at deploy time.
-// Set the variable in your shell before deploying from VS Code or the CLI:
-//   export POSTGRES_ADMIN_PASSWORD='<your-password>'   # macOS / Linux
-//   $env:POSTGRES_ADMIN_PASSWORD = '<your-password>'   # PowerShell
-// CI/CD pipelines should inject it as a secret environment variable.
-param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 
 // Azure Entra ID — leave empty to start without JWT validation.
 param azureTenantId = ''
