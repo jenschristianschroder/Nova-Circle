@@ -24,9 +24,6 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' =
 }
 
 // ── Outputs ───────────────────────────────────────────────────────────────
-@description('Container Registry resource name (globally unique, alphanumeric)')
-output registryName string = containerRegistry.name
-
 @description('Container Registry login server (e.g. crnova<env>.azurecr.io)')
 output loginServer string = containerRegistry.properties.loginServer
 
