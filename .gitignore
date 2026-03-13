@@ -42,6 +42,10 @@ appsettings.*.json
 # Azure CLI
 .azure/
 
+# Bicep-generated ARM JSON (build artifacts — source of truth is the .bicep files)
+infra/main.json
+infra/modules/*.json
+
 # -----------------------------------------------------------------------------
 # Logs
 # -----------------------------------------------------------------------------
