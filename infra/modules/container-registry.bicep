@@ -32,3 +32,6 @@ output loginServer string = containerRegistry.properties.loginServer
 
 @description('Container Registry resource ID')
 output resourceId string = containerRegistry.id
+
+@description('Container Registry resource name')
+output name string = containerRegistry.name
