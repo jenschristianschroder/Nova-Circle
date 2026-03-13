@@ -72,17 +72,30 @@ export function createApp(deps?: AppDependencies): express.Application {
   // to the frontend domain (e.g. "https://app.novacircle.com"). Defaults to
   // same-origin only when the variable is not set.
   const corsOrigin = process.env['CORS_ORIGIN'];
+  const parsedOrigins = corsOrigin
+    ? [
+        ...new Set(
+          corsOrigin
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
+        ),
+      ]
+    : [];
   app.use(
     cors({
-      origin: corsOrigin ? corsOrigin.split(',').map((s) => s.trim()) : false,
+      origin: parsedOrigins.length > 0 ? parsedOrigins : false,
       credentials: true,
     }),
   );
 
   // Trust the first proxy (Azure Container Apps / reverse-proxy) so that
   // rate-limiting keys on the real client IP from X-Forwarded-For, not the
-  // proxy IP.
-  app.set('trust proxy', 1);
+  // proxy IP.  Opt-in via TRUST_PROXY to avoid X-Forwarded-For spoofing when
+  // running without a trusted reverse proxy in front (e.g. local dev).
+  if (process.env['TRUST_PROXY'] === '1' || process.env['TRUST_PROXY'] === 'true') {
+    app.set('trust proxy', 1);
+  }
 
   // Rate limiting – protects against brute-force and DoS on the API.
   // Disabled in test environment to avoid false 429s during API test suites.

@@ -4,6 +4,13 @@ import type { Knex } from 'knex';
  * Adds indexes for columns that are frequently used in WHERE, JOIN, and
  * ORDER BY clauses but lack dedicated indexes. These are critical for
  * production performance as the data set grows.
+ *
+ * NOTE: These use regular `CREATE INDEX` (not `CONCURRENTLY`), which takes
+ * a write lock on the table for the duration of the build.  This is fine
+ * for initial deployments and low-traffic databases.  If you need to add
+ * indexes to a high-traffic production table later, create a new migration
+ * that uses `knex.raw('CREATE INDEX CONCURRENTLY ...')` and disable the
+ * Knex transaction wrapper for that migration.
  */
 export async function up(knex: Knex): Promise<void> {
   // Each index is added in its own ALTER TABLE to minimize lock duration on

@@ -114,6 +114,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'CORS_ORIGIN'
               value: corsOrigin
             }
+            {
+              name: 'TRUST_PROXY'
+              value: '1'
+            }
           ]
           probes: [
             {

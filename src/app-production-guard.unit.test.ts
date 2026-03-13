@@ -10,6 +10,8 @@ import type { Knex } from 'knex';
  */
 
 function stubKnex(): Knex {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, prefer-const
+  let proxy: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handler: ProxyHandler<any> = {
     get(_target, _prop) {
@@ -18,9 +20,15 @@ function stubKnex(): Knex {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return (..._args: unknown[]) => proxy;
     },
+    // Support calling the stub itself like db('table')
+    apply() {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return proxy;
+    },
   };
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-  const proxy: any = new Proxy({}, handler);
+  // Callable function target so the Proxy supports db('table') invocations.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+  proxy = new Proxy(function () {} as any, handler);
   return proxy as Knex;
 }
 
