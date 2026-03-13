@@ -84,11 +84,20 @@ fi
 echo "==> Ensuring resource group '${RESOURCE_GROUP}' exists in '${LOCATION}'..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}" --output none
 
-# ── Collect optional Bicep parameters ───────────────────────────────────
-OPTIONAL_PARAMS=()
-[[ -n "${AZURE_TENANT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
-[[ -n "${AZURE_CLIENT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureClientId="${AZURE_CLIENT_ID}")
-[[ -n "${CORS_ORIGIN:-}"      ]] && OPTIONAL_PARAMS+=(corsOrigin="${CORS_ORIGIN}")
+# ── Collect Bicep parameters ─────────────────────────────────────────────
+# Build required params first.  Optional vars are appended only when set so
+# `az deployment group create --parameters` never receives an empty-string
+# argument (which would cause a parse error).
+PARAMS=(
+  "${INFRA_DIR}/main.bicepparam"
+  location="${LOCATION}"
+  environmentName="${ENVIRONMENT}"
+  containerImage="${CONTAINER_IMAGE}"
+  postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}"
+)
+[[ -n "${AZURE_TENANT_ID:-}"  ]] && PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
+[[ -n "${AZURE_CLIENT_ID:-}"  ]] && PARAMS+=(azureClientId="${AZURE_CLIENT_ID}")
+[[ -n "${CORS_ORIGIN:-}"      ]] && PARAMS+=(corsOrigin="${CORS_ORIGIN}")
 
 # ── Run deployment ───────────────────────────────────────────────────────
 echo "==> Running Bicep deployment (${WHAT_IF:-apply}) ..."
@@ -100,13 +109,7 @@ az deployment group create \
   --name "${DEPLOYMENT_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --template-file "${INFRA_DIR}/main.bicep" \
-  --parameters "${INFRA_DIR}/main.bicepparam" \
-  --parameters \
-    location="${LOCATION}" \
-    environmentName="${ENVIRONMENT}" \
-    containerImage="${CONTAINER_IMAGE}" \
-    postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}" \
-    "${OPTIONAL_PARAMS[@]+"${OPTIONAL_PARAMS[@]}"}" \
+  --parameters "${PARAMS[@]}" \
   --mode "${DEPLOY_MODE}" \
   ${WHAT_IF} \
   --output table
