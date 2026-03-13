@@ -12,9 +12,10 @@
 //     --template-file main.bicep \
 //     --parameters main.bicepparam
 //
-//   From VS Code: set POSTGRES_ADMIN_PASSWORD in your shell, then open
-//   main.bicep → Deploy to Azure.  The params file reads the env var via
-//   readEnvironmentVariable() so VS Code picks it up automatically.
+//   From VS Code: ensure POSTGRES_ADMIN_PASSWORD is set in the environment
+//   that VS Code was launched from (VS Code inherits the launching shell's
+//   environment), then open main.bicep → Deploy to Azure.
+//   readEnvironmentVariable() will pick up the value automatically.
 //
 // See infra/scripts/deploy.sh for a convenience wrapper.
 
@@ -37,6 +38,7 @@ param postgresAdminUser string = 'ncadmin'
 
 @description('PostgreSQL administrator password — must be supplied at deploy time, never stored here')
 @secure()
+@minLength(1)
 param postgresAdminPassword string
 
 @description('Azure Tenant ID for Entra token validation (leave empty to disable JWT auth)')

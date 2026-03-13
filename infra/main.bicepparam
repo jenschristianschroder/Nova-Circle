@@ -6,12 +6,15 @@
 // the BCP258 requirement that every required parameter be assigned in the params
 // file while keeping the secret out of source control.
 //
-// Before deploying, export the variable in your shell:
+// Before deploying, export the variable in the shell (or system environment)
+// that Bicep/az CLI runs in:
 //   export POSTGRES_ADMIN_PASSWORD='<secret>'
 //   az deployment group create ... --parameters main.bicepparam
 //
 // The deploy.sh convenience script also reads the same variable.
-// CI/CD pipelines inject it as a secret environment variable via cd.yml.
+// CI/CD pipelines (cd.yml / infra.yml) override this value at deploy time via
+// an explicit --parameters postgresAdminPassword=... CLI argument, so the
+// environment variable is not required in those contexts.
 //
 // Override any of these at deploy time:
 //   az deployment group create ... --parameters main.bicepparam \
@@ -28,11 +31,13 @@ param containerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:lat
 
 param postgresAdminUser = 'ncadmin'
 
-// Secret injected from the POSTGRES_ADMIN_PASSWORD environment variable.
+// Secret read from the POSTGRES_ADMIN_PASSWORD environment variable.
 // Never hardcode this value — set the env var before deploying.
-// Deployment fails at compile time if POSTGRES_ADMIN_PASSWORD is not set.
+// Bicep raises a compile-time error if the variable is absent; ARM additionally
+// rejects an empty string thanks to the @minLength(1) constraint in main.bicep.
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 
 // Azure Entra ID — leave empty to start without JWT validation.
-param azureTenantId = '7af8f68a-896b-44d5-994a-1c9bf336f8d7'
-param azureClientId = 'b96cb392-1afe-4b74-b889-77c78888ec1c'
+// Supply real values as deploy-time overrides (--parameters) or via cd.yml vars.
+param azureTenantId = ''
+param azureClientId = ''
