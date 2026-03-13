@@ -60,10 +60,11 @@ export AZURE_TENANT_ID='<tenant-id>'   # optional – enables JWT validation
 export AZURE_CLIENT_ID='<client-id>'   # optional
 export CORS_ORIGIN='https://app.example.com'  # optional
 
+# On first deploy omit --image: the script defaults to the public MCR placeholder,
+# which avoids ACR auth before your own image is built and pushed.
 ./infra/scripts/deploy.sh \
   --resource-group rg-nova-circle-dev \
-  --environment dev \
-  --image '<registry-login-server>/nova-circle:latest'
+  --environment dev
 ```
 
 > **First-deploy timing:** The deployment provisions a PostgreSQL Flexible Server, which typically takes **15–20 minutes** to become ready. The spinner shown by `az deployment group create` is normal — resources will appear in the Azure portal in a *Creating* state while the deployment runs.
@@ -84,14 +85,14 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
 ### 4. Deploy directly with az CLI
 
 ```bash
+# First deploy — omit containerImage to use the default MCR placeholder.
 az deployment group create \
   --name nova-circle-dev \
   --resource-group rg-nova-circle-dev \
   --template-file infra/main.bicep \
   --parameters infra/main.bicepparam \
   --parameters \
-    postgresAdminPassword='<strong-password>' \
-    containerImage='<registry-login-server>/nova-circle:<tag>'
+    postgresAdminPassword='<strong-password>'
 ```
 
 ## After first deploy
