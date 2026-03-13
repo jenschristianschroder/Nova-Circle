@@ -10,7 +10,11 @@
 //     --resource-group rg-nova-circle-dev \
 //     --template-file main.bicep \
 //     --parameters main.bicepparam \
-//     --parameters postgresAdminPassword=<secret>
+//     --parameters postgresAdminPassword='<secret>'
+//
+//   From VS Code: open main.bicep → Deploy to Azure, type the password into the
+//   "postgresAdminPassword" field in the deploy form (it is not stored in
+//   main.bicepparam so the form value is sent directly to ARM).
 //
 // See infra/scripts/deploy.sh for a convenience wrapper.
 
