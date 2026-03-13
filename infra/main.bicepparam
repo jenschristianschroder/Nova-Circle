@@ -19,9 +19,12 @@ param containerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:lat
 
 param postgresAdminUser = 'ncadmin'
 
-// Secrets — supply at deploy time, e.g.:
-//   --parameters postgresAdminPassword=$POSTGRES_ADMIN_PASSWORD
-// param postgresAdminPassword = ''  // DO NOT set here
+// Secret — read from the POSTGRES_ADMIN_PASSWORD environment variable at deploy time.
+// Set the variable in your shell before deploying from VS Code or the CLI:
+//   export POSTGRES_ADMIN_PASSWORD='<your-password>'   # macOS / Linux
+//   $env:POSTGRES_ADMIN_PASSWORD = '<your-password>'   # PowerShell
+// CI/CD pipelines should inject it as a secret environment variable.
+param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 
 // Azure Entra ID — leave empty to start without JWT validation.
 param azureTenantId = ''

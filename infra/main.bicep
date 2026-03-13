@@ -6,11 +6,17 @@
 // no redundancy, no advanced networking until explicitly needed.
 //
 // Usage (from the infra/ directory):
+//   export POSTGRES_ADMIN_PASSWORD='<secret>'          # macOS / Linux
+//   $env:POSTGRES_ADMIN_PASSWORD = '<secret>'          # PowerShell
+//
 //   az deployment group create \
 //     --resource-group rg-nova-circle-dev \
 //     --template-file main.bicep \
-//     --parameters main.bicepparam \
-//     --parameters postgresAdminPassword=<secret>
+//     --parameters main.bicepparam
+//
+//   The password is read from the POSTGRES_ADMIN_PASSWORD environment variable
+//   by main.bicepparam using readEnvironmentVariable(), so it never needs to be
+//   passed on the command line or stored in source control.
 //
 // See infra/scripts/deploy.sh for a convenience wrapper.
 
