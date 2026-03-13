@@ -6,15 +6,16 @@
 // no redundancy, no advanced networking until explicitly needed.
 //
 // Usage (from the infra/ directory):
+//   export POSTGRES_ADMIN_PASSWORD='<secret>'
 //   az deployment group create \
 //     --resource-group rg-nova-circle-dev \
 //     --template-file main.bicep \
-//     --parameters main.bicepparam \
-//     --parameters postgresAdminPassword='<secret>'
+//     --parameters main.bicepparam
 //
-//   From VS Code: open main.bicep → Deploy to Azure, type the password into the
-//   "postgresAdminPassword" field in the deploy form (it is not stored in
-//   main.bicepparam so the form value is sent directly to ARM).
+//   From VS Code: ensure POSTGRES_ADMIN_PASSWORD is set in the environment
+//   that VS Code was launched from (VS Code inherits the launching shell's
+//   environment), then open main.bicep → Deploy to Azure.
+//   readEnvironmentVariable() will pick up the value automatically.
 //
 // See infra/scripts/deploy.sh for a convenience wrapper.
 
@@ -37,6 +38,7 @@ param postgresAdminUser string = 'ncadmin'
 
 @description('PostgreSQL administrator password — must be supplied at deploy time, never stored here')
 @secure()
+@minLength(1)
 param postgresAdminPassword string
 
 @description('Azure Tenant ID for Entra token validation (leave empty to disable JWT auth)')
