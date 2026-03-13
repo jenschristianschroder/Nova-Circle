@@ -6,7 +6,7 @@
 # Usage:
 #   ./infra/scripts/deploy.sh \
 #     --resource-group rg-nova-circle-dev \
-#     [--location westeurope] \
+#     [--location swedencentral] \
 #     [--environment dev] \
 #     [--image <registry>/nova-circle:<tag>] \
 #     [--what-if] \
@@ -18,6 +18,8 @@
 # Optional environment variables:
 #   AZURE_TENANT_ID          – Entra tenant ID (enables JWT validation)
 #   AZURE_CLIENT_ID          – Entra client ID / audience
+#   CONFIRM_COMPLETE=yes     – Skip the interactive prompt for --complete mode
+#                              (required when running in non-interactive CI)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -59,10 +61,18 @@ fi
 if [[ "${DEPLOY_MODE}" == "Complete" && -z "${WHAT_IF}" ]]; then
   echo "⚠  WARNING: Complete mode will DELETE all resources in '${RESOURCE_GROUP}'"
   echo "   that are not defined in the Bicep template."
-  read -r -p "   Are you sure? (yes/no): " confirm
-  if [[ "${confirm}" != "yes" ]]; then
-    echo "Aborted."
-    exit 0
+  if [[ "${CONFIRM_COMPLETE:-}" == "yes" ]]; then
+    echo "   Confirmation accepted via CONFIRM_COMPLETE=yes."
+  elif [[ ! -t 0 ]]; then
+    echo "ERROR: Complete mode requires explicit confirmation. Set CONFIRM_COMPLETE=yes" >&2
+    echo "       to confirm in non-interactive (CI) environments." >&2
+    exit 1
+  else
+    read -r -p "   Are you sure? (yes/no): " confirm
+    if [[ "${confirm}" != "yes" ]]; then
+      echo "Aborted."
+      exit 0
+    fi
   fi
 fi
 

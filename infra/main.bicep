@@ -115,7 +115,7 @@ module containerAppMod 'modules/container-app.bicep' = {
 module acrPullRoleMod 'modules/acr-pull-role.bicep' = {
   name: 'acr-pull-role'
   params: {
-    registryName: split(containerRegistryMod.outputs.loginServer, '.')[0]
+    registryName: containerRegistryMod.outputs.registryName
     principalId: containerAppMod.outputs.principalId
   }
 }

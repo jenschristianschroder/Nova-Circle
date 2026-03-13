@@ -1,7 +1,8 @@
 // modules/acr-pull-role.bicep
 // Assigns the AcrPull role to a principal on a Container Registry.
-// Wrapped in a module so that runtime outputs (registry name, principal ID)
-// can be used for the role assignment name and scope.
+// Wrapped in a dedicated module because role assignment scope must be set to a
+// resource declared in the same file; passing the registry name as a parameter
+// (a value known at deployment start) satisfies this requirement cleanly.
 
 @description('Container Registry resource name (not the login server)')
 param registryName string

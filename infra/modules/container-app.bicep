@@ -40,7 +40,9 @@ var appName = 'ca-nova-circle-${environmentName}'
 // Only configure ACR pull when the image is actually from the provisioned registry.
 // On first deploy the placeholder MCR image is used and the system-assigned identity
 // has no AcrPull role yet, so referencing the ACR would cause "Operation expired".
-var useAcr = contains(containerImage, registryLoginServer)
+// Use startsWith with a trailing '/' to prevent a false match if the login server
+// appears elsewhere in the image string (e.g. as part of a different hostname).
+var useAcr = startsWith(toLower(containerImage), '${toLower(registryLoginServer)}/')
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: appName
