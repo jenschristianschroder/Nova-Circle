@@ -6,15 +6,15 @@
 // no redundancy, no advanced networking until explicitly needed.
 //
 // Usage (from the infra/ directory):
+//   export POSTGRES_ADMIN_PASSWORD='<secret>'
 //   az deployment group create \
 //     --resource-group rg-nova-circle-dev \
 //     --template-file main.bicep \
-//     --parameters main.bicepparam \
-//     --parameters postgresAdminPassword='<secret>'
+//     --parameters main.bicepparam
 //
-//   From VS Code: open main.bicep → Deploy to Azure, type the password into the
-//   "postgresAdminPassword" field in the deploy form (it is not stored in
-//   main.bicepparam so the form value is sent directly to ARM).
+//   From VS Code: set POSTGRES_ADMIN_PASSWORD in your shell, then open
+//   main.bicep → Deploy to Azure.  The params file reads the env var via
+//   readEnvironmentVariable() so VS Code picks it up automatically.
 //
 // See infra/scripts/deploy.sh for a convenience wrapper.
 

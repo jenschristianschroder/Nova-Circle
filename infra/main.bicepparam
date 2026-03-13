@@ -1,16 +1,16 @@
 // infra/main.bicepparam
-// Non-secret default parameter values for the Nova-Circle dev environment.
+// Default parameter values for the Nova-Circle dev environment.
 //
-// postgresAdminPassword is intentionally absent from this file.
-// The VS Code Bicep extension re-evaluates .bicepparam on every deploy, so any
-// default expression (e.g. readEnvironmentVariable) would overwrite the value
-// typed in the deploy form with an empty string before the request reaches ARM.
-// Leave postgresAdminPassword out of this file so the extension sends exactly
-// what the user types in the "postgresAdminPassword" form field.
+// postgresAdminPassword is read from the POSTGRES_ADMIN_PASSWORD environment
+// variable at Bicep compile time via readEnvironmentVariable().  This satisfies
+// the BCP258 requirement that every required parameter be assigned in the params
+// file while keeping the secret out of source control.
 //
-// For CLI deploys, pass it on the command line:
-//   az deployment group create ... --parameters main.bicepparam \
-//       postgresAdminPassword='<secret>'
+// Before deploying, export the variable in your shell:
+//   export POSTGRES_ADMIN_PASSWORD='<secret>'
+//   az deployment group create ... --parameters main.bicepparam
+//
+// The deploy.sh convenience script also reads the same variable.
 // CI/CD pipelines inject it as a secret environment variable via cd.yml.
 //
 // Override any of these at deploy time:
@@ -27,6 +27,11 @@ param environmentName = 'dev'
 param containerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 param postgresAdminUser = 'ncadmin'
+
+// Secret injected from the POSTGRES_ADMIN_PASSWORD environment variable.
+// Never hardcode this value — set the env var before deploying.
+// Deployment fails at compile time if POSTGRES_ADMIN_PASSWORD is not set.
+param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 
 // Azure Entra ID — leave empty to start without JWT validation.
 param azureTenantId = '7af8f68a-896b-44d5-994a-1c9bf336f8d7'
