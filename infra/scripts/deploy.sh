@@ -60,6 +60,12 @@ DEPLOYMENT_NAME="nova-circle-${ENVIRONMENT}"
 echo "==> Ensuring resource group '${RESOURCE_GROUP}' exists in '${LOCATION}'..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}" --output none
 
+# ── Collect optional Bicep parameters ───────────────────────────────────
+OPTIONAL_PARAMS=()
+[[ -n "${AZURE_TENANT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
+[[ -n "${AZURE_CLIENT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureClientId="${AZURE_CLIENT_ID}")
+[[ -n "${CORS_ORIGIN:-}"      ]] && OPTIONAL_PARAMS+=(corsOrigin="${CORS_ORIGIN}")
+
 # ── Run deployment ───────────────────────────────────────────────────────
 echo "==> Running Bicep deployment (${WHAT_IF:-apply}) ..."
 if [[ -z "${WHAT_IF}" ]]; then
@@ -76,9 +82,7 @@ az deployment group create \
     environmentName="${ENVIRONMENT}" \
     containerImage="${CONTAINER_IMAGE}" \
     postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}" \
-    azureTenantId="${AZURE_TENANT_ID:-}" \
-    azureClientId="${AZURE_CLIENT_ID:-}" \
-    corsOrigin="${CORS_ORIGIN:-}" \
+    "${OPTIONAL_PARAMS[@]+"${OPTIONAL_PARAMS[@]}"}" \
   ${WHAT_IF} \
   --output table
 
