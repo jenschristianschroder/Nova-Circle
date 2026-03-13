@@ -64,13 +64,19 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       // Pull images from the provisioned ACR using the system-assigned managed identity.
-      // Requires the AcrPull role to be assigned to the Container App's principal ID.
-      registries: [
-        {
-          server: registryLoginServer
-          identity: 'system'
-        }
-      ]
+      // Only configure this when the deployed image actually comes from the ACR.
+      // For the placeholder bootstrap image (pulled from MCR, which is public) no
+      // registry credential is needed and including the entry would cause ARM to
+      // validate ACR access before the AcrPull role assignment is in place,
+      // which blocks Container App provisioning.
+      registries: startsWith(containerImage, '${registryLoginServer}/')
+        ? [
+            {
+              server: registryLoginServer
+              identity: 'system'
+            }
+          ]
+        : []
     }
     template: {
       containers: [

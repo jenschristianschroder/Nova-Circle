@@ -68,6 +68,7 @@ jobs:
         run: |
           az deployment group create \
             --what-if \
+            --name "nova-circle-preview" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP || 'rg-nova-circle-dev' }}" \
             --template-file infra/main.bicep \
             --parameters infra/main.bicepparam \
