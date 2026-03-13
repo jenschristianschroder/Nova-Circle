@@ -18,6 +18,7 @@
 # Optional environment variables:
 #   AZURE_TENANT_ID          – Entra tenant ID (enables JWT validation)
 #   AZURE_CLIENT_ID          – Entra client ID / audience
+#   CORS_ORIGIN              – Allowed CORS origins (comma-separated)
 #   CONFIRM_COMPLETE=yes     – Skip the interactive prompt for --complete mode
 #                              (required when running in non-interactive CI)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +58,9 @@ if [[ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]]; then
   exit 1
 fi
 
+# Deployment name is stable per environment so re-running is idempotent.
+DEPLOYMENT_NAME="nova-circle-${ENVIRONMENT}"
+
 # ── Safety check for Complete mode ────────────────────────────────────────
 if [[ "${DEPLOY_MODE}" == "Complete" && -z "${WHAT_IF}" ]]; then
   echo "⚠  WARNING: Complete mode will DELETE all resources in '${RESOURCE_GROUP}'"
@@ -80,9 +84,20 @@ fi
 echo "==> Ensuring resource group '${RESOURCE_GROUP}' exists in '${LOCATION}'..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}" --output none
 
+# ── Collect optional Bicep parameters ───────────────────────────────────
+OPTIONAL_PARAMS=()
+[[ -n "${AZURE_TENANT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
+[[ -n "${AZURE_CLIENT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureClientId="${AZURE_CLIENT_ID}")
+[[ -n "${CORS_ORIGIN:-}"      ]] && OPTIONAL_PARAMS+=(corsOrigin="${CORS_ORIGIN}")
+
 # ── Run deployment ───────────────────────────────────────────────────────
 echo "==> Running Bicep deployment (${WHAT_IF:-apply}) ..."
+if [[ -z "${WHAT_IF}" ]]; then
+  echo "    Note: if PostgreSQL Flexible Server is being provisioned for the first time,"
+  echo "    the deployment can take 15–20 minutes. The spinner below is normal."
+fi
 az deployment group create \
+  --name "${DEPLOYMENT_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --template-file "${INFRA_DIR}/main.bicep" \
   --parameters "${INFRA_DIR}/main.bicepparam" \
@@ -91,8 +106,7 @@ az deployment group create \
     environmentName="${ENVIRONMENT}" \
     containerImage="${CONTAINER_IMAGE}" \
     postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}" \
-    azureTenantId="${AZURE_TENANT_ID:-}" \
-    azureClientId="${AZURE_CLIENT_ID:-}" \
+    "${OPTIONAL_PARAMS[@]+"${OPTIONAL_PARAMS[@]}"}" \
   --mode "${DEPLOY_MODE}" \
   ${WHAT_IF} \
   --output table

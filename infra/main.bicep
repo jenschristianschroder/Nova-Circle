@@ -109,13 +109,16 @@ module containerAppMod 'modules/container-app.bicep' = {
   }
 }
 
-// 6. AcrPull role assignment: allows the Container App's system-assigned
-//    managed identity to pull images from the provisioned ACR.
-//    Only meaningful once an ACR-hosted image is deployed; harmless otherwise.
-module acrPullRoleMod 'modules/acr-pull-role.bicep' = {
-  name: 'acr-pull-role'
+// ── AcrPull role assignment ───────────────────────────────────────────────
+
+// Grant the Container App's system-assigned managed identity AcrPull on the ACR.
+// Deployed via a dedicated module so the role assignment's `name` and `scope`
+// are derived from module parameters (satisfying Bicep BCP120, which forbids
+// using module outputs directly in those properties in the parent template).
+module acrPullRoleAssignmentMod 'modules/acr-pull-role-assignment.bicep' = {
+  name: 'acrPullRoleAssignment'
   params: {
-    registryName: containerRegistryMod.outputs.registryName
+    acrName: containerRegistryMod.outputs.name
     principalId: containerAppMod.outputs.principalId
   }
 }
@@ -131,5 +134,5 @@ output registryLoginServer string = containerRegistryMod.outputs.loginServer
 @description('PostgreSQL server FQDN')
 output postgresFqdn string = postgresMod.outputs.fqdn
 
-@description('Container App system-assigned principal ID (assign AcrPull role to this)')
+@description('Container App system-assigned principal ID')
 output containerAppPrincipalId string = containerAppMod.outputs.principalId
