@@ -29,5 +29,5 @@ param containerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:lat
 param postgresAdminUser = 'ncadmin'
 
 // Azure Entra ID — leave empty to start without JWT validation.
-param azureTenantId = ''
-param azureClientId = ''
+param azureTenantId = '7af8f68a-896b-44d5-994a-1c9bf336f8d7'
+param azureClientId = 'b96cb392-1afe-4b74-b889-77c78888ec1c'
