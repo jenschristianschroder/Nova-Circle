@@ -132,6 +132,7 @@ jobs:
               postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
               azureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
               azureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
+              corsOrigin="${{ vars.CORS_ORIGIN }}" \
             --output none
 
       # Run Knex migrations directly from the workflow runner.

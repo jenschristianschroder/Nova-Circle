@@ -41,6 +41,9 @@ param azureTenantId string = ''
 @description('Azure Client ID for Entra token validation (leave empty to disable JWT auth)')
 param azureClientId string = ''
 
+@description('Allowed CORS origins for the API (comma-separated, e.g. "https://app.novacircle.com")')
+param corsOrigin string = ''
+
 // ── Modules ───────────────────────────────────────────────────────────────
 
 // 1. Observability: Log Analytics Workspace + Application Insights
@@ -96,6 +99,7 @@ module containerAppMod 'modules/container-app.bicep' = {
     databaseUrl: 'postgresql://${postgresAdminUser}:${postgresAdminPassword}@${postgresMod.outputs.fqdn}:5432/${postgresMod.outputs.databaseName}?sslmode=require'
     azureTenantId: azureTenantId
     azureClientId: azureClientId
+    corsOrigin: corsOrigin
   }
 }
 

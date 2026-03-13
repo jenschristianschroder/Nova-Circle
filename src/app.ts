@@ -1,6 +1,9 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import type { Knex } from 'knex';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { createAuthMiddleware } from './shared/auth/auth-middleware.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { logger } from './shared/logger/logger.js';
@@ -61,7 +64,55 @@ export interface AppDependencies {
 export function createApp(deps?: AppDependencies): express.Application {
   const app = express();
 
-  app.use(express.json());
+  // ── Security middleware ────────────────────────────────────────────────────
+  // Helmet sets secure HTTP headers (CSP, X-Frame-Options, etc.).
+  app.use(helmet());
+
+  // CORS – restrict cross-origin requests. Configure CORS_ORIGIN in production
+  // to the frontend domain (e.g. "https://app.novacircle.com"). Defaults to
+  // same-origin only when the variable is not set.
+  const corsOrigin = process.env['CORS_ORIGIN'];
+  const parsedOrigins = corsOrigin
+    ? [
+        ...new Set(
+          corsOrigin
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0),
+        ),
+      ]
+    : [];
+  app.use(
+    cors({
+      origin: parsedOrigins.length > 0 ? parsedOrigins : false,
+      credentials: true,
+    }),
+  );
+
+  // Trust the first proxy (Azure Container Apps / reverse-proxy) so that
+  // rate-limiting keys on the real client IP from X-Forwarded-For, not the
+  // proxy IP.  Opt-in via TRUST_PROXY to avoid X-Forwarded-For spoofing when
+  // running without a trusted reverse proxy in front (e.g. local dev).
+  if (process.env['TRUST_PROXY'] === '1' || process.env['TRUST_PROXY'] === 'true') {
+    app.set('trust proxy', 1);
+  }
+
+  // Rate limiting – protects against brute-force and DoS on the API.
+  // Disabled in test environment to avoid false 429s during API test suites.
+  if (process.env['NODE_ENV'] !== 'test') {
+    app.use(
+      '/api/',
+      rateLimit({
+        windowMs: 15 * 60 * 1000, // 15-minute window
+        max: 100, // limit each IP to 100 requests per window
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many requests, please try again later.', code: 'RATE_LIMITED' },
+      }),
+    );
+  }
+
+  app.use(express.json({ limit: '1mb' }));
 
   // Health endpoint – used by CI smoke tests and load balancers.
   app.get('/health', (_req: Request, res: Response) => {

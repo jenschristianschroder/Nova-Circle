@@ -32,6 +32,9 @@ param azureTenantId string = ''
 @description('Azure Client ID (app registration audience) for Entra token validation')
 param azureClientId string = ''
 
+@description('Allowed CORS origins (comma-separated). Set to the frontend URL in production.')
+param corsOrigin string = ''
+
 var appName = 'ca-nova-circle-${environmentName}'
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
@@ -106,6 +109,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'LOG_LEVEL'
               value: 'info'
+            }
+            {
+              name: 'CORS_ORIGIN'
+              value: corsOrigin
+            }
+            {
+              name: 'TRUST_PROXY'
+              value: '1'
             }
           ]
           probes: [
