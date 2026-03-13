@@ -9,7 +9,8 @@
 #     [--location swedencentral] \
 #     [--environment dev] \
 #     [--image <registry>/nova-circle:<tag>] \
-#     [--what-if]
+#     [--what-if] \
+#     [--complete]    # ⚠ Complete mode: deletes resources not in template
 #
 # Required environment variables (supply via shell or CI pipeline secrets):
 #   POSTGRES_ADMIN_PASSWORD  – PostgreSQL administrator password
@@ -21,6 +22,8 @@
 #
 # For first-time from-scratch setup use infra/scripts/bootstrap.sh instead,
 # which also creates the resource group, app registrations, and GitHub config.
+#   CONFIRM_COMPLETE=yes     – Skip the interactive prompt for --complete mode
+#                              (required when running in non-interactive CI)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -59,6 +62,7 @@ LOCATION="swedencentral"
 ENVIRONMENT="dev"
 CONTAINER_IMAGE="mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 WHAT_IF=""
+DEPLOY_MODE="Incremental"
 
 # ── Argument parsing ─────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -69,6 +73,7 @@ while [[ $# -gt 0 ]]; do
     --image|-i)           CONTAINER_IMAGE="$2"; shift 2 ;;
     --what-if)            WHAT_IF="--what-if";  shift   ;;
     --help|-h)            usage; exit 0 ;;
+    --complete)           DEPLOY_MODE="Complete"; shift   ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
@@ -86,15 +91,43 @@ fi
 # Deployment name is stable per environment so re-running is idempotent.
 DEPLOYMENT_NAME="nova-circle-${ENVIRONMENT}"
 
+# ── Safety check for Complete mode ────────────────────────────────────────
+if [[ "${DEPLOY_MODE}" == "Complete" && -z "${WHAT_IF}" ]]; then
+  echo "⚠  WARNING: Complete mode will DELETE all resources in '${RESOURCE_GROUP}'"
+  echo "   that are not defined in the Bicep template."
+  if [[ "${CONFIRM_COMPLETE:-}" == "yes" ]]; then
+    echo "   Confirmation accepted via CONFIRM_COMPLETE=yes."
+  elif [[ ! -t 0 ]]; then
+    echo "ERROR: Complete mode requires explicit confirmation. Set CONFIRM_COMPLETE=yes" >&2
+    echo "       to confirm in non-interactive (CI) environments." >&2
+    exit 1
+  else
+    read -r -p "   Are you sure? (yes/no): " confirm
+    if [[ "${confirm}" != "yes" ]]; then
+      echo "Aborted."
+      exit 0
+    fi
+  fi
+fi
+
 # ── Ensure resource group exists ─────────────────────────────────────────
 echo "==> Ensuring resource group '${RESOURCE_GROUP}' exists in '${LOCATION}'..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}" --output none
 
-# ── Collect optional Bicep parameters ───────────────────────────────────
-OPTIONAL_PARAMS=()
-[[ -n "${AZURE_TENANT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
-[[ -n "${AZURE_CLIENT_ID:-}"  ]] && OPTIONAL_PARAMS+=(azureClientId="${AZURE_CLIENT_ID}")
-[[ -n "${CORS_ORIGIN:-}"      ]] && OPTIONAL_PARAMS+=(corsOrigin="${CORS_ORIGIN}")
+# ── Collect Bicep parameters ─────────────────────────────────────────────
+# Build required params first.  Optional vars are appended only when set so
+# `az deployment group create --parameters` never receives an empty-string
+# argument (which would cause a parse error).
+PARAMS=(
+  "${INFRA_DIR}/main.bicepparam"
+  location="${LOCATION}"
+  environmentName="${ENVIRONMENT}"
+  containerImage="${CONTAINER_IMAGE}"
+  postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}"
+)
+[[ -n "${AZURE_TENANT_ID:-}"  ]] && PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
+[[ -n "${AZURE_CLIENT_ID:-}"  ]] && PARAMS+=(azureClientId="${AZURE_CLIENT_ID}")
+[[ -n "${CORS_ORIGIN:-}"      ]] && PARAMS+=(corsOrigin="${CORS_ORIGIN}")
 
 # ── Run deployment ───────────────────────────────────────────────────────
 echo "==> Running Bicep deployment (${WHAT_IF:-apply}) ..."
@@ -106,13 +139,8 @@ az deployment group create \
   --name "${DEPLOYMENT_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --template-file "${INFRA_DIR}/main.bicep" \
-  --parameters "${INFRA_DIR}/main.bicepparam" \
-  --parameters \
-    location="${LOCATION}" \
-    environmentName="${ENVIRONMENT}" \
-    containerImage="${CONTAINER_IMAGE}" \
-    postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}" \
-    "${OPTIONAL_PARAMS[@]+"${OPTIONAL_PARAMS[@]}"}" \
+  --parameters "${PARAMS[@]}" \
+  --mode "${DEPLOY_MODE}" \
   ${WHAT_IF} \
   --output none
 
