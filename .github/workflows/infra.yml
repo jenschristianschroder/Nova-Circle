@@ -41,7 +41,8 @@ jobs:
   # ──────────────────────────────────────────────────────────────────────────
   # What-if – previews changes against a real (empty) resource group.
   # Runs only on manual dispatch so it never blocks PRs by accident.
-  # Requires the AZURE_CREDENTIALS secret to be configured in the repository.
+  # Authenticates via OIDC using the same CD service principal as cd.yml —
+  # no static AZURE_CREDENTIALS secret needed.
   # ──────────────────────────────────────────────────────────────────────────
   what-if:
     name: Deployment what-if
@@ -49,13 +50,22 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: bicep-build
     environment: infra-preview
+    # id-token: write is required for OIDC token exchange with Azure.
+    # Scoped to this job only so bicep-build keeps minimal permissions.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure login
+      # Authenticates using OIDC federated credentials tied to the
+      # 'infra-preview' GitHub environment — no static secrets stored.
+      - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Ensure resource group exists
         run: |
@@ -74,5 +84,5 @@ jobs:
             --parameters infra/main.bicepparam \
             --parameters \
               postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
-              azureTenantId="${{ vars.AZURE_TENANT_ID || '' }}" \
-              azureClientId="${{ vars.AZURE_CLIENT_ID || '' }}"
+              azureTenantId="${{ vars.API_AZURE_TENANT_ID || '' }}" \
+              azureClientId="${{ vars.API_AZURE_CLIENT_ID || '' }}"

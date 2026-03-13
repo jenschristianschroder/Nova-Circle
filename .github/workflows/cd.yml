@@ -136,8 +136,21 @@ jobs:
             --output none
 
       # Run Knex migrations directly from the workflow runner.
-      # Requires the PostgreSQL firewall to allow the GitHub Actions runner IP
-      # (or a private endpoint — see docs/cd.md for alternatives).
+      # A temporary PostgreSQL firewall rule is opened for the runner's IP,
+      # then removed after migrations complete (or if any step fails).
+      - name: Allow runner IP in PostgreSQL firewall
+        run: |
+          RUNNER_IP=$(curl -s --max-time 10 https://api.ipify.org \
+            || curl -s --max-time 10 https://ifconfig.me)
+          echo "runner_ip=${RUNNER_IP}" >> "$GITHUB_ENV"
+          az postgres flexible-server firewall-rule create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "psql-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --rule-name "gh-actions-runner" \
+            --start-ip-address "${RUNNER_IP}" \
+            --end-ip-address "${RUNNER_IP}" \
+            --output none
+
       - name: Set up Node.js for migrations
         uses: actions/setup-node@v4
         with:
@@ -151,6 +164,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run migrate
+
+      - name: Remove runner IP from PostgreSQL firewall
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "psql-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --rule-name "gh-actions-runner" \
+            --yes --output none || true
 
       # Only after migrations succeed, switch the Container App to the new image.
       # This ensures the new revision starts against a fully migrated schema.
