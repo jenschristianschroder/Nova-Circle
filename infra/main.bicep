@@ -109,6 +109,17 @@ module containerAppMod 'modules/container-app.bicep' = {
   }
 }
 
+// 6. AcrPull role assignment: allows the Container App's system-assigned
+//    managed identity to pull images from the provisioned ACR.
+//    Only meaningful once an ACR-hosted image is deployed; harmless otherwise.
+module acrPullRoleMod 'modules/acr-pull-role.bicep' = {
+  name: 'acr-pull-role'
+  params: {
+    registryName: split(containerRegistryMod.outputs.loginServer, '.')[0]
+    principalId: containerAppMod.outputs.principalId
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────
 
 @description('Container App public URL')

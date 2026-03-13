@@ -9,7 +9,8 @@
 #     [--location westeurope] \
 #     [--environment dev] \
 #     [--image <registry>/nova-circle:<tag>] \
-#     [--what-if]
+#     [--what-if] \
+#     [--complete]    # ⚠ Complete mode: deletes resources not in template
 #
 # Required environment variables (supply via shell or CI pipeline secrets):
 #   POSTGRES_ADMIN_PASSWORD  – PostgreSQL administrator password
@@ -25,10 +26,11 @@ INFRA_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # ── Defaults ─────────────────────────────────────────────────────────────
 RESOURCE_GROUP=""
-LOCATION="westeurope"
+LOCATION="swedencentral"
 ENVIRONMENT="dev"
 CONTAINER_IMAGE="mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 WHAT_IF=""
+DEPLOY_MODE="Incremental"
 
 # ── Argument parsing ─────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -38,6 +40,7 @@ while [[ $# -gt 0 ]]; do
     --environment|-e)     ENVIRONMENT="$2";     shift 2 ;;
     --image|-i)           CONTAINER_IMAGE="$2"; shift 2 ;;
     --what-if)            WHAT_IF="--what-if";  shift   ;;
+    --complete)           DEPLOY_MODE="Complete"; shift   ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
@@ -50,6 +53,17 @@ fi
 if [[ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]]; then
   echo "ERROR: POSTGRES_ADMIN_PASSWORD environment variable must be set." >&2
   exit 1
+fi
+
+# ── Safety check for Complete mode ────────────────────────────────────────
+if [[ "${DEPLOY_MODE}" == "Complete" && -z "${WHAT_IF}" ]]; then
+  echo "⚠  WARNING: Complete mode will DELETE all resources in '${RESOURCE_GROUP}'"
+  echo "   that are not defined in the Bicep template."
+  read -r -p "   Are you sure? (yes/no): " confirm
+  if [[ "${confirm}" != "yes" ]]; then
+    echo "Aborted."
+    exit 0
+  fi
 fi
 
 # ── Ensure resource group exists ─────────────────────────────────────────
@@ -69,6 +83,7 @@ az deployment group create \
     postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}" \
     azureTenantId="${AZURE_TENANT_ID:-}" \
     azureClientId="${AZURE_CLIENT_ID:-}" \
+  --mode "${DEPLOY_MODE}" \
   ${WHAT_IF} \
   --output table
 

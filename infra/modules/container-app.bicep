@@ -37,6 +37,11 @@ param corsOrigin string = ''
 
 var appName = 'ca-nova-circle-${environmentName}'
 
+// Only configure ACR pull when the image is actually from the provisioned registry.
+// On first deploy the placeholder MCR image is used and the system-assigned identity
+// has no AcrPull role yet, so referencing the ACR would cause "Operation expired".
+var useAcr = contains(containerImage, registryLoginServer)
+
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: appName
   location: location
@@ -65,12 +70,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       // Pull images from the provisioned ACR using the system-assigned managed identity.
       // Requires the AcrPull role to be assigned to the Container App's principal ID.
-      registries: [
+      // Only configured when the image is actually hosted in the ACR.
+      registries: useAcr ? [
         {
           server: registryLoginServer
           identity: 'system'
         }
-      ]
+      ] : []
     }
     template: {
       containers: [
