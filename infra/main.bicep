@@ -109,6 +109,31 @@ module containerAppMod 'modules/container-app.bicep' = {
   }
 }
 
+// ── AcrPull role assignment ───────────────────────────────────────────────
+
+// AcrPull built-in role definition ID (constant across all Azure tenants).
+var acrPullRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+
+// Reference the ACR provisioned above so we can scope the role assignment.
+resource acrResource 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+  name: last(split(containerRegistryMod.outputs.resourceId, '/'))
+}
+
+// Grant the Container App's system-assigned managed identity AcrPull on the ACR.
+// This replaces the manual post-deploy step: the role is created as part of
+// every deployment so the app can pull images from the registry immediately.
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(containerRegistryMod.outputs.resourceId, containerAppMod.outputs.principalId, acrPullRoleDefinitionId)
+  scope: acrResource
+  properties: {
+    roleDefinitionId: acrPullRoleDefinitionId
+    principalId: containerAppMod.outputs.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────
 
 @description('Container App public URL')
@@ -120,5 +145,5 @@ output registryLoginServer string = containerRegistryMod.outputs.loginServer
 @description('PostgreSQL server FQDN')
 output postgresFqdn string = postgresMod.outputs.fqdn
 
-@description('Container App system-assigned principal ID (assign AcrPull role to this)')
+@description('Container App system-assigned principal ID')
 output containerAppPrincipalId string = containerAppMod.outputs.principalId

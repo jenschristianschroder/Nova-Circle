@@ -58,6 +58,7 @@ az group create \
 export POSTGRES_ADMIN_PASSWORD='<strong-password>'
 export AZURE_TENANT_ID='<tenant-id>'   # optional – enables JWT validation
 export AZURE_CLIENT_ID='<client-id>'   # optional
+export CORS_ORIGIN='https://app.example.com'  # optional
 
 ./infra/scripts/deploy.sh \
   --resource-group rg-nova-circle-dev \
@@ -65,8 +66,10 @@ export AZURE_CLIENT_ID='<client-id>'   # optional
   --image '<registry-login-server>/nova-circle:latest'
 ```
 
+> **First-deploy timing:** The deployment provisions a PostgreSQL Flexible Server, which typically takes **15–20 minutes** to become ready. The spinner shown by `az deployment group create` is normal — resources will appear in the Azure portal in a *Creating* state while the deployment runs.
+
 > **Note:** The registry login server is included in the deployment output as `registryLoginServer`.
-> Retrieve it with: `az deployment group show -g rg-nova-circle-dev -n main --query properties.outputs.registryLoginServer.value -o tsv`
+> Retrieve it with: `az deployment group show -g rg-nova-circle-dev -n nova-circle-dev --query properties.outputs.registryLoginServer.value -o tsv`
 
 ### 3. Preview changes without deploying (what-if)
 
@@ -82,6 +85,7 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
 
 ```bash
 az deployment group create \
+  --name nova-circle-dev \
   --resource-group rg-nova-circle-dev \
   --template-file infra/main.bicep \
   --parameters infra/main.bicepparam \
@@ -96,7 +100,7 @@ az deployment group create \
    ```bash
    REGISTRY_LOGIN_SERVER=$(az deployment group show \
      --resource-group rg-nova-circle-dev \
-     --name main \
+     --name nova-circle-dev \
      --query properties.outputs.registryLoginServer.value -o tsv)
    ```
 
@@ -107,24 +111,17 @@ az deployment group create \
    docker push "${REGISTRY_LOGIN_SERVER}/nova-circle:latest"
    ```
 
-3. **Grant the Container App AcrPull access** to the registry:
+3. **Re-deploy with the real image** so the Container App pulls from ACR:
    ```bash
-   PRINCIPAL_ID=$(az containerapp show \
-     --name ca-nova-circle-dev \
+   ./infra/scripts/deploy.sh \
      --resource-group rg-nova-circle-dev \
-     --query identity.principalId -o tsv)
-
-   REGISTRY_ID=$(az acr show \
-     --resource-group rg-nova-circle-dev \
-     --name "${REGISTRY_LOGIN_SERVER%%.*}" \
-     --query id -o tsv)
-
-   az role assignment create \
-     --assignee-object-id "$PRINCIPAL_ID" \
-     --assignee-principal-type ServicePrincipal \
-     --role AcrPull \
-     --scope "$REGISTRY_ID"
+     --environment dev \
+     --image "${REGISTRY_LOGIN_SERVER}/nova-circle:latest"
    ```
+
+   > **AcrPull role:** The Bicep deployment automatically grants the Container App's
+   > system-assigned managed identity the `AcrPull` role on the registry.
+   > No manual role assignment is required.
 
 4. **Run database migrations** (from a machine that can reach the PostgreSQL server or via a migration job in the Container App):
    ```bash

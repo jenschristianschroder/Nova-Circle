@@ -17,6 +17,7 @@
 # Optional environment variables:
 #   AZURE_TENANT_ID          – Entra tenant ID (enables JWT validation)
 #   AZURE_CLIENT_ID          – Entra client ID / audience
+#   CORS_ORIGIN              – Allowed CORS origins (comma-separated)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -52,13 +53,21 @@ if [[ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]]; then
   exit 1
 fi
 
+# Deployment name is stable per environment so re-running is idempotent.
+DEPLOYMENT_NAME="nova-circle-${ENVIRONMENT}"
+
 # ── Ensure resource group exists ─────────────────────────────────────────
 echo "==> Ensuring resource group '${RESOURCE_GROUP}' exists in '${LOCATION}'..."
 az group create --name "${RESOURCE_GROUP}" --location "${LOCATION}" --output none
 
 # ── Run deployment ───────────────────────────────────────────────────────
 echo "==> Running Bicep deployment (${WHAT_IF:-apply}) ..."
+if [[ -z "${WHAT_IF}" ]]; then
+  echo "    Note: if PostgreSQL Flexible Server is being provisioned for the first time,"
+  echo "    the deployment can take 15–20 minutes. The spinner below is normal."
+fi
 az deployment group create \
+  --name "${DEPLOYMENT_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --template-file "${INFRA_DIR}/main.bicep" \
   --parameters "${INFRA_DIR}/main.bicepparam" \
@@ -69,6 +78,7 @@ az deployment group create \
     postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}" \
     azureTenantId="${AZURE_TENANT_ID:-}" \
     azureClientId="${AZURE_CLIENT_ID:-}" \
+    corsOrigin="${CORS_ORIGIN:-}" \
   ${WHAT_IF} \
   --output table
 
