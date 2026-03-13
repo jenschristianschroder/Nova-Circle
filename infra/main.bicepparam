@@ -22,7 +22,7 @@
 
 using 'main.bicep'
 
-param location = 'westeurope'
+param location = 'swedencentral'
 param environmentName = 'dev'
 
 // Container image to deploy.  On first deploy (before the registry exists)
