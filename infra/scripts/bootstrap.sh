@@ -287,6 +287,7 @@ ensure_role_assignment() {
     --assignee "${principal_id}" \
     --role "${role}" \
     --scope "${scope}" \
+    --subscription "${SUBSCRIPTION_ID}" \
     --query "[0].id" -o tsv 2>/dev/null || echo "")
 
   if [[ -z "${existing}" || "${existing}" == "None" ]]; then
@@ -295,6 +296,7 @@ ensure_role_assignment() {
       --assignee-principal-type ServicePrincipal \
       --role "${role}" \
       --scope "${scope}" \
+      --subscription "${SUBSCRIPTION_ID}" \
       --output none
     step "Assigned role: ${role}"
   else
