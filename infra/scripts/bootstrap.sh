@@ -282,43 +282,79 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
-  # Retry up to 3 times.  MissingSubscription can occur if the CLI's ARM token
-  # context is stale after az ad (MS Graph) calls.  Refreshing the token and
-  # retrying is the most reliable recovery path for this transient condition.
+  # Map well-known built-in role names to their Azure RBAC definition GUIDs.
+  # Using the GUID directly avoids az role assignment create's internal
+  # role-name → ARM lookup round-trip.  That lookup hits a subscription-scoped
+  # ARM endpoint and, after az ad (MS Graph) calls have contaminated the CLI's
+  # MSAL context, it is itself the call that produces MissingSubscription —
+  # even before the actual assignment create request is sent.
+  local role_def_guid
+  case "${role}" in
+    "Contributor")               role_def_guid="b24988ac-6180-42a0-ab88-20f7382dd24c" ;;
+    "User Access Administrator") role_def_guid="18d7d88d-d35e-4fb5-a5c3-7773c20a72d8" ;;
+    "AcrPush")                   role_def_guid="8311e382-0749-4cb8-b61a-304f252e45ec" ;;
+    *)
+      die "Unknown role '${role}'. Add its Azure built-in role GUID to ensure_role_assignment."
+      ;;
+  esac
+
+  local role_def_id="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Authorization/roleDefinitions/${role_def_guid}"
+
+  # Derive a deterministic UUID for the role-assignment resource name so that
+  # repeated bootstrap runs with the same arguments are idempotent.
+  local ra_name
+  ra_name=$(printf '%s|%s|%s' "${scope}" "${principal_id}" "${role_def_guid}" \
+    | { sha256sum 2>/dev/null || shasum -a 256 2>/dev/null; } \
+    | cut -c1-32 \
+    | sed 's/\(.\{8\}\)\(.\{4\}\)\(.\{4\}\)\(.\{4\}\)\(.\{12\}\)/\1-\2-\3-\4-\5/')
+
+  local ra_url="https://management.azure.com${scope}/providers/Microsoft.Authorization/roleAssignments/${ra_name}?api-version=2022-04-01"
+  local ra_body
+  ra_body=$(printf '{"properties":{"roleDefinitionId":"%s","principalId":"%s","principalType":"ServicePrincipal"}}' \
+    "${role_def_id}" "${principal_id}")
+
   local attempt create_out
   for attempt in 1 2 3; do
-    # Force a fresh ARM token using the explicit tenant ID.
-    # After az ad (MS Graph) calls the CLI's subscription→tenant mapping can
-    # drift, so --subscription is unreliable here.  Using --tenant directly
-    # bypasses that resolution and fetches the correct ARM token regardless of
-    # how the MS Graph calls shifted the internal CLI context.
-    # --subscription and --tenant are mutually exclusive; --tenant alone is used.
-    # stdout is discarded (we only need the cache side-effect); stderr captured.
-    local token_err
-    if ! token_err=$(az account get-access-token \
-          --resource "https://management.azure.com/" \
-          --tenant "${TENANT_ID}" \
-          --query accessToken -o tsv 2>&1 >/dev/null); then
-      warn "az account get-access-token (ARM) failed on attempt ${attempt}/3 — will still try role assignment"
-      warn "get-access-token error: ${token_err}"
+    # Obtain a fresh ARM bearer token using the explicit tenant ID.
+    # After az ad (MS Graph) calls the CLI's internal MSAL context drifts;
+    # using --tenant bypasses the broken subscription→tenant resolution.
+    local arm_token
+    arm_token=$(az account get-access-token \
+      --resource "https://management.azure.com/" \
+      --tenant "${TENANT_ID}" \
+      --query accessToken -o tsv 2>/dev/null) || arm_token=""
+
+    if [[ -z "${arm_token}" ]]; then
+      warn "az account get-access-token (ARM) could not obtain token on attempt ${attempt}/3 — will try with stale context"
     fi
 
+    # Re-establish the active subscription context.
     local account_set_err
     if ! account_set_err=$(az account set --subscription "${SUBSCRIPTION_ID}" 2>&1); then
       warn "az account set --subscription '${SUBSCRIPTION_ID}' failed on attempt ${attempt}/3"
       warn "az account set error: ${account_set_err}"
     fi
 
-    # Attempt the assignment directly and let Azure signal RoleAssignmentExists
-    # for idempotency.  We intentionally do NOT use "az role assignment list
-    # --assignee" here: that command resolves the assignee via MS Graph even when
-    # a plain GUID is supplied, which resets the ARM MSAL token context.
-    if create_out=$(az role assignment create \
-          --assignee-object-id "${principal_id}" \
-          --assignee-principal-type ServicePrincipal \
-          --role "${role}" \
-          --scope "${scope}" \
-          --output none 2>&1); then
+    # Use az rest with an explicit bearer token to bypass the CLI's internal
+    # MSAL token lookup entirely.  --skip-authorization-header prevents the
+    # CLI from injecting its own (potentially stale) token, ensuring the
+    # request carries exactly the credential we just obtained.
+    # Fall back to CLI default auth if we could not obtain a fresh token.
+    local rest_auth_args=()
+    if [[ -n "${arm_token}" ]]; then
+      rest_auth_args=(
+        --skip-authorization-header
+        --headers
+        "Authorization=Bearer ${arm_token}"
+      )
+    fi
+
+    if create_out=$(az rest \
+          --method PUT \
+          --url "${ra_url}" \
+          --body "${ra_body}" \
+          "${rest_auth_args[@]}" \
+          2>&1); then
       step "Assigned role: ${role}"
       return 0
     elif [[ "${create_out}" == *"RoleAssignmentExists"* ]]; then
