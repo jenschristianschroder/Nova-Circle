@@ -287,15 +287,15 @@ ensure_role_assignment() {
   # retrying is the most reliable recovery path for this transient condition.
   local attempt create_out
   for attempt in 1 2 3; do
-    # Force a fresh ARM token using the explicit management endpoint URL and
-    # the correct tenant.  This is more reliable than --resource-type arm in
-    # environments where the CLI cloud context has drifted after MS Graph calls.
+    # Force a fresh ARM token using the explicit management endpoint URL.
+    # --subscription and --tenant are mutually exclusive in az account
+    # get-access-token; using --subscription is sufficient because the CLI
+    # resolves the tenant from the subscription context.
     # We redirect stdout to /dev/null; stderr is captured for diagnostics.
     local token_err
     if ! token_err=$(az account get-access-token \
           --resource "https://management.azure.com/" \
           --subscription "${SUBSCRIPTION_ID}" \
-          --tenant "${TENANT_ID}" \
           --query accessToken -o tsv 2>&1 >/dev/null); then
       warn "az account get-access-token (ARM) failed on attempt ${attempt}/3 — will still try role assignment"
       warn "get-access-token error: ${token_err}"
