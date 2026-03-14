@@ -29,6 +29,10 @@ param environmentName = 'dev'
 // use the Azure Container Apps hello-world image as a placeholder.
 param containerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+// Frontend container image to deploy.  On first deploy (before the registry exists)
+// use the Azure Container Apps hello-world image as a placeholder.
+param frontendContainerImage = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
 param postgresAdminUser = 'ncadmin'
 
 // Secret read from the POSTGRES_ADMIN_PASSWORD environment variable.

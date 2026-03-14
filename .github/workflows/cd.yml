@@ -65,11 +65,6 @@ jobs:
           docker push "${REGISTRY}/nova-circle-api:latest"
 
       - name: Build and push frontend image
-        # The frontend image is built and pushed to ACR so it is ready to deploy.
-        # Deployment of the frontend (e.g. a second Container App or Static Web App)
-        # is not yet automated because no frontend hosting module exists in the Bicep
-        # templates. Add a container-app-frontend.bicep module and a corresponding
-        # deploy step here when the hosting strategy is finalised.
         run: |
           REGISTRY="${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}"
           TAG="${{ steps.set-tag.outputs.tag }}"
@@ -103,8 +98,8 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Keep the currently running image while infra resources are updated.
-      # This prevents the new (un-migrated) revision from going live before
+      # Keep the currently running images while infra resources are updated.
+      # This prevents a new (un-migrated) revision from going live before
       # migrations have run.
       - name: Get current Container App image
         id: current-image
@@ -117,9 +112,20 @@ jobs:
             || echo "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest")
           echo "image=${CURRENT}" >> "$GITHUB_OUTPUT"
 
+      - name: Get current frontend Container App image
+        id: current-frontend-image
+        run: |
+          CURRENT=$(az containerapp show \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.template.containers[0].image" \
+            --output tsv 2>/dev/null \
+            || echo "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest")
+          echo "image=${CURRENT}" >> "$GITHUB_OUTPUT"
+
       # Update all Azure infrastructure (networking, DB, Container App env, etc.)
-      # but keep the Container App on its current image so no new revision starts
-      # against the old schema.
+      # but keep both Container Apps on their current images so no new revision
+      # starts against the old schema.
       - name: Deploy infrastructure (Bicep)
         run: |
           az deployment group create \
@@ -129,6 +135,7 @@ jobs:
             --parameters infra/main.bicepparam \
             --parameters \
               containerImage="${{ steps.current-image.outputs.image }}" \
+              frontendContainerImage="${{ steps.current-frontend-image.outputs.image }}" \
               postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
               azureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
               azureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
@@ -174,9 +181,9 @@ jobs:
             --rule-name "gh-actions-runner" \
             --yes --output none || true
 
-      # Only after migrations succeed, switch the Container App to the new image.
-      # This ensures the new revision starts against a fully migrated schema.
-      - name: Switch Container App to new image
+      # Only after migrations succeed, switch both Container Apps to the new images.
+      # This ensures the new API revision starts against a fully migrated schema.
+      - name: Switch API Container App to new image
         run: |
           az containerapp update \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
@@ -184,7 +191,15 @@ jobs:
             --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-api:${{ needs.build-and-push.outputs.image-tag }}" \
             --output none
 
-      - name: Get API URL
+      - name: Switch frontend Container App to new image
+        run: |
+          az containerapp update \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
+            --output none
+
+      - name: Get deployment outputs
         id: deploy-outputs
         run: |
           API_URL=$(az deployment group show \
@@ -193,8 +208,14 @@ jobs:
             --query "properties.outputs.apiUrl.value" \
             --output tsv)
           echo "api-url=${API_URL}" >> "$GITHUB_OUTPUT"
+          CLIENT_URL=$(az deployment group show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "nova-circle-${{ github.run_id }}" \
+            --query "properties.outputs.clientUrl.value" \
+            --output tsv)
+          echo "client-url=${CLIENT_URL}" >> "$GITHUB_OUTPUT"
 
-      # Wait for the Container App to stabilise then assert the health endpoint
+      # Wait for the API Container App to stabilise then assert the health endpoint
       # returns HTTP 200.  Retries up to 6 times (60 s total) to allow for
       # cold-start after scale-to-zero.
       - name: Smoke test — API health check
@@ -211,4 +232,23 @@ jobs:
             sleep 10
           done
           echo "ERROR: Health check failed after 60s"
+          exit 1
+
+      # Wait for the frontend Container App to stabilise then assert the root path
+      # returns HTTP 200.  Retries up to 6 times (60 s total) to allow for
+      # cold-start after scale-to-zero.
+      - name: Smoke test — frontend health check
+        run: |
+          CLIENT_URL="${{ steps.deploy-outputs.outputs.client-url }}"
+          echo "Testing ${CLIENT_URL}/ ..."
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${CLIENT_URL}/" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Frontend health check passed (HTTP 200)"
+              exit 0
+            fi
+            echo "Attempt ${i}/6 — HTTP ${STATUS}, retrying in 10s..."
+            sleep 10
+          done
+          echo "ERROR: Frontend health check failed after 60s"
           exit 1

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "17473113702902854448"
+      "templateHash": "7043859105873129004"
     }
   },
   "parameters": {
@@ -40,6 +40,13 @@
     }
   ],
   "outputs": {
+    "registryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Container Registry resource name (globally unique, alphanumeric)"
+      },
+      "value": "[variables('registryName')]"
+    },
     "loginServer": {
       "type": "string",
       "metadata": {

@@ -33,6 +33,9 @@ param environmentName string = 'dev'
 @description('Full container image reference including tag (e.g. crnova<env>.azurecr.io/nova-circle:1.0.0)')
 param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+@description('Full frontend container image reference including tag (e.g. crnova<env>.azurecr.io/nova-circle-client:1.0.0)')
+param frontendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
 @description('PostgreSQL administrator username')
 param postgresAdminUser string = 'ncadmin'
 
@@ -109,6 +112,18 @@ module containerAppMod 'modules/container-app.bicep' = {
   }
 }
 
+// 6. Container App: serves the Nova-Circle React SPA (nginx, port 80)
+module containerAppFrontendMod 'modules/container-app-frontend.bicep' = {
+  name: 'container-app-frontend'
+  params: {
+    location: location
+    environmentName: environmentName
+    containerAppEnvId: containerAppEnvMod.outputs.resourceId
+    containerImage: frontendContainerImage
+    registryLoginServer: containerRegistryMod.outputs.loginServer
+  }
+}
+
 // ── AcrPull role assignment ───────────────────────────────────────────────
 
 // Grant the Container App's system-assigned managed identity AcrPull on the ACR.
@@ -123,10 +138,22 @@ module acrPullRoleAssignmentMod 'modules/acr-pull-role-assignment.bicep' = {
   }
 }
 
+// Grant the frontend Container App's system-assigned managed identity AcrPull on the ACR.
+module acrPullRoleAssignmentFrontendMod 'modules/acr-pull-role-assignment.bicep' = {
+  name: 'acrPullRoleAssignmentFrontend'
+  params: {
+    acrName: containerRegistryMod.outputs.name
+    principalId: containerAppFrontendMod.outputs.principalId
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────
 
 @description('Container App public URL')
 output apiUrl string = 'https://${containerAppMod.outputs.fqdn}'
+
+@description('Frontend Container App public URL')
+output clientUrl string = 'https://${containerAppFrontendMod.outputs.fqdn}'
 
 @description('Container Registry login server')
 output registryLoginServer string = containerRegistryMod.outputs.loginServer
