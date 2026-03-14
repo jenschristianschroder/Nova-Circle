@@ -8,7 +8,8 @@
 #     --resource-group rg-nova-circle-dev \
 #     [--location swedencentral] \
 #     [--environment dev] \
-#     [--image <registry>/nova-circle:<tag>] \
+#     [--image <registry>/nova-circle-api:<tag>] \
+#     [--frontend-image <registry>/nova-circle-client:<tag>] \
 #     [--what-if] \
 #     [--complete]    # ⚠ Complete mode: deletes resources not in template
 #
@@ -39,7 +40,8 @@ Options:
   -g, --resource-group <name>    Target resource group (required)
   -l, --location <region>        Azure region (default: swedencentral)
   -e, --environment <name>       Environment suffix (default: dev)
-  -i, --image <image>            Container image to deploy
+  -i, --image <image>            API container image to deploy
+      --frontend-image <image>   Frontend container image to deploy
       --what-if                  Preview changes without applying
   -h, --help                     Show this help text
 
@@ -61,6 +63,7 @@ RESOURCE_GROUP=""
 LOCATION="swedencentral"
 ENVIRONMENT="dev"
 CONTAINER_IMAGE="mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+FRONTEND_IMAGE="mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 WHAT_IF=""
 DEPLOY_MODE="Incremental"
 
@@ -71,6 +74,7 @@ while [[ $# -gt 0 ]]; do
     --location|-l)        LOCATION="$2";        shift 2 ;;
     --environment|-e)     ENVIRONMENT="$2";     shift 2 ;;
     --image|-i)           CONTAINER_IMAGE="$2"; shift 2 ;;
+    --frontend-image)     FRONTEND_IMAGE="$2";  shift 2 ;;
     --what-if)            WHAT_IF="--what-if";  shift   ;;
     --help|-h)            usage; exit 0 ;;
     --complete)           DEPLOY_MODE="Complete"; shift   ;;
@@ -123,6 +127,7 @@ PARAMS=(
   location="${LOCATION}"
   environmentName="${ENVIRONMENT}"
   containerImage="${CONTAINER_IMAGE}"
+  frontendContainerImage="${FRONTEND_IMAGE}"
   postgresAdminPassword="${POSTGRES_ADMIN_PASSWORD}"
 )
 [[ -n "${AZURE_TENANT_ID:-}"  ]] && PARAMS+=(azureTenantId="${AZURE_TENANT_ID}")
@@ -150,7 +155,7 @@ if [[ -z "${WHAT_IF}" ]]; then
   az deployment group show \
     --name "${DEPLOYMENT_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query "{apiUrl:properties.outputs.apiUrl.value,registryLoginServer:properties.outputs.registryLoginServer.value,postgresFqdn:properties.outputs.postgresFqdn.value}" \
+    --query "{apiUrl:properties.outputs.apiUrl.value,clientUrl:properties.outputs.clientUrl.value,registryLoginServer:properties.outputs.registryLoginServer.value,postgresFqdn:properties.outputs.postgresFqdn.value}" \
     --output table
 fi
 

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "810205138432158300"
+      "templateHash": "11444979935202053206"
     }
   },
   "parameters": {
@@ -29,6 +29,13 @@
       "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
       "metadata": {
         "description": "Full container image reference including tag (e.g. crnova<env>.azurecr.io/nova-circle:1.0.0)"
+      }
+    },
+    "frontendContainerImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+      "metadata": {
+        "description": "Full frontend container image reference including tag (e.g. crnova<env>.azurecr.io/nova-circle-client:1.0.0)"
       }
     },
     "postgresAdminUser": {
@@ -521,7 +528,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "12788110211102529015"
+              "templateHash": "15946207844922129133"
             }
           },
           "parameters": {
@@ -590,7 +597,8 @@
             }
           },
           "variables": {
-            "appName": "[format('ca-nova-circle-{0}', parameters('environmentName'))]"
+            "appName": "[format('ca-nova-circle-{0}', parameters('environmentName'))]",
+            "useAcr": "[startsWith(toLower(parameters('containerImage')), format('{0}/', toLower(parameters('registryLoginServer'))))]"
           },
           "resources": [
             {
@@ -619,7 +627,7 @@
                       "value": "[parameters('databaseUrl')]"
                     }
                   ],
-                  "registries": "[if(startsWith(parameters('containerImage'), format('{0}/', parameters('registryLoginServer'))), createArray(createObject('server', parameters('registryLoginServer'), 'identity', 'system')), createArray())]"
+                  "registries": "[if(variables('useAcr'), createArray(createObject('server', parameters('registryLoginServer'), 'identity', 'system')), createArray())]"
                 },
                 "template": {
                   "containers": [
@@ -726,6 +734,159 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "container-app-frontend",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "containerAppEnvId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-app-env'), '2025-04-01').outputs.resourceId.value]"
+          },
+          "containerImage": {
+            "value": "[parameters('frontendContainerImage')]"
+          },
+          "registryLoginServer": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-registry'), '2025-04-01').outputs.loginServer.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "13296167148924908707"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Deployment location (inherited from main.bicep)"
+              }
+            },
+            "environmentName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short environment name used as a resource-name suffix (e.g. \"dev\")"
+              }
+            },
+            "containerAppEnvId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps Environment resource ID"
+              }
+            },
+            "containerImage": {
+              "type": "string",
+              "metadata": {
+                "description": "Full container image reference, e.g. crnova<env><suffix>.azurecr.io/nova-circle-client:1.0.0"
+              }
+            },
+            "registryLoginServer": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Registry login server for managed-identity pull (e.g. crnovadev<suffix>.azurecr.io)"
+              }
+            }
+          },
+          "variables": {
+            "appName": "[format('ca-nova-circle-client-{0}', parameters('environmentName'))]",
+            "useAcr": "[startsWith(toLower(parameters('containerImage')), format('{0}/', toLower(parameters('registryLoginServer'))))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[variables('appName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "environmentId": "[parameters('containerAppEnvId')]",
+                "configuration": {
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 80,
+                    "transport": "auto"
+                  },
+                  "registries": "[if(variables('useAcr'), createArray(createObject('server', parameters('registryLoginServer'), 'identity', 'system')), createArray())]"
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "nova-circle-client",
+                      "image": "[parameters('containerImage')]",
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "probes": [
+                        {
+                          "type": "Liveness",
+                          "httpGet": {
+                            "path": "/",
+                            "port": 80
+                          },
+                          "initialDelaySeconds": 10,
+                          "periodSeconds": 30
+                        },
+                        {
+                          "type": "Readiness",
+                          "httpGet": {
+                            "path": "/",
+                            "port": 80
+                          },
+                          "initialDelaySeconds": 5,
+                          "periodSeconds": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 3
+                  }
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "fqdn": {
+              "type": "string",
+              "metadata": {
+                "description": "Container App FQDN (public URL)"
+              },
+              "value": "[reference(resourceId('Microsoft.App/containerApps', variables('appName')), '2024-03-01').configuration.ingress.fqdn]"
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "System-assigned managed identity principal ID (use to assign ACR Pull role)"
+              },
+              "value": "[reference(resourceId('Microsoft.App/containerApps', variables('appName')), '2024-03-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'container-app-env')]",
+        "[resourceId('Microsoft.Resources/deployments', 'container-registry')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "acrPullRoleAssignment",
       "properties": {
         "expressionEvaluationOptions": {
@@ -786,6 +947,70 @@
         "[resourceId('Microsoft.Resources/deployments', 'container-app')]",
         "[resourceId('Microsoft.Resources/deployments', 'container-registry')]"
       ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "acrPullRoleAssignmentFrontend",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "acrName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-registry'), '2025-04-01').outputs.name.value]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-app-frontend'), '2025-04-01').outputs.principalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "9893850709259875602"
+            }
+          },
+          "parameters": {
+            "acrName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the existing Azure Container Registry resource"
+              }
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID of the managed identity to grant AcrPull to"
+              }
+            }
+          },
+          "variables": {
+            "acrPullRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
+              "name": "[guid(parameters('acrName'), parameters('principalId'), variables('acrPullRoleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('acrPullRoleDefinitionId')]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'container-app-frontend')]",
+        "[resourceId('Microsoft.Resources/deployments', 'container-registry')]"
+      ]
     }
   ],
   "outputs": {
@@ -795,6 +1020,13 @@
         "description": "Container App public URL"
       },
       "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'container-app'), '2025-04-01').outputs.fqdn.value)]"
+    },
+    "clientUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Frontend Container App public URL"
+      },
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'container-app-frontend'), '2025-04-01').outputs.fqdn.value)]"
     },
     "registryLoginServer": {
       "type": "string",
