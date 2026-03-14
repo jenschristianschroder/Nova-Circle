@@ -282,48 +282,55 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
-  # Re-establish the ARM subscription context after az ad (MS Graph) calls.
-  # az account set is a local profile update only — it does NOT refresh the
-  # MSAL ARM token.  After MS Graph calls the ARM token can be stale/absent,
-  # causing MissingSubscription even if account set succeeds.  We therefore
-  # force a fresh ARM token fetch via get-access-token first, then set the
-  # active subscription so subsequent CLI calls use the right context.
-  local token_err
-  if ! token_err=$(az account get-access-token \
-        --resource-type arm \
-        --subscription "${SUBSCRIPTION_ID}" \
-        --output none 2>&1); then
-    warn "az account get-access-token (ARM) failed for subscription '${SUBSCRIPTION_ID}' — will still attempt role assignment"
-    warn "get-access-token error: ${token_err}"
-  fi
+  # Retry up to 3 times.  MissingSubscription can occur if the CLI's ARM token
+  # context is stale after az ad (MS Graph) calls.  Refreshing the token and
+  # retrying is the most reliable recovery path for this transient condition.
+  local attempt create_out
+  for attempt in 1 2 3; do
+    # Force a fresh ARM token using the explicit management endpoint URL and
+    # the correct tenant.  This is more reliable than --resource-type arm in
+    # environments where the CLI cloud context has drifted after MS Graph calls.
+    # We redirect stdout to /dev/null; stderr is captured for diagnostics.
+    local token_err
+    if ! token_err=$(az account get-access-token \
+          --resource "https://management.azure.com/" \
+          --subscription "${SUBSCRIPTION_ID}" \
+          --tenant "${TENANT_ID}" \
+          --query accessToken -o tsv 2>&1 >/dev/null); then
+      warn "az account get-access-token (ARM) failed on attempt ${attempt}/3 — will still try role assignment"
+      warn "get-access-token error: ${token_err}"
+    fi
 
-  local account_set_err
-  if ! account_set_err=$(az account set --subscription "${SUBSCRIPTION_ID}" 2>&1); then
-    warn "az account set --subscription '${SUBSCRIPTION_ID}' failed — will still attempt role assignment"
-    warn "az account set error: ${account_set_err}"
-  fi
+    local account_set_err
+    if ! account_set_err=$(az account set --subscription "${SUBSCRIPTION_ID}" 2>&1); then
+      warn "az account set --subscription '${SUBSCRIPTION_ID}' failed on attempt ${attempt}/3"
+      warn "az account set error: ${account_set_err}"
+    fi
 
-  # Attempt the assignment directly and let Azure signal RoleAssignmentExists
-  # for idempotency.  We intentionally do NOT use "az role assignment list
-  # --assignee" here: that command resolves the assignee via MS Graph even when
-  # a plain GUID is supplied, which resets the ARM MSAL token context (the root
-  # cause of the repeated MissingSubscription failures).  By going straight to
-  # "create" and catching the well-known exists error we avoid the Graph call
-  # entirely and keep the ARM token context clean.
-  local create_out
-  if create_out=$(az role assignment create \
-        --assignee-object-id "${principal_id}" \
-        --assignee-principal-type ServicePrincipal \
-        --role "${role}" \
-        --scope "${scope}" \
-        --output none 2>&1); then
-    step "Assigned role: ${role}"
-  elif [[ "${create_out}" == *"RoleAssignmentExists"* ]]; then
-    step "Role already assigned: ${role}"
-  else
-    echo "${create_out}" >&2
-    die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}' Tenant='${TENANT_ID}'"
-  fi
+    # Attempt the assignment directly and let Azure signal RoleAssignmentExists
+    # for idempotency.  We intentionally do NOT use "az role assignment list
+    # --assignee" here: that command resolves the assignee via MS Graph even when
+    # a plain GUID is supplied, which resets the ARM MSAL token context.
+    if create_out=$(az role assignment create \
+          --assignee-object-id "${principal_id}" \
+          --assignee-principal-type ServicePrincipal \
+          --role "${role}" \
+          --scope "${scope}" \
+          --output none 2>&1); then
+      step "Assigned role: ${role}"
+      return 0
+    elif [[ "${create_out}" == *"RoleAssignmentExists"* ]]; then
+      step "Role already assigned: ${role}"
+      return 0
+    elif [[ "${create_out}" == *"MissingSubscription"* ]] && [[ ${attempt} -lt 3 ]]; then
+      warn "Attempt ${attempt}/3: MissingSubscription — re-establishing ARM context and retrying in $((attempt * 5))s..."
+      sleep $((attempt * 5))
+      continue
+    else
+      echo "${create_out}" >&2
+      die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}' Tenant='${TENANT_ID}'"
+    fi
+  done
 }
 
 # ── Step 1: Prerequisites check ────────────────────────────────────────────────
@@ -464,7 +471,26 @@ setup_oidc_app() {
     step "Found existing service principal (${CD_SP_ID})"
   fi
 
-  # Add federated credentials (idempotent) when GitHub repo is known
+  # ── Role assignments BEFORE federated-credential calls ───────────────────────
+  # ensure_federated_credential uses az ad (MS Graph) which shifts the Azure CLI
+  # token/endpoint context away from ARM.  Performing the ARM role assignments
+  # here — while the context is still clean from az login — avoids the
+  # MissingSubscription error that occurs when ARM calls follow MS Graph calls.
+
+  # Contributor: deploy and update Bicep-managed resources
+  ensure_role_assignment "${CD_SP_ID}" "Contributor" "${rg_scope}"
+
+  # User Access Administrator (scoped to the resource group):
+  # The Bicep template deploys a role assignment (AcrPull on the Container
+  # Registry for the Container App's system-assigned identity) via the
+  # acr-pull-role-assignment.bicep module.  Microsoft.Authorization/
+  # roleAssignments/write is required to create that assignment.
+  # User Access Administrator is narrower than Owner while still granting
+  # this specific permission.
+  ensure_role_assignment "${CD_SP_ID}" "User Access Administrator" "${rg_scope}"
+
+  # Add federated credentials (idempotent) when GitHub repo is known.
+  # These are pure MS Graph calls — keep them after ARM role assignments.
   if [[ -n "${GITHUB_REPO:-}" ]]; then
     # build-and-push job authenticates as the main branch workflow run
     ensure_federated_credential \
@@ -487,18 +513,6 @@ setup_oidc_app() {
     warn "GITHUB_REPO not set — federated credentials not created."
     warn "Add them manually after the GitHub repo is known (see docs/cd.md)."
   fi
-
-  # Contributor: deploy and update Bicep-managed resources
-  ensure_role_assignment "${CD_SP_ID}" "Contributor" "${rg_scope}"
-
-  # User Access Administrator (scoped to the resource group):
-  # The Bicep template deploys a role assignment (AcrPull on the Container
-  # Registry for the Container App's system-assigned identity) via the
-  # acr-pull-role-assignment.bicep module.  Microsoft.Authorization/
-  # roleAssignments/write is required to create that assignment.
-  # User Access Administrator is narrower than Owner while still granting
-  # this specific permission.
-  ensure_role_assignment "${CD_SP_ID}" "User Access Administrator" "${rg_scope}"
 
   step "CD service principal ready: ${CD_APP_ID}"
 }
