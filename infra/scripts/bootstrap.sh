@@ -282,6 +282,12 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
+  # Re-assert the active subscription before any RBAC call.  az ad * commands
+  # operate at tenant level and can clear the subscription context in some
+  # Azure CLI versions, causing subsequent az role assignment commands to fail
+  # with "MissingSubscription" even when --subscription is passed explicitly.
+  az account set --subscription "${SUBSCRIPTION_ID}" >/dev/null
+
   local existing
   existing=$(az role assignment list \
     --assignee "${principal_id}" \
