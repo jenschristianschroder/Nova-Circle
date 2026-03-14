@@ -282,17 +282,41 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
-  # Re-acquire the ARM access token after tenant-level MS Graph (az ad) calls.
-  # az ad * commands use the MS Graph endpoint and can leave the cached ARM
-  # token stale.  az account set makes an ARM API round-trip to validate the
-  # subscription and can itself return MissingSubscription in some az CLI
-  # versions.  az account get-access-token only contacts the auth endpoint
-  # (login.microsoftonline.com) — it never calls management.azure.com — so it
-  # cannot produce MissingSubscription and will always refresh the token for
-  # subsequent ARM calls (az role assignment list / create).
-  az account get-access-token \
-    --resource "https://management.azure.com" \
-    >/dev/null
+  # ── Diagnostic: show the current account context ──────────────────────────
+  # After az ad * (MS Graph) calls the active subscription can be cleared or
+  # switched in some az CLI versions.  Log the current context so we can see
+  # in the output whether it matches the expected subscription.
+  local ctx_sub ctx_tenant
+  ctx_sub=$(az account show --query id -o tsv 2>/dev/null || echo "<none>")
+  ctx_tenant=$(az account show --query tenantId -o tsv 2>/dev/null || echo "<none>")
+  step "DEBUG: account context — subscription='${ctx_sub}' tenant='${ctx_tenant}'"
+  step "DEBUG: expected           — subscription='${SUBSCRIPTION_ID}' tenant='${TENANT_ID}'"
+
+  # ── Re-establish ARM subscription context ─────────────────────────────────
+  # Three previous fixes all failed for the same underlying reason: after
+  # az ad * (MS Graph) operations the active subscription context can be
+  # cleared, so ANY command that relies on "current subscription" will fail
+  # with MissingSubscription.
+  #
+  # Root cause of fix-3 failure: az account get-access-token WITHOUT
+  # --subscription internally needs to look up which tenant owns the active
+  # subscription so it can acquire the right ARM token.  With a cleared active
+  # subscription that lookup constructs a request to ARM with an empty
+  # subscription segment → MissingSubscription.
+  #
+  # Fix: pass --subscription "${SUBSCRIPTION_ID}" explicitly so the CLI uses
+  # the correct subscription UUID directly, bypassing the broken active context.
+  # If even this fails (e.g. the subscription was purged from the local cache),
+  # fall back to az account set (non-fatal), then let the explicit --subscription
+  # flags on the role assignment commands below provide a last resort.
+  if ! az account get-access-token \
+       --subscription "${SUBSCRIPTION_ID}" \
+       --resource "https://management.azure.com" \
+       >/dev/null 2>&1; then
+    warn "ARM token refresh failed (subscription='${SUBSCRIPTION_ID}'). Falling back to az account set..."
+    az account set --subscription "${SUBSCRIPTION_ID}" --only-show-errors 2>/dev/null \
+      || warn "az account set also failed — proceeding with explicit --subscription on role assignment commands"
+  fi
 
   local existing
   existing=$(az role assignment list \
@@ -309,7 +333,8 @@ ensure_role_assignment() {
       --role "${role}" \
       --scope "${scope}" \
       --subscription "${SUBSCRIPTION_ID}" \
-      --output none
+      --output none \
+    || die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}'"
     step "Assigned role: ${role}"
   else
     step "Role already assigned: ${role}"
