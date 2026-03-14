@@ -283,8 +283,20 @@ ensure_role_assignment() {
   local scope="$3"
 
   # Re-establish the ARM subscription context after az ad (MS Graph) calls.
-  # az account set is a local profile update — no network call — so it should
-  # always succeed.  Capture stderr so any failure details are visible.
+  # az account set is a local profile update only — it does NOT refresh the
+  # MSAL ARM token.  After MS Graph calls the ARM token can be stale/absent,
+  # causing MissingSubscription even if account set succeeds.  We therefore
+  # force a fresh ARM token fetch via get-access-token first, then set the
+  # active subscription so subsequent CLI calls use the right context.
+  local token_err
+  if ! token_err=$(az account get-access-token \
+        --resource-type arm \
+        --subscription "${SUBSCRIPTION_ID}" \
+        --output none 2>&1); then
+    warn "az account get-access-token (ARM) failed for subscription '${SUBSCRIPTION_ID}' — will still attempt role assignment"
+    warn "get-access-token error: ${token_err}"
+  fi
+
   local account_set_err
   if ! account_set_err=$(az account set --subscription "${SUBSCRIPTION_ID}" 2>&1); then
     warn "az account set --subscription '${SUBSCRIPTION_ID}' failed — will still attempt role assignment"
