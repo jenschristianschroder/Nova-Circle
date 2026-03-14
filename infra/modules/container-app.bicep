@@ -76,7 +76,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       // registry credential is needed and including the entry would cause ARM to
       // validate ACR access before the AcrPull role assignment is in place,
       // which blocks Container App provisioning.
-      registries: startsWith(containerImage, '${registryLoginServer}/')
+      registries: useAcr
         ? [
             {
               server: registryLoginServer

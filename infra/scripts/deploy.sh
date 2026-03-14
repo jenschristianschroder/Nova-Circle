@@ -8,7 +8,7 @@
 #     --resource-group rg-nova-circle-dev \
 #     [--location swedencentral] \
 #     [--environment dev] \
-#     [--image <registry>/nova-circle:<tag>] \
+#     [--image <registry>/nova-circle-api:<tag>] \
 #     [--frontend-image <registry>/nova-circle-client:<tag>] \
 #     [--what-if] \
 #     [--complete]    # ⚠ Complete mode: deletes resources not in template

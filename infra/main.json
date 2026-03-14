@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "16988870789316742432"
+      "templateHash": "11444979935202053206"
     }
   },
   "parameters": {
@@ -203,7 +203,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "7043859105873129004"
+              "templateHash": "17473113702902854448"
             }
           },
           "parameters": {
@@ -238,13 +238,6 @@
             }
           ],
           "outputs": {
-            "registryName": {
-              "type": "string",
-              "metadata": {
-                "description": "Container Registry resource name (globally unique, alphanumeric)"
-              },
-              "value": "[variables('registryName')]"
-            },
             "loginServer": {
               "type": "string",
               "metadata": {
@@ -535,7 +528,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "12327330575012031627"
+              "templateHash": "15946207844922129133"
             }
           },
           "parameters": {
@@ -634,7 +627,7 @@
                       "value": "[parameters('databaseUrl')]"
                     }
                   ],
-                  "registries": "[if(startsWith(parameters('containerImage'), format('{0}/', parameters('registryLoginServer'))), createArray(createObject('server', parameters('registryLoginServer'), 'identity', 'system')), createArray())]"
+                  "registries": "[if(variables('useAcr'), createArray(createObject('server', parameters('registryLoginServer'), 'identity', 'system')), createArray())]"
                 },
                 "template": {
                   "containers": [
