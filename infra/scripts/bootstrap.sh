@@ -282,62 +282,32 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
-  # ── Diagnostic: show the current account context ──────────────────────────
-  # After az ad * (MS Graph) calls the active subscription can be cleared or
-  # switched in some az CLI versions.  Log the current context so we can see
-  # in the output whether it matches the expected subscription.
-  local ctx_sub ctx_tenant
-  ctx_sub=$(az account show --query id -o tsv 2>/dev/null || echo "<none>")
-  ctx_tenant=$(az account show --query tenantId -o tsv 2>/dev/null || echo "<none>")
-  step "DEBUG: account context — subscription='${ctx_sub}' tenant='${ctx_tenant}'"
-  step "DEBUG: expected           — subscription='${SUBSCRIPTION_ID}' tenant='${TENANT_ID}'"
+  # Re-establish the ARM subscription context after az ad (MS Graph) calls.
+  # az account set is a local profile update — no network call — so it should
+  # always succeed.  Log a warning if it doesn't so operators can investigate.
+  az account set --subscription "${SUBSCRIPTION_ID}" --only-show-errors 2>/dev/null \
+    || warn "az account set --subscription '${SUBSCRIPTION_ID}' failed — will still attempt role assignment"
 
-  # ── Re-establish ARM subscription context ─────────────────────────────────
-  # Three previous fixes all failed for the same underlying reason: after
-  # az ad * (MS Graph) operations the active subscription context can be
-  # cleared, so ANY command that relies on "current subscription" will fail
-  # with MissingSubscription.
-  #
-  # Root cause of fix-3 failure: az account get-access-token WITHOUT
-  # --subscription internally needs to look up which tenant owns the active
-  # subscription so it can acquire the right ARM token.  With a cleared active
-  # subscription that lookup constructs a request to ARM with an empty
-  # subscription segment → MissingSubscription.
-  #
-  # Fix: pass --subscription "${SUBSCRIPTION_ID}" explicitly so the CLI uses
-  # the correct subscription UUID directly, bypassing the broken active context.
-  # If even this fails (e.g. the subscription was purged from the local cache),
-  # fall back to az account set (non-fatal), then let the explicit --subscription
-  # flags on the role assignment commands below provide a last resort.
-  if ! az account get-access-token \
-       --subscription "${SUBSCRIPTION_ID}" \
-       --resource "https://management.azure.com" \
-       >/dev/null 2>&1; then
-    warn "ARM token refresh failed (subscription='${SUBSCRIPTION_ID}'). Falling back to az account set..."
-    az account set --subscription "${SUBSCRIPTION_ID}" --only-show-errors 2>/dev/null \
-      || warn "az account set also failed — proceeding with explicit --subscription on role assignment commands"
-  fi
-
-  local existing
-  existing=$(az role assignment list \
-    --assignee "${principal_id}" \
-    --role "${role}" \
-    --scope "${scope}" \
-    --subscription "${SUBSCRIPTION_ID}" \
-    --query "[0].id" -o tsv 2>/dev/null || echo "")
-
-  if [[ -z "${existing}" || "${existing}" == "None" ]]; then
-    az role assignment create \
-      --assignee-object-id "${principal_id}" \
-      --assignee-principal-type ServicePrincipal \
-      --role "${role}" \
-      --scope "${scope}" \
-      --subscription "${SUBSCRIPTION_ID}" \
-      --output none \
-    || die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}'"
+  # Attempt the assignment directly and let Azure signal RoleAssignmentExists
+  # for idempotency.  We intentionally do NOT use "az role assignment list
+  # --assignee" here: that command resolves the assignee via MS Graph even when
+  # a plain GUID is supplied, which resets the ARM MSAL token context (the root
+  # cause of the repeated MissingSubscription failures).  By going straight to
+  # "create" and catching the well-known exists error we avoid the Graph call
+  # entirely and keep the ARM token context clean.
+  local create_out
+  if create_out=$(az role assignment create \
+        --assignee-object-id "${principal_id}" \
+        --assignee-principal-type ServicePrincipal \
+        --role "${role}" \
+        --scope "${scope}" \
+        --output none 2>&1); then
     step "Assigned role: ${role}"
-  else
+  elif [[ "${create_out}" == *"RoleAssignmentExists"* ]]; then
     step "Role already assigned: ${role}"
+  else
+    echo "${create_out}" >&2
+    die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'"
   fi
 }
 
