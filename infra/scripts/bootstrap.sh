@@ -282,11 +282,17 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
-  # Re-assert the active subscription before any RBAC call.  az ad * commands
-  # operate at tenant level and can clear the subscription context in some
-  # Azure CLI versions, causing subsequent az role assignment commands to fail
-  # with "MissingSubscription" even when --subscription is passed explicitly.
-  az account set --subscription "${SUBSCRIPTION_ID}" >/dev/null
+  # Re-acquire the ARM access token after tenant-level MS Graph (az ad) calls.
+  # az ad * commands use the MS Graph endpoint and can leave the cached ARM
+  # token stale.  az account set makes an ARM API round-trip to validate the
+  # subscription and can itself return MissingSubscription in some az CLI
+  # versions.  az account get-access-token only contacts the auth endpoint
+  # (login.microsoftonline.com) — it never calls management.azure.com — so it
+  # cannot produce MissingSubscription and will always refresh the token for
+  # subsequent ARM calls (az role assignment list / create).
+  az account get-access-token \
+    --resource "https://management.azure.com" \
+    >/dev/null
 
   local existing
   existing=$(az role assignment list \
