@@ -193,7 +193,7 @@ prompt_if_empty() {
   local var_name="$1"
   local prompt_text="$2"
   local default_val="${3:-}"
-  local current_val="${!var_name}"
+  local current_val="${!var_name:-}"
 
   [[ -n "${current_val}" ]] && return
 
@@ -226,7 +226,7 @@ prompt_if_empty() {
 prompt_secret() {
   local var_name="$1"
   local prompt_text="$2"
-  local current_val="${!var_name}"
+  local current_val="${!var_name:-}"
 
   [[ -n "${current_val}" ]] && return
 
