@@ -284,9 +284,12 @@ ensure_role_assignment() {
 
   # Re-establish the ARM subscription context after az ad (MS Graph) calls.
   # az account set is a local profile update — no network call — so it should
-  # always succeed.  Log a warning if it doesn't so operators can investigate.
-  az account set --subscription "${SUBSCRIPTION_ID}" --only-show-errors 2>/dev/null \
-    || warn "az account set --subscription '${SUBSCRIPTION_ID}' failed — will still attempt role assignment"
+  # always succeed.  Capture stderr so any failure details are visible.
+  local account_set_err
+  if ! account_set_err=$(az account set --subscription "${SUBSCRIPTION_ID}" 2>&1); then
+    warn "az account set --subscription '${SUBSCRIPTION_ID}' failed — will still attempt role assignment"
+    warn "az account set error: ${account_set_err}"
+  fi
 
   # Attempt the assignment directly and let Azure signal RoleAssignmentExists
   # for idempotency.  We intentionally do NOT use "az role assignment list
@@ -307,7 +310,7 @@ ensure_role_assignment() {
     step "Role already assigned: ${role}"
   else
     echo "${create_out}" >&2
-    die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'"
+    die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}' Tenant='${TENANT_ID}'"
   fi
 }
 
