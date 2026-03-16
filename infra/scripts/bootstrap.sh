@@ -452,6 +452,8 @@ collect_parameters() {
 
   if [[ "${SKIP_GITHUB}" == "false" ]]; then
     prompt_if_empty GITHUB_REPO "GitHub repository (owner/repo)" "${GITHUB_REPO}"
+    # Strip any .git suffix the user may have included (e.g. from copy-pasting a clone URL)
+    GITHUB_REPO="${GITHUB_REPO%.git}"
   fi
 
   if [[ "${SKIP_INFRA}" == "false" ]] || [[ "${SKIP_MIGRATIONS}" == "false" ]]; then
