@@ -298,10 +298,9 @@ ensure_role_assignment() {
       ;;
   esac
 
-  # The roleDefinitionId in the role-assignment body must be the subscription-scoped
-  # full resource ID.  ARM will reject the root-scoped path (/providers/...) when the
-  # assignment scope is subscription or resource-group level.
-  local role_def_id="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Authorization/roleDefinitions/${role_def_guid}"
+  # Built-in role definitions are global (tenant-root scope).  Use the root-scoped
+  # path so ARM can always resolve them regardless of where the assignment is made.
+  local role_def_id="/providers/Microsoft.Authorization/roleDefinitions/${role_def_guid}"
 
   # Derive a deterministic UUID for the role-assignment resource name so that
   # repeated bootstrap runs with the same arguments are idempotent.
@@ -321,7 +320,7 @@ ensure_role_assignment() {
     # Obtain a fresh ARM bearer token using the explicit tenant ID.
     # After az ad (MS Graph) calls the CLI's internal MSAL context drifts;
     # using --tenant bypasses the broken subscription→tenant resolution.
-    # We capture the token value so we can pass it directly to az rest,
+    # We capture the token value so we can pass it directly to curl,
     # completely bypassing the CLI's broken MSAL context for this PUT call.
     arm_token=$(az account get-access-token \
       --resource "https://management.azure.com/" \
@@ -334,17 +333,24 @@ ensure_role_assignment() {
       continue
     fi
 
-    # Use az rest with the explicit bearer token and --skip-authorization-header
-    # so the CLI does NOT inject its own (stale/broken) MSAL token.
-    # This is the only approach that reliably avoids MissingSubscription after
-    # az ad MS Graph calls have contaminated the CLI's ARM token context.
-    if create_out=$(az rest \
-          --method PUT \
-          --url "${ra_url}" \
-          --body "${ra_body}" \
-          --skip-authorization-header \
-          --headers "Authorization=Bearer ${arm_token}" \
-          2>&1); then
+    # Use curl instead of az rest for the PUT call.
+    # az rest --skip-authorization-header --headers "Authorization=Bearer TOKEN"
+    # splits header values on spaces, breaking the "Bearer <token>" value and
+    # causing ARM to receive a malformed or absent auth token.  ARM then returns
+    # a semantic 400 (RoleDefinitionDoesNotExist) rather than 401.
+    # curl has unambiguous -H handling and completely bypasses az CLI's MSAL context.
+    local tmp_response_file http_code
+    tmp_response_file=$(mktemp /tmp/ra_resp_XXXXXX.json)
+    http_code=$(curl -s \
+          -o "${tmp_response_file}" \
+          -w "%{http_code}" \
+          -X PUT \
+          -H "Authorization: Bearer ${arm_token}" \
+          -H "Content-Type: application/json" \
+          -d "${ra_body}" \
+          "${ra_url}" 2>&1) || http_code="000"
+    create_out=$(cat "${tmp_response_file}"; rm -f "${tmp_response_file}")
+    if [[ "${http_code}" =~ ^2[0-9][0-9]$ ]]; then
       step "Assigned role: ${role}"
       return 0
     elif [[ "${create_out}" == *"RoleAssignmentExists"* ]]; then
@@ -368,6 +374,10 @@ check_prerequisites() {
   command -v az >/dev/null 2>&1 \
     || die "Azure CLI (az) is not installed. See https://docs.microsoft.com/cli/azure/install-azure-cli"
   step "az CLI: $(az version --query '"azure-cli"' -o tsv 2>/dev/null || echo 'ok')"
+
+  command -v curl >/dev/null 2>&1 \
+    || die "curl is not installed. It is required for ARM role assignment calls."
+  step "curl: $(curl --version 2>/dev/null | head -1)"
 
   az account show >/dev/null 2>&1 \
     || die "Not authenticated to Azure. Run: az login"
