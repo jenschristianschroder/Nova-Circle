@@ -1,13 +1,13 @@
 name: CD
 
-# Runs after the CI workflow passes on the main branch.
+# Runs after the CI workflow passes on the main or dev branch.
 # Only deploys when every CI gate (lint, typecheck, all tests, migration-check,
 # build) has succeeded.
 on:
   workflow_run:
     workflows: ['CI']
     types: [completed]
-    branches: [main]
+    branches: [main, dev]
 
 # OIDC: request a short-lived Azure token — no static service-principal secrets.
 permissions:

@@ -561,6 +561,12 @@ setup_oidc_app() {
       "nova-circle-cd-main" \
       "repo:${GITHUB_REPO}:ref:refs/heads/main"
 
+    # build-and-push job authenticates as the dev branch workflow run
+    ensure_federated_credential \
+      "${CD_APP_OBJECT_ID}" \
+      "nova-circle-cd-dev" \
+      "repo:${GITHUB_REPO}:ref:refs/heads/dev"
+
     # deploy job authenticates via the 'production' GitHub environment
     ensure_federated_credential \
       "${CD_APP_OBJECT_ID}" \
