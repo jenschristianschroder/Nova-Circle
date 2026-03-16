@@ -752,7 +752,18 @@ run_migrations() {
   (cd "${REPO_ROOT}" && npm ci)
 
   step "Running: npm run migrate"
-  (cd "${REPO_ROOT}" && DATABASE_URL="${DATABASE_URL}" npm run migrate)
+  local migrate_attempt=0
+  while true; do
+    migrate_attempt=$((migrate_attempt + 1))
+    if (cd "${REPO_ROOT}" && DATABASE_URL="${DATABASE_URL}" npm run migrate); then
+      break
+    fi
+    if [[ $migrate_attempt -ge 5 ]]; then
+      die "Migration failed after ${migrate_attempt} attempts. Verify PostgreSQL is accessible from IP ${runner_ip} and that the server '${PG_SERVER_NAME}' exists."
+    fi
+    warn "Migration attempt ${migrate_attempt}/5 failed — firewall rule may still be propagating. Retrying in 30s..."
+    sleep 30
+  done
   step "Migrations complete."
 
   # Remove the rule immediately on success (the EXIT trap handles failure)
