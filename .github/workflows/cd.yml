@@ -1,13 +1,13 @@
 name: CD
 
-# Runs after the CI workflow passes on the main branch.
+# Runs after the CI workflow passes on the main or dev branch.
 # Only deploys when every CI gate (lint, typecheck, all tests, migration-check,
 # build) has succeeded.
 on:
   workflow_run:
     workflows: ['CI']
     types: [completed]
-    branches: [main]
+    branches: [main, dev]
 
 # OIDC: request a short-lived Azure token — no static service-principal secrets.
 permissions:
@@ -57,23 +57,41 @@ jobs:
         run: |
           REGISTRY="${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}"
           TAG="${{ steps.set-tag.outputs.tag }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          # Sanitise branch name: replace characters invalid in Docker tags with hyphens.
+          SAFE_BRANCH="${BRANCH//[^a-zA-Z0-9._-]/-}"
+          MOVING_TAG="latest-${SAFE_BRANCH}"
           docker build \
             --tag "${REGISTRY}/nova-circle-api:${TAG}" \
-            --tag "${REGISTRY}/nova-circle-api:latest" \
+            --tag "${REGISTRY}/nova-circle-api:${MOVING_TAG}" \
             .
           docker push "${REGISTRY}/nova-circle-api:${TAG}"
-          docker push "${REGISTRY}/nova-circle-api:latest"
+          docker push "${REGISTRY}/nova-circle-api:${MOVING_TAG}"
+          # Only overwrite :latest from main so dev builds don't clobber main artifacts.
+          if [[ "${BRANCH}" == "main" ]]; then
+            docker tag "${REGISTRY}/nova-circle-api:${TAG}" "${REGISTRY}/nova-circle-api:latest"
+            docker push "${REGISTRY}/nova-circle-api:latest"
+          fi
 
       - name: Build and push frontend image
         run: |
           REGISTRY="${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}"
           TAG="${{ steps.set-tag.outputs.tag }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          # Sanitise branch name: replace characters invalid in Docker tags with hyphens.
+          SAFE_BRANCH="${BRANCH//[^a-zA-Z0-9._-]/-}"
+          MOVING_TAG="latest-${SAFE_BRANCH}"
           docker build \
             --tag "${REGISTRY}/nova-circle-client:${TAG}" \
-            --tag "${REGISTRY}/nova-circle-client:latest" \
+            --tag "${REGISTRY}/nova-circle-client:${MOVING_TAG}" \
             client/
           docker push "${REGISTRY}/nova-circle-client:${TAG}"
-          docker push "${REGISTRY}/nova-circle-client:latest"
+          docker push "${REGISTRY}/nova-circle-client:${MOVING_TAG}"
+          # Only overwrite :latest from main so dev builds don't clobber main artifacts.
+          if [[ "${BRANCH}" == "main" ]]; then
+            docker tag "${REGISTRY}/nova-circle-client:${TAG}" "${REGISTRY}/nova-circle-client:latest"
+            docker push "${REGISTRY}/nova-circle-client:latest"
+          fi
 
   # ────────────────────────────────────────────────────────────────────────────
   # Deploy infrastructure, run migrations, and smoke-test the live API.
