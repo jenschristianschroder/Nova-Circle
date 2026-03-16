@@ -740,6 +740,9 @@ run_migrations() {
     --output none
   PG_FIREWALL_ADDED=true
 
+  step "Installing Node dependencies..."
+  (cd "${REPO_ROOT}" && npm ci)
+
   step "Running: npm run migrate"
   (cd "${REPO_ROOT}" && DATABASE_URL="${DATABASE_URL}" npm run migrate)
   step "Migrations complete."
