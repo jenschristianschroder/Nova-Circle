@@ -752,20 +752,11 @@ run_migrations() {
     || die "Could not determine current IP address for PostgreSQL firewall rule.")
 
   step "Opening PostgreSQL firewall for IP: ${runner_ip}"
-  # Ensure public network access is enabled — firewall rules have no effect when it is disabled.
-  local public_access
-  public_access=$(az postgres flexible-server show \
-    --resource-group "${RESOURCE_GROUP}" \
-    --name "${PG_SERVER_NAME}" \
-    --query "network.publicNetworkAccess" -o tsv 2>/dev/null || echo "Enabled")
-  if [[ "${public_access,,}" != "enabled" ]]; then
-    step "Enabling public network access on ${PG_SERVER_NAME} (currently: ${public_access})..."
-    az postgres flexible-server update \
-      --resource-group "${RESOURCE_GROUP}" \
-      --name "${PG_SERVER_NAME}" \
-      --public-access Enabled \
-      --output none
-  fi
+  # Note: public network access is controlled by Bicep (always Enabled so that
+  # firewall rules take effect). Bootstrap must not change that setting — only
+  # the AllowAllAzureServicesAndResourcesWithinAzureIps rule (0.0.0.0/0.0.0.0)
+  # persists after this script completes.  The bootstrap-runner rule is
+  # temporary and is always removed before the script exits.
   az postgres flexible-server firewall-rule create \
     --resource-group "${RESOURCE_GROUP}" \
     --name "${PG_SERVER_NAME}" \
@@ -774,6 +765,9 @@ run_migrations() {
     --end-ip-address "${runner_ip}" \
     --output none
   PG_FIREWALL_ADDED=true
+
+  step "Waiting 30s for firewall rule to propagate..."
+  sleep 30
 
   step "Installing Node dependencies..."
   (cd "${REPO_ROOT}" && npm ci)
