@@ -163,6 +163,7 @@ CD_APP_OBJECT_ID=""
 CD_SP_ID=""
 API_APP_ID=""
 REGISTRY_LOGIN_SERVER=""
+CLIENT_URL=""
 DATABASE_URL=""
 
 # Firewall cleanup state
@@ -690,15 +691,21 @@ deploy_infrastructure() {
       --name "${deployment_name}" \
       --query "properties.outputs.apiUrl.value" \
       -o tsv 2>/dev/null || echo "")
+    CLIENT_URL=$(az deployment group show \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${deployment_name}" \
+      --query "properties.outputs.clientUrl.value" \
+      -o tsv 2>/dev/null || echo "")
     pg_fqdn=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.postgresFqdn.value" \
       -o tsv 2>/dev/null || echo "")
 
-    step "ACR:       ${REGISTRY_LOGIN_SERVER}"
-    step "API URL:   ${api_url}"
-    step "PostgreSQL: ${pg_fqdn}"
+    step "ACR:         ${REGISTRY_LOGIN_SERVER}"
+    step "API URL:     ${api_url}"
+    step "Client URL:  ${CLIENT_URL}"
+    step "PostgreSQL:  ${pg_fqdn}"
   fi
 }
 
@@ -811,6 +818,37 @@ configure_github() {
     DATABASE_URL="postgresql://ncadmin:${POSTGRES_ADMIN_PASSWORD:-REPLACE_ME}@${pg_fqdn}:5432/nova_circle?sslmode=require"
   fi
 
+  # ── Resolve CORS_ORIGIN ────────────────────────────────────────────────────
+  # 1. Use value passed via --cors-origin or env var (already in CORS_ORIGIN).
+  # 2. Fall back to the clientUrl captured from the Bicep deployment output.
+  # 3. Fall back to querying the frontend Container App FQDN directly from Azure.
+  # 4. Prompt explicitly if still unknown.
+  if [[ -z "${CORS_ORIGIN:-}" && -n "${CLIENT_URL:-}" ]]; then
+    CORS_ORIGIN="${CLIENT_URL}"
+    step "CORS_ORIGIN resolved from deployment output: ${CORS_ORIGIN}"
+  fi
+
+  if [[ -z "${CORS_ORIGIN:-}" ]]; then
+    local frontend_app_name="ca-nova-circle-client-${ENVIRONMENT}"
+    local detected_fqdn
+    detected_fqdn=$(az containerapp show \
+      --name "${frontend_app_name}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "properties.configuration.ingress.fqdn" \
+      -o tsv 2>/dev/null || echo "")
+    if [[ -n "${detected_fqdn}" ]]; then
+      CORS_ORIGIN="https://${detected_fqdn}"
+      step "CORS_ORIGIN resolved from Container App ingress: ${CORS_ORIGIN}"
+    fi
+  fi
+
+  if [[ -z "${CORS_ORIGIN:-}" ]]; then
+    warn "CORS_ORIGIN could not be determined automatically."
+    warn "This is the frontend URL that the API will accept cross-origin requests from."
+    warn "Example: https://ca-nova-circle-client-${ENVIRONMENT}.<region>.azurecontainerapps.io"
+    read -r -p "  Enter CORS_ORIGIN (frontend URL): " CORS_ORIGIN
+  fi
+
   # ── Repository variables (non-secret, visible in workflow logs) ────────────
   step "Setting repository variables..."
   gh variable set AZURE_CLIENT_ID             --repo "${repo}" --body "${CD_APP_ID:-}"
@@ -822,7 +860,11 @@ configure_github() {
   gh variable set AZURE_REGISTRY_LOGIN_SERVER --repo "${repo}" --body "${REGISTRY_LOGIN_SERVER:-}"
   gh variable set API_AZURE_TENANT_ID         --repo "${repo}" --body "${TENANT_ID}"
   gh variable set API_AZURE_CLIENT_ID         --repo "${repo}" --body "${API_APP_ID:-}"
-  gh variable set CORS_ORIGIN                 --repo "${repo}" --body "${CORS_ORIGIN:-}"
+  if [[ -n "${CORS_ORIGIN:-}" ]]; then
+    gh variable set CORS_ORIGIN               --repo "${repo}" --body "${CORS_ORIGIN}"
+  else
+    warn "Skipping CORS_ORIGIN variable — value is empty. Set it manually in GitHub repository variables."
+  fi
 
   # ── Repository secrets (encrypted at rest) ────────────────────────────────
   step "Setting repository secrets..."
