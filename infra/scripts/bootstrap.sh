@@ -446,9 +446,11 @@ collect_parameters() {
     prompt_if_empty GITHUB_REPO "GitHub repository (owner/repo)" "${GITHUB_REPO}"
   fi
 
-  if [[ "${WHAT_IF}" == "false" ]] \
-     && { [[ "${SKIP_INFRA}" == "false" ]] || [[ "${SKIP_MIGRATIONS}" == "false" ]]; }; then
+  if [[ "${SKIP_INFRA}" == "false" ]] || [[ "${SKIP_MIGRATIONS}" == "false" ]]; then
     prompt_secret POSTGRES_ADMIN_PASSWORD "PostgreSQL admin password"
+    # Export so child processes (az bicep compiler) can read the env variable.
+    # prompt_secret uses printf -v which does not export; export is required here.
+    export POSTGRES_ADMIN_PASSWORD
   fi
 
   echo ""
@@ -614,7 +616,9 @@ setup_api_app() {
 
 # ── Step 6: Deploy Bicep infrastructure ────────────────────────────────────────
 deploy_infrastructure() {
-  info "Deploying Bicep infrastructure${WHAT_IF:+ (what-if — no changes applied)}..."
+  local mode_label=""
+  [[ "${WHAT_IF}" == "true" ]] && mode_label=" (what-if — no changes applied)"
+  info "Deploying Bicep infrastructure${mode_label}..."
 
   local deployment_name="nova-circle-${ENVIRONMENT}"
   local optional_params=()
