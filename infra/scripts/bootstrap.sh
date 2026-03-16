@@ -298,9 +298,12 @@ ensure_role_assignment() {
       ;;
   esac
 
-  # Built-in role definitions are global (tenant-root scope).  Use the root-scoped
-  # path so ARM can always resolve them regardless of where the assignment is made.
-  local role_def_id="/providers/Microsoft.Authorization/roleDefinitions/${role_def_guid}"
+  # The roleDefinitionId in the role-assignment body must be subscription-scoped.
+  # ARM cannot resolve the root-scoped /providers/... path when the assignment
+  # scope is at subscription or resource-group level — it returns
+  # RoleDefinitionDoesNotExist.  The subscription-scoped path is what the
+  # Azure ARM REST API documents as the correct format.
+  local role_def_id="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Authorization/roleDefinitions/${role_def_guid}"
 
   # Derive a deterministic UUID for the role-assignment resource name so that
   # repeated bootstrap runs with the same arguments are idempotent.
