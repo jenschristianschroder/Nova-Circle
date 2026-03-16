@@ -44,6 +44,9 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
       activeDirectoryAuth: 'Disabled'
       passwordAuth: 'Enabled'
     }
+    network: {
+      publicNetworkAccess: 'Enabled'
+    }
   }
 }
 

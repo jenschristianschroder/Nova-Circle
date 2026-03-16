@@ -739,6 +739,20 @@ run_migrations() {
     || die "Could not determine current IP address for PostgreSQL firewall rule.")
 
   step "Opening PostgreSQL firewall for IP: ${runner_ip}"
+  # Ensure public network access is enabled — firewall rules have no effect when it is disabled.
+  local public_access
+  public_access=$(az postgres flexible-server show \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "${PG_SERVER_NAME}" \
+    --query "network.publicNetworkAccess" -o tsv 2>/dev/null || echo "Enabled")
+  if [[ "${public_access,,}" != "enabled" ]]; then
+    step "Enabling public network access on ${PG_SERVER_NAME} (currently: ${public_access})..."
+    az postgres flexible-server update \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${PG_SERVER_NAME}" \
+      --public-access Enabled \
+      --output none
+  fi
   az postgres flexible-server firewall-rule create \
     --resource-group "${RESOURCE_GROUP}" \
     --name "${PG_SERVER_NAME}" \
