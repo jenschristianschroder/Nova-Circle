@@ -291,7 +291,7 @@ ensure_role_assignment() {
   local role_def_guid
   case "${role}" in
     "Contributor")               role_def_guid="b24988ac-6180-42a0-ab88-20f7382dd24c" ;;
-    "User Access Administrator") role_def_guid="18d7d88d-d35e-4fb5-a5c3-7773c20a72d8" ;;
+    "User Access Administrator") role_def_guid="18d7d88d-d35e-4fb5-a5c3-7773c20a72d9" ;;
     "AcrPush")                   role_def_guid="8311e382-0749-4cb8-b61a-304f252e45ec" ;;
     *)
       die "Unknown role '${role}'. Add its Azure built-in role GUID to ensure_role_assignment."
