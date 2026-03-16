@@ -251,18 +251,23 @@ prompt_secret() {
   done
 }
 
-# ── Helper: ensure a federated credential exists (idempotent) ─────────────────
+# ── Helper: ensure a federated credential exists with the correct subject ──────
+# Idempotent: creates if missing, updates if the subject has drifted.
 ensure_federated_credential() {
   local app_object_id="$1"
   local cred_name="$2"
   local subject="$3"
 
-  local existing
-  existing=$(az ad app federated-credential list \
+  # Query the credential ID and current subject in two separate list calls.
+  local existing_id existing_subject
+  existing_id=$(az ad app federated-credential list \
     --id "${app_object_id}" \
-    --query "[?name=='${cred_name}'].name" -o tsv 2>/dev/null || echo "")
+    --query "[?name=='${cred_name}'].id | [0]" -o tsv 2>/dev/null || echo "")
+  existing_subject=$(az ad app federated-credential list \
+    --id "${app_object_id}" \
+    --query "[?name=='${cred_name}'].subject | [0]" -o tsv 2>/dev/null || echo "")
 
-  if [[ -z "${existing}" ]]; then
+  if [[ -z "${existing_id}" ]]; then
     local create_out create_rc
     create_out=$(az ad app federated-credential create \
       --id "${app_object_id}" \
@@ -280,8 +285,20 @@ ensure_federated_credential() {
     else
       step "Created federated credential: ${cred_name}"
     fi
+  elif [[ "${existing_subject}" != "${subject}" ]]; then
+    # Subject has drifted — update the credential to the expected subject.
+    az ad app federated-credential update \
+      --id "${app_object_id}" \
+      --federated-credential-id "${existing_id}" \
+      --parameters "{
+        \"name\": \"${cred_name}\",
+        \"issuer\": \"https://token.actions.githubusercontent.com\",
+        \"subject\": \"${subject}\",
+        \"audiences\": [\"api://AzureADTokenExchange\"]
+      }" --output none
+    step "Updated federated credential subject: ${cred_name}"
   else
-    step "Federated credential already exists: ${cred_name}"
+    step "Federated credential already exists (subject OK): ${cred_name}"
   fi
 }
 
