@@ -262,15 +262,23 @@ ensure_federated_credential() {
     --query "[?name=='${cred_name}'].name" -o tsv 2>/dev/null || echo "")
 
   if [[ -z "${existing}" ]]; then
-    az ad app federated-credential create \
+    local create_out create_rc
+    create_out=$(az ad app federated-credential create \
       --id "${app_object_id}" \
       --parameters "{
         \"name\": \"${cred_name}\",
         \"issuer\": \"https://token.actions.githubusercontent.com\",
         \"subject\": \"${subject}\",
         \"audiences\": [\"api://AzureADTokenExchange\"]
-      }" --output none
-    step "Created federated credential: ${cred_name}"
+      }" --output none 2>&1) || create_rc=$?
+    if [[ -n "${create_rc:-}" ]] && [[ "${create_out}" == *"already exists"* ]]; then
+      step "Federated credential already exists: ${cred_name}"
+    elif [[ -n "${create_rc:-}" ]]; then
+      echo "${create_out}" >&2
+      die "Failed to create federated credential '${cred_name}' for app '${app_object_id}'"
+    else
+      step "Created federated credential: ${cred_name}"
+    fi
   else
     step "Federated credential already exists: ${cred_name}"
   fi
