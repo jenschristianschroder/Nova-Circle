@@ -37,9 +37,11 @@ param postgresAdminUser = 'ncadmin'
 
 // Secret read from the POSTGRES_ADMIN_PASSWORD environment variable.
 // Never hardcode this value — set the env var before deploying.
-// Bicep raises a compile-time error if the variable is absent; ARM additionally
-// rejects an empty string thanks to the @minLength(1) constraint in main.bicep.
-param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
+// The empty-string default prevents a BCP427 compile error when bootstrap.sh
+// (or CI) supplies the value via a --parameters CLI override instead.
+// ARM additionally rejects an empty string thanks to the @minLength(1)
+// constraint in main.bicep.
+param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD', '')
 
 // Azure Entra ID — leave empty to start without JWT validation.
 // Supply real values as deploy-time overrides (--parameters) or via cd.yml vars.
