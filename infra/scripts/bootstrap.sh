@@ -320,14 +320,23 @@ ensure_role_assignment() {
 
   local attempt arm_token create_out
   for attempt in 1 2 3; do
-    # Obtain a fresh ARM bearer token using the explicit tenant ID.
-    # After az ad (MS Graph) calls the CLI's internal MSAL context drifts;
-    # using --tenant bypasses the broken subscription→tenant resolution.
-    # We capture the token value so we can pass it directly to curl,
-    # completely bypassing the CLI's broken MSAL context for this PUT call.
+    # Restore subscription context before getting the ARM token.
+    # After az ad (MS Graph) calls the CLI's internal MSAL context drifts —
+    # the subscription-to-tenant mapping can be lost, causing the token
+    # obtained with --tenant to lack proper subscription context.  ARM then
+    # cannot resolve the subscription-scoped roleDefinitionId and returns
+    # RoleDefinitionDoesNotExist instead of the expected 2xx.
+    #
+    # Fix: re-anchor the subscription with az account set, then request the
+    # token with --subscription.  The CLI resolves the tenant from the
+    # subscription configuration, giving ARM a token it can fully validate.
+    #
+    # Note: --subscription and --tenant cannot be used together; use
+    # --subscription alone so the CLI derives the tenant automatically.
+    az account set --subscription "${SUBSCRIPTION_ID}" >/dev/null 2>&1 || true
     arm_token=$(az account get-access-token \
       --resource "https://management.azure.com/" \
-      --tenant "${TENANT_ID}" \
+      --subscription "${SUBSCRIPTION_ID}" \
       --query accessToken -o tsv 2>/dev/null) || arm_token=""
 
     if [[ -z "${arm_token}" ]]; then
