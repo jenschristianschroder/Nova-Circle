@@ -589,7 +589,6 @@ setup_api_app() {
   info "Setting up API app registration (JWT validation)..."
 
   local app_display_name="nova-circle-api-${ENVIRONMENT}"
-  local app_id_uri="api://nova-circle-${ENVIRONMENT}"
 
   # Find or create
   API_APP_ID=$(az ad app list \
@@ -604,7 +603,20 @@ setup_api_app() {
     step "Found existing app registration: ${app_display_name} (${API_APP_ID})"
   fi
 
-  # Set the Application ID URI so tokens can be requested for this audience
+  # Set requestedAccessTokenVersion=2 (v2 tokens — best practice and required by
+  # some tenants before a friendly identifier URI can be set).
+  az ad app update \
+    --id "${API_APP_ID}" \
+    --set "api.requestedAccessTokenVersion=2" \
+    --output none 2>/dev/null \
+    || true
+
+  # Use api://{APP_ID} as the identifier URI.  This format is guaranteed to be
+  # accepted under ANY tenant policy because it contains the app's own client ID.
+  # A friendly name (e.g. api://nova-circle-dev) requires the tenant to have a
+  # verified domain or the requestedAccessTokenVersion to already be 2.
+  local app_id_uri="api://${API_APP_ID}"
+
   local current_uri
   current_uri=$(az ad app show \
     --id "${API_APP_ID}" \
@@ -613,8 +625,9 @@ setup_api_app() {
     step "Setting Application ID URI: ${app_id_uri}"
     az ad app update \
       --id "${API_APP_ID}" \
-      --identifier-uris "${app_id_uri}" 2>/dev/null \
-      || warn "Could not set identifier URI — set manually: ${app_id_uri}"
+      --identifier-uris "${app_id_uri}" \
+      --output none 2>/dev/null \
+      || warn "Could not set identifier URI — set manually in Azure Portal: ${app_id_uri}"
   else
     step "Application ID URI already set: ${app_id_uri}"
   fi
