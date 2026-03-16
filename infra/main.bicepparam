@@ -12,9 +12,9 @@
 //   az deployment group create ... --parameters main.bicepparam
 //
 // The deploy.sh convenience script also reads the same variable.
-// CI/CD pipelines (cd.yml / infra.yml) override this value at deploy time via
-// an explicit --parameters postgresAdminPassword=... CLI argument, so the
-// environment variable is not required in those contexts.
+// CI/CD pipelines (cd.yml / infra.yml) must also export the variable before
+// calling az deployment, since --parameters main.bicepparam causes Bicep to
+// evaluate readEnvironmentVariable() at compile time.
 //
 // Override any of these at deploy time:
 //   az deployment group create ... --parameters main.bicepparam \
@@ -37,8 +37,9 @@ param postgresAdminUser = 'ncadmin'
 
 // Secret read from the POSTGRES_ADMIN_PASSWORD environment variable.
 // Never hardcode this value — set the env var before deploying.
-// Bicep raises a compile-time error if the variable is absent; ARM additionally
-// rejects an empty string thanks to the @minLength(1) constraint in main.bicep.
+// bootstrap.sh prompts interactively and exports it before calling az CLI.
+// CI/CD pipelines must export it (or pass it via --parameters) before deploy.
+// Bicep raises BCP427 at compile time if the variable is absent.
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
 
 // Azure Entra ID — leave empty to start without JWT validation.

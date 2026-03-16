@@ -75,6 +75,10 @@ jobs:
             --output none
 
       - name: Run what-if
+        env:
+          # main.bicepparam uses readEnvironmentVariable() which is evaluated at
+          # Bicep compile time (before --parameters CLI overrides take effect).
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
           az deployment group create \
             --what-if \

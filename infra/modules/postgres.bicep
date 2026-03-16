@@ -44,6 +44,27 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-12-01-pr
       activeDirectoryAuth: 'Disabled'
       passwordAuth: 'Enabled'
     }
+    network: {
+      // Public access must be 'Enabled' for firewall rules to take effect.
+      // The AllowAllAzureServicesAndResourcesWithinAzureIps rule below ensures
+      // that only Azure-hosted services can connect by default.  No arbitrary
+      // internet IP is allowed until bootstrap temporarily adds one for
+      // migrations and removes it immediately after.
+      publicNetworkAccess: 'Enabled'
+    }
+  }
+}
+
+// Allow Azure-hosted services (e.g. Container Apps) to connect.
+// This is the 0.0.0.0 → 0.0.0.0 "Allow all Azure services" rule.
+// External internet traffic is still blocked because no other firewall rules
+// exist in the normal steady state.
+resource allowAzureServices 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-12-01-preview' = {
+  name: 'AllowAllAzureServicesAndResourcesWithinAzureIps'
+  parent: postgresServer
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
   }
 }
 

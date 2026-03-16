@@ -127,6 +127,10 @@ jobs:
       # but keep both Container Apps on their current images so no new revision
       # starts against the old schema.
       - name: Deploy infrastructure (Bicep)
+        env:
+          # main.bicepparam uses readEnvironmentVariable() which is evaluated at
+          # Bicep compile time (before --parameters CLI overrides take effect).
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
           az deployment group create \
             --name "nova-circle-${{ github.run_id }}" \

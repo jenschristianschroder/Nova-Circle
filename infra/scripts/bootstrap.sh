@@ -163,6 +163,7 @@ CD_APP_OBJECT_ID=""
 CD_SP_ID=""
 API_APP_ID=""
 REGISTRY_LOGIN_SERVER=""
+CLIENT_URL=""
 DATABASE_URL=""
 
 # Firewall cleanup state
@@ -262,15 +263,23 @@ ensure_federated_credential() {
     --query "[?name=='${cred_name}'].name" -o tsv 2>/dev/null || echo "")
 
   if [[ -z "${existing}" ]]; then
-    az ad app federated-credential create \
+    local create_out create_rc
+    create_out=$(az ad app federated-credential create \
       --id "${app_object_id}" \
       --parameters "{
         \"name\": \"${cred_name}\",
         \"issuer\": \"https://token.actions.githubusercontent.com\",
         \"subject\": \"${subject}\",
         \"audiences\": [\"api://AzureADTokenExchange\"]
-      }" --output none
-    step "Created federated credential: ${cred_name}"
+      }" --output none 2>&1) || create_rc=$?
+    if [[ -n "${create_rc:-}" ]] && [[ "${create_out}" == *"already exists"* ]]; then
+      step "Federated credential already exists: ${cred_name}"
+    elif [[ -n "${create_rc:-}" ]]; then
+      echo "${create_out}" >&2
+      die "Failed to create federated credential '${cred_name}' for app '${app_object_id}'"
+    else
+      step "Created federated credential: ${cred_name}"
+    fi
   else
     step "Federated credential already exists: ${cred_name}"
   fi
@@ -282,63 +291,101 @@ ensure_role_assignment() {
   local role="$2"
   local scope="$3"
 
-  # ── Diagnostic: show the current account context ──────────────────────────
-  # After az ad * (MS Graph) calls the active subscription can be cleared or
-  # switched in some az CLI versions.  Log the current context so we can see
-  # in the output whether it matches the expected subscription.
-  local ctx_sub ctx_tenant
-  ctx_sub=$(az account show --query id -o tsv 2>/dev/null || echo "<none>")
-  ctx_tenant=$(az account show --query tenantId -o tsv 2>/dev/null || echo "<none>")
-  step "DEBUG: account context — subscription='${ctx_sub}' tenant='${ctx_tenant}'"
-  step "DEBUG: expected           — subscription='${SUBSCRIPTION_ID}' tenant='${TENANT_ID}'"
+  # Map well-known built-in role names to their Azure RBAC definition GUIDs.
+  # Using the GUID directly avoids az role assignment create's internal
+  # role-name → ARM lookup round-trip.  That lookup hits a subscription-scoped
+  # ARM endpoint and, after az ad (MS Graph) calls have contaminated the CLI's
+  # MSAL context, it is itself the call that produces MissingSubscription —
+  # even before the actual assignment create request is sent.
+  local role_def_guid
+  case "${role}" in
+    "Contributor")               role_def_guid="b24988ac-6180-42a0-ab88-20f7382dd24c" ;;
+    "User Access Administrator") role_def_guid="18d7d88d-d35e-4fb5-a5c3-7773c20a72d9" ;;
+    "AcrPush")                   role_def_guid="8311e382-0749-4cb8-b61a-304f252e45ec" ;;
+    *)
+      die "Unknown role '${role}'. Add its Azure built-in role GUID to ensure_role_assignment."
+      ;;
+  esac
 
-  # ── Re-establish ARM subscription context ─────────────────────────────────
-  # Three previous fixes all failed for the same underlying reason: after
-  # az ad * (MS Graph) operations the active subscription context can be
-  # cleared, so ANY command that relies on "current subscription" will fail
-  # with MissingSubscription.
-  #
-  # Root cause of fix-3 failure: az account get-access-token WITHOUT
-  # --subscription internally needs to look up which tenant owns the active
-  # subscription so it can acquire the right ARM token.  With a cleared active
-  # subscription that lookup constructs a request to ARM with an empty
-  # subscription segment → MissingSubscription.
-  #
-  # Fix: pass --subscription "${SUBSCRIPTION_ID}" explicitly so the CLI uses
-  # the correct subscription UUID directly, bypassing the broken active context.
-  # If even this fails (e.g. the subscription was purged from the local cache),
-  # fall back to az account set (non-fatal), then let the explicit --subscription
-  # flags on the role assignment commands below provide a last resort.
-  if ! az account get-access-token \
-       --subscription "${SUBSCRIPTION_ID}" \
-       --resource "https://management.azure.com" \
-       >/dev/null 2>&1; then
-    warn "ARM token refresh failed (subscription='${SUBSCRIPTION_ID}'). Falling back to az account set..."
-    az account set --subscription "${SUBSCRIPTION_ID}" --only-show-errors 2>/dev/null \
-      || warn "az account set also failed — proceeding with explicit --subscription on role assignment commands"
-  fi
+  # The roleDefinitionId in the role-assignment body must be subscription-scoped.
+  # ARM cannot resolve the root-scoped /providers/... path when the assignment
+  # scope is at subscription or resource-group level — it returns
+  # RoleDefinitionDoesNotExist.  The subscription-scoped path is what the
+  # Azure ARM REST API documents as the correct format.
+  local role_def_id="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Authorization/roleDefinitions/${role_def_guid}"
 
-  local existing
-  existing=$(az role assignment list \
-    --assignee "${principal_id}" \
-    --role "${role}" \
-    --scope "${scope}" \
-    --subscription "${SUBSCRIPTION_ID}" \
-    --query "[0].id" -o tsv 2>/dev/null || echo "")
+  # Derive a deterministic UUID for the role-assignment resource name so that
+  # repeated bootstrap runs with the same arguments are idempotent.
+  local ra_name
+  ra_name=$(printf '%s|%s|%s' "${scope}" "${principal_id}" "${role_def_guid}" \
+    | { sha256sum 2>/dev/null || shasum -a 256 2>/dev/null; } \
+    | cut -c1-32 \
+    | sed 's/\(.\{8\}\)\(.\{4\}\)\(.\{4\}\)\(.\{4\}\)\(.\{12\}\)/\1-\2-\3-\4-\5/')
 
-  if [[ -z "${existing}" || "${existing}" == "None" ]]; then
-    az role assignment create \
-      --assignee-object-id "${principal_id}" \
-      --assignee-principal-type ServicePrincipal \
-      --role "${role}" \
-      --scope "${scope}" \
+  local ra_url="https://management.azure.com${scope}/providers/Microsoft.Authorization/roleAssignments/${ra_name}?api-version=2022-04-01"
+  local ra_body
+  ra_body=$(printf '{"properties":{"roleDefinitionId":"%s","principalId":"%s","principalType":"ServicePrincipal"}}' \
+    "${role_def_id}" "${principal_id}")
+
+  local attempt arm_token create_out
+  for attempt in 1 2 3; do
+    # Restore subscription context before getting the ARM token.
+    # After az ad (MS Graph) calls the CLI's internal MSAL context drifts —
+    # the subscription-to-tenant mapping can be lost, causing the token
+    # obtained with --tenant to lack proper subscription context.  ARM then
+    # cannot resolve the subscription-scoped roleDefinitionId and returns
+    # RoleDefinitionDoesNotExist instead of the expected 2xx.
+    #
+    # Fix: re-anchor the subscription with az account set, then request the
+    # token with --subscription.  The CLI resolves the tenant from the
+    # subscription configuration, giving ARM a token it can fully validate.
+    #
+    # Note: --subscription and --tenant cannot be used together; use
+    # --subscription alone so the CLI derives the tenant automatically.
+    az account set --subscription "${SUBSCRIPTION_ID}" >/dev/null 2>&1 || true
+    arm_token=$(az account get-access-token \
+      --resource "https://management.azure.com/" \
       --subscription "${SUBSCRIPTION_ID}" \
-      --output none \
-    || die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}'"
-    step "Assigned role: ${role}"
-  else
-    step "Role already assigned: ${role}"
-  fi
+      --query accessToken -o tsv 2>/dev/null) || arm_token=""
+
+    if [[ -z "${arm_token}" ]]; then
+      warn "az account get-access-token (ARM) could not obtain token on attempt ${attempt}/3 — retrying..."
+      sleep $((attempt * 5))
+      continue
+    fi
+
+    # Use curl instead of az rest for the PUT call.
+    # az rest --skip-authorization-header --headers "Authorization=Bearer TOKEN"
+    # splits header values on spaces, breaking the "Bearer <token>" value and
+    # causing ARM to receive a malformed or absent auth token.  ARM then returns
+    # a semantic 400 (RoleDefinitionDoesNotExist) rather than 401.
+    # curl has unambiguous -H handling and completely bypasses az CLI's MSAL context.
+    local tmp_response_file http_code
+    tmp_response_file=$(mktemp /tmp/ra_resp_XXXXXX.json)
+    http_code=$(curl -s \
+          -o "${tmp_response_file}" \
+          -w "%{http_code}" \
+          -X PUT \
+          -H "Authorization: Bearer ${arm_token}" \
+          -H "Content-Type: application/json" \
+          -d "${ra_body}" \
+          "${ra_url}" 2>&1) || http_code="000"
+    create_out=$(cat "${tmp_response_file}"; rm -f "${tmp_response_file}")
+    if [[ "${http_code}" =~ ^2[0-9][0-9]$ ]]; then
+      step "Assigned role: ${role}"
+      return 0
+    elif [[ "${create_out}" == *"RoleAssignmentExists"* ]]; then
+      step "Role already assigned: ${role}"
+      return 0
+    elif [[ "${create_out}" == *"MissingSubscription"* ]] && [[ ${attempt} -lt 3 ]]; then
+      warn "Attempt ${attempt}/3: MissingSubscription — re-establishing ARM context and retrying in $((attempt * 5))s..."
+      sleep $((attempt * 5))
+      continue
+    else
+      echo "${create_out}" >&2
+      die "Failed to create role assignment '${role}' for principal '${principal_id}' on scope '${scope}'. Subscription='${SUBSCRIPTION_ID}' Tenant='${TENANT_ID}'"
+    fi
+  done
 }
 
 # ── Step 1: Prerequisites check ────────────────────────────────────────────────
@@ -348,6 +395,10 @@ check_prerequisites() {
   command -v az >/dev/null 2>&1 \
     || die "Azure CLI (az) is not installed. See https://docs.microsoft.com/cli/azure/install-azure-cli"
   step "az CLI: $(az version --query '"azure-cli"' -o tsv 2>/dev/null || echo 'ok')"
+
+  command -v curl >/dev/null 2>&1 \
+    || die "curl is not installed. It is required for ARM role assignment calls."
+  step "curl: $(curl --version 2>/dev/null | head -1)"
 
   az account show >/dev/null 2>&1 \
     || die "Not authenticated to Azure. Run: az login"
@@ -402,11 +453,15 @@ collect_parameters() {
 
   if [[ "${SKIP_GITHUB}" == "false" ]]; then
     prompt_if_empty GITHUB_REPO "GitHub repository (owner/repo)" "${GITHUB_REPO}"
+    # Strip any .git suffix the user may have included (e.g. from copy-pasting a clone URL)
+    GITHUB_REPO="${GITHUB_REPO%.git}"
   fi
 
-  if [[ "${WHAT_IF}" == "false" ]] \
-     && { [[ "${SKIP_INFRA}" == "false" ]] || [[ "${SKIP_MIGRATIONS}" == "false" ]]; }; then
+  if [[ "${SKIP_INFRA}" == "false" ]] || [[ "${SKIP_MIGRATIONS}" == "false" ]]; then
     prompt_secret POSTGRES_ADMIN_PASSWORD "PostgreSQL admin password"
+    # Export so child processes (az bicep compiler) can read the env variable.
+    # prompt_secret uses printf -v which does not export; export is required here.
+    export POSTGRES_ADMIN_PASSWORD
   fi
 
   echo ""
@@ -479,7 +534,26 @@ setup_oidc_app() {
     step "Found existing service principal (${CD_SP_ID})"
   fi
 
-  # Add federated credentials (idempotent) when GitHub repo is known
+  # ── Role assignments BEFORE federated-credential calls ───────────────────────
+  # ensure_federated_credential uses az ad (MS Graph) which shifts the Azure CLI
+  # token/endpoint context away from ARM.  Performing the ARM role assignments
+  # here — while the context is still clean from az login — avoids the
+  # MissingSubscription error that occurs when ARM calls follow MS Graph calls.
+
+  # Contributor: deploy and update Bicep-managed resources
+  ensure_role_assignment "${CD_SP_ID}" "Contributor" "${rg_scope}"
+
+  # User Access Administrator (scoped to the resource group):
+  # The Bicep template deploys a role assignment (AcrPull on the Container
+  # Registry for the Container App's system-assigned identity) via the
+  # acr-pull-role-assignment.bicep module.  Microsoft.Authorization/
+  # roleAssignments/write is required to create that assignment.
+  # User Access Administrator is narrower than Owner while still granting
+  # this specific permission.
+  ensure_role_assignment "${CD_SP_ID}" "User Access Administrator" "${rg_scope}"
+
+  # Add federated credentials (idempotent) when GitHub repo is known.
+  # These are pure MS Graph calls — keep them after ARM role assignments.
   if [[ -n "${GITHUB_REPO:-}" ]]; then
     # build-and-push job authenticates as the main branch workflow run
     ensure_federated_credential \
@@ -503,18 +577,6 @@ setup_oidc_app() {
     warn "Add them manually after the GitHub repo is known (see docs/cd.md)."
   fi
 
-  # Contributor: deploy and update Bicep-managed resources
-  ensure_role_assignment "${CD_SP_ID}" "Contributor" "${rg_scope}"
-
-  # User Access Administrator (scoped to the resource group):
-  # The Bicep template deploys a role assignment (AcrPull on the Container
-  # Registry for the Container App's system-assigned identity) via the
-  # acr-pull-role-assignment.bicep module.  Microsoft.Authorization/
-  # roleAssignments/write is required to create that assignment.
-  # User Access Administrator is narrower than Owner while still granting
-  # this specific permission.
-  ensure_role_assignment "${CD_SP_ID}" "User Access Administrator" "${rg_scope}"
-
   step "CD service principal ready: ${CD_APP_ID}"
 }
 
@@ -530,7 +592,6 @@ setup_api_app() {
   info "Setting up API app registration (JWT validation)..."
 
   local app_display_name="nova-circle-api-${ENVIRONMENT}"
-  local app_id_uri="api://nova-circle-${ENVIRONMENT}"
 
   # Find or create
   API_APP_ID=$(az ad app list \
@@ -545,7 +606,20 @@ setup_api_app() {
     step "Found existing app registration: ${app_display_name} (${API_APP_ID})"
   fi
 
-  # Set the Application ID URI so tokens can be requested for this audience
+  # Set requestedAccessTokenVersion=2 (v2 tokens — best practice and required by
+  # some tenants before a friendly identifier URI can be set).
+  az ad app update \
+    --id "${API_APP_ID}" \
+    --set "api.requestedAccessTokenVersion=2" \
+    --output none 2>/dev/null \
+    || true
+
+  # Use api://{APP_ID} as the identifier URI.  This format is guaranteed to be
+  # accepted under ANY tenant policy because it contains the app's own client ID.
+  # A friendly name (e.g. api://nova-circle-dev) requires the tenant to have a
+  # verified domain or the requestedAccessTokenVersion to already be 2.
+  local app_id_uri="api://${API_APP_ID}"
+
   local current_uri
   current_uri=$(az ad app show \
     --id "${API_APP_ID}" \
@@ -554,8 +628,9 @@ setup_api_app() {
     step "Setting Application ID URI: ${app_id_uri}"
     az ad app update \
       --id "${API_APP_ID}" \
-      --identifier-uris "${app_id_uri}" 2>/dev/null \
-      || warn "Could not set identifier URI — set manually: ${app_id_uri}"
+      --identifier-uris "${app_id_uri}" \
+      --output none 2>/dev/null \
+      || warn "Could not set identifier URI — set manually in Azure Portal: ${app_id_uri}"
   else
     step "Application ID URI already set: ${app_id_uri}"
   fi
@@ -565,7 +640,9 @@ setup_api_app() {
 
 # ── Step 6: Deploy Bicep infrastructure ────────────────────────────────────────
 deploy_infrastructure() {
-  info "Deploying Bicep infrastructure${WHAT_IF:+ (what-if — no changes applied)}..."
+  local mode_label=""
+  [[ "${WHAT_IF}" == "true" ]] && mode_label=" (what-if — no changes applied)"
+  info "Deploying Bicep infrastructure${mode_label}..."
 
   local deployment_name="nova-circle-${ENVIRONMENT}"
   local optional_params=()
@@ -614,15 +691,21 @@ deploy_infrastructure() {
       --name "${deployment_name}" \
       --query "properties.outputs.apiUrl.value" \
       -o tsv 2>/dev/null || echo "")
+    CLIENT_URL=$(az deployment group show \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${deployment_name}" \
+      --query "properties.outputs.clientUrl.value" \
+      -o tsv 2>/dev/null || echo "")
     pg_fqdn=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.postgresFqdn.value" \
       -o tsv 2>/dev/null || echo "")
 
-    step "ACR:       ${REGISTRY_LOGIN_SERVER}"
-    step "API URL:   ${api_url}"
-    step "PostgreSQL: ${pg_fqdn}"
+    step "ACR:         ${REGISTRY_LOGIN_SERVER}"
+    step "API URL:     ${api_url}"
+    step "Client URL:  ${CLIENT_URL}"
+    step "PostgreSQL:  ${pg_fqdn}"
   fi
 }
 
@@ -678,6 +761,11 @@ run_migrations() {
     || die "Could not determine current IP address for PostgreSQL firewall rule.")
 
   step "Opening PostgreSQL firewall for IP: ${runner_ip}"
+  # Note: public network access is controlled by Bicep (always Enabled so that
+  # firewall rules take effect). Bootstrap must not change that setting — only
+  # the AllowAllAzureServicesAndResourcesWithinAzureIps rule (0.0.0.0/0.0.0.0)
+  # persists after this script completes.  The bootstrap-runner rule is
+  # temporary and is always removed before the script exits.
   az postgres flexible-server firewall-rule create \
     --resource-group "${RESOURCE_GROUP}" \
     --name "${PG_SERVER_NAME}" \
@@ -687,8 +775,25 @@ run_migrations() {
     --output none
   PG_FIREWALL_ADDED=true
 
+  step "Waiting 30s for firewall rule to propagate..."
+  sleep 30
+
+  step "Installing Node dependencies..."
+  (cd "${REPO_ROOT}" && npm ci)
+
   step "Running: npm run migrate"
-  (cd "${REPO_ROOT}" && DATABASE_URL="${DATABASE_URL}" npm run migrate)
+  local migrate_attempt=0
+  while true; do
+    migrate_attempt=$((migrate_attempt + 1))
+    if (cd "${REPO_ROOT}" && DATABASE_URL="${DATABASE_URL}" npm run migrate); then
+      break
+    fi
+    if [[ $migrate_attempt -ge 5 ]]; then
+      die "Migration failed after ${migrate_attempt} attempts. Verify PostgreSQL is accessible from IP ${runner_ip} and that the server '${PG_SERVER_NAME}' exists."
+    fi
+    warn "Migration attempt ${migrate_attempt}/5 failed — firewall rule may still be propagating. Retrying in 30s..."
+    sleep 30
+  done
   step "Migrations complete."
 
   # Remove the rule immediately on success (the EXIT trap handles failure)
@@ -713,6 +818,39 @@ configure_github() {
     DATABASE_URL="postgresql://ncadmin:${POSTGRES_ADMIN_PASSWORD:-REPLACE_ME}@${pg_fqdn}:5432/nova_circle?sslmode=require"
   fi
 
+  # ── Resolve CORS_ORIGIN ────────────────────────────────────────────────────
+  # 1. Use value passed via --cors-origin or env var (already in CORS_ORIGIN).
+  # 2. Fall back to the clientUrl captured from the Bicep deployment output.
+  # 3. Fall back to querying the frontend Container App FQDN directly from Azure.
+  # 4. Prompt explicitly if still unknown.
+  if [[ -z "${CORS_ORIGIN:-}" && -n "${CLIENT_URL:-}" ]]; then
+    CORS_ORIGIN="${CLIENT_URL}"
+    step "CORS_ORIGIN resolved from deployment output: ${CORS_ORIGIN}"
+  fi
+
+  if [[ -z "${CORS_ORIGIN:-}" ]]; then
+    # Container App name follows the convention defined in container-app-frontend.bicep:
+    # var appName = 'ca-nova-circle-client-${environmentName}'
+    local frontend_app_name="ca-nova-circle-client-${ENVIRONMENT}"
+    local detected_fqdn
+    detected_fqdn=$(az containerapp show \
+      --name "${frontend_app_name}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "properties.configuration.ingress.fqdn" \
+      -o tsv 2>/dev/null || echo "")
+    if [[ -n "${detected_fqdn}" ]]; then
+      CORS_ORIGIN="https://${detected_fqdn}"
+      step "CORS_ORIGIN resolved from Container App ingress: ${CORS_ORIGIN}"
+    fi
+  fi
+
+  if [[ -z "${CORS_ORIGIN:-}" ]]; then
+    warn "CORS_ORIGIN could not be determined automatically."
+    warn "This is the frontend URL that the API will accept cross-origin requests from."
+    warn "Example: https://ca-nova-circle-client-${ENVIRONMENT}.<hash>.${LOCATION}.azurecontainerapps.io"
+    read -r -p "  Enter CORS_ORIGIN (frontend URL): " CORS_ORIGIN
+  fi
+
   # ── Repository variables (non-secret, visible in workflow logs) ────────────
   step "Setting repository variables..."
   gh variable set AZURE_CLIENT_ID             --repo "${repo}" --body "${CD_APP_ID:-}"
@@ -724,7 +862,11 @@ configure_github() {
   gh variable set AZURE_REGISTRY_LOGIN_SERVER --repo "${repo}" --body "${REGISTRY_LOGIN_SERVER:-}"
   gh variable set API_AZURE_TENANT_ID         --repo "${repo}" --body "${TENANT_ID}"
   gh variable set API_AZURE_CLIENT_ID         --repo "${repo}" --body "${API_APP_ID:-}"
-  gh variable set CORS_ORIGIN                 --repo "${repo}" --body "${CORS_ORIGIN:-}"
+  if [[ -n "${CORS_ORIGIN:-}" ]]; then
+    gh variable set CORS_ORIGIN               --repo "${repo}" --body "${CORS_ORIGIN}"
+  else
+    warn "Skipping CORS_ORIGIN variable — value is empty. Set it manually in GitHub repository variables."
+  fi
 
   # ── Repository secrets (encrypted at rest) ────────────────────────────────
   step "Setting repository secrets..."
