@@ -829,6 +829,8 @@ configure_github() {
   fi
 
   if [[ -z "${CORS_ORIGIN:-}" ]]; then
+    # Container App name follows the convention defined in container-app-frontend.bicep:
+    # var appName = 'ca-nova-circle-client-${environmentName}'
     local frontend_app_name="ca-nova-circle-client-${ENVIRONMENT}"
     local detected_fqdn
     detected_fqdn=$(az containerapp show \
@@ -845,7 +847,7 @@ configure_github() {
   if [[ -z "${CORS_ORIGIN:-}" ]]; then
     warn "CORS_ORIGIN could not be determined automatically."
     warn "This is the frontend URL that the API will accept cross-origin requests from."
-    warn "Example: https://ca-nova-circle-client-${ENVIRONMENT}.<region>.azurecontainerapps.io"
+    warn "Example: https://ca-nova-circle-client-${ENVIRONMENT}.<hash>.${LOCATION}.azurecontainerapps.io"
     read -r -p "  Enter CORS_ORIGIN (frontend URL): " CORS_ORIGIN
   fi
 
