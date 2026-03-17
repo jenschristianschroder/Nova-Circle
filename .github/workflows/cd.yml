@@ -192,6 +192,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NODE_ENV: production
         run: npm run migrate
 
       - name: Remove runner IP from PostgreSQL firewall
