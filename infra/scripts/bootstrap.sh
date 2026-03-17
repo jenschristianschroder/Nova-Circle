@@ -841,6 +841,23 @@ configure_github() {
     DATABASE_URL="postgresql://ncadmin:${POSTGRES_ADMIN_PASSWORD:-REPLACE_ME}@${pg_fqdn}:5432/nova_circle?sslmode=require"
   fi
 
+  # ── Resolve REGISTRY_LOGIN_SERVER ─────────────────────────────────────────
+  # When --skip-infra is used the variable is not populated from Bicep outputs.
+  # Fall back to querying the ACR in the resource group whose name matches the
+  # convention defined in container-registry.bicep:
+  #   var registryName = 'crnova${environmentName}${uniqueString(...)[:6]}'
+  if [[ -z "${REGISTRY_LOGIN_SERVER:-}" ]]; then
+    local detected_registry
+    detected_registry=$(az acr list \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "[?starts_with(name, 'crnova${ENVIRONMENT}')].loginServer | [0]" \
+      -o tsv 2>/dev/null || echo "")
+    if [[ -n "${detected_registry}" ]]; then
+      REGISTRY_LOGIN_SERVER="${detected_registry}"
+      step "REGISTRY_LOGIN_SERVER resolved from ACR: ${REGISTRY_LOGIN_SERVER}"
+    fi
+  fi
+
   # ── Resolve CORS_ORIGIN ────────────────────────────────────────────────────
   # 1. Use value passed via --cors-origin or env var (already in CORS_ORIGIN).
   # 2. Fall back to the clientUrl captured from the Bicep deployment output.
@@ -882,7 +899,11 @@ configure_github() {
   gh variable set AZURE_RESOURCE_GROUP        --repo "${repo}" --body "${RESOURCE_GROUP}"
   gh variable set AZURE_ENVIRONMENT_NAME      --repo "${repo}" --body "${ENVIRONMENT}"
   gh variable set AZURE_LOCATION              --repo "${repo}" --body "${LOCATION}"
-  gh variable set AZURE_REGISTRY_LOGIN_SERVER --repo "${repo}" --body "${REGISTRY_LOGIN_SERVER:-}"
+  if [[ -n "${REGISTRY_LOGIN_SERVER:-}" ]]; then
+    gh variable set AZURE_REGISTRY_LOGIN_SERVER --repo "${repo}" --body "${REGISTRY_LOGIN_SERVER}"
+  else
+    warn "Skipping AZURE_REGISTRY_LOGIN_SERVER — ACR login server unknown. Set it manually in GitHub repository variables."
+  fi
   gh variable set API_AZURE_TENANT_ID         --repo "${repo}" --body "${TENANT_ID}"
   gh variable set API_AZURE_CLIENT_ID         --repo "${repo}" --body "${API_APP_ID:-}"
   if [[ -n "${CORS_ORIGIN:-}" ]]; then
