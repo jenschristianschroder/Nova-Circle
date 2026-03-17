@@ -223,8 +223,19 @@ jobs:
 
       # Only after migrations succeed, switch both Container Apps to the new images.
       # This ensures the new API revision starts against a fully migrated schema.
+      #
+      # Configure the managed-identity registry credential first.  When the Bicep
+      # deployment ran with the MCR placeholder as the current image (useAcr=false),
+      # it writes registries:[] which clears any existing ACR pull credential.
+      # az containerapp registry set restores it so the ACR image pull succeeds.
       - name: Switch API Container App to new image
         run: |
+          az containerapp registry set \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}" \
+            --identity "system" \
+            --output none
           az containerapp update \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -233,6 +244,12 @@ jobs:
 
       - name: Switch frontend Container App to new image
         run: |
+          az containerapp registry set \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}" \
+            --identity "system" \
+            --output none
           az containerapp update \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
