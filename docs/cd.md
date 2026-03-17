@@ -152,7 +152,7 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
 | AcrPush assignment | Grants CD service principal AcrPush on the ACR |
 | Database migrations | Opens temporary firewall rule, runs `npm run migrate`, removes rule |
 | GitHub variables | All 10 repository variables (see table below) |
-| GitHub secrets | `POSTGRES_ADMIN_PASSWORD`, `DATABASE_URL` |
+| GitHub secrets | `POSTGRES_ADMIN_PASSWORD` |
 | GitHub environments | Creates `production` and `infra-preview` environments |
 
 ### Manual steps that cannot be automated
@@ -294,11 +294,11 @@ az deployment group show \
 
 | Secret | Description |
 |---|---|
-| `POSTGRES_ADMIN_PASSWORD` | PostgreSQL administrator password. Passed to Bicep at deploy time. |
-| `DATABASE_URL` | Full PostgreSQL connection string for running migrations, e.g. `postgresql://ncadmin:<password>@psql-nova-circle-dev.postgres.database.azure.com:5432/nova_circle?sslmode=require` |
+| `POSTGRES_ADMIN_PASSWORD` | PostgreSQL administrator password. Passed to Bicep at deploy time and used to construct the migration connection string in the workflow. |
 
-> `DATABASE_URL` for migrations uses the admin account. The Container App receives
-> the same connection string as a Bicep-injected secret — not visible in workflow logs.
+> The CD workflow constructs the migration connection string at runtime from
+> `POSTGRES_ADMIN_PASSWORD` and the PostgreSQL FQDN returned by the Bicep
+> deployment. No separate `DATABASE_URL` secret is required.
 
 ### Environments (Settings → Environments)
 
@@ -338,7 +338,8 @@ an unmigrated schema:
    `azureTenantId` and `azureClientId` come from `API_AZURE_TENANT_ID` /
    `API_AZURE_CLIENT_ID` — the API's own app registration, not the CD principal.
 3. **Open firewall** — temporarily adds the runner IP to the PostgreSQL firewall.
-4. **Migrations** — `npm run migrate` against `DATABASE_URL` from the secret.
+4. **Migrations** — `npm run migrate` with a connection string constructed from
+   the Bicep FQDN output and URL-encoded `POSTGRES_ADMIN_PASSWORD`.
 5. **Close firewall** — removes the runner IP rule (runs on success and failure).
 6. **Switch image** — `az containerapp update --image` switches the Container App
    to the new SHA-tagged image only after migrations succeed.
@@ -392,8 +393,10 @@ be re-activated without rebuilding.
   service-principal credentials are stored anywhere.
 - The `infra.yml` what-if job uses the same OIDC approach as `cd.yml` (via the
   `infra-preview` federated credential), eliminating the need for `AZURE_CREDENTIALS`.
-- `POSTGRES_ADMIN_PASSWORD` and `DATABASE_URL` are stored as encrypted GitHub
-  secrets and never logged.
+- `POSTGRES_ADMIN_PASSWORD` is stored as an encrypted GitHub secret and never
+  logged. The migration connection string is constructed at runtime from this
+  secret and the Bicep deployment output, with the password URL-encoded to
+  handle special characters safely.
 - The Container App's database URL is assembled and injected by Bicep as a secret —
   not visible in workflow logs.
 - Images run as a non-root user (`nova`) inside the backend container.

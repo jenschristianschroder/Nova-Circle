@@ -775,7 +775,16 @@ run_migrations() {
   local pg_admin_user="ncadmin"
   local pg_db="nova_circle"
 
-  DATABASE_URL="postgresql://${pg_admin_user}:${POSTGRES_ADMIN_PASSWORD}@${pg_fqdn}:5432/${pg_db}?sslmode=require"
+  # URL-encode the password so special characters don't break the connection
+  # string when it is parsed by pg's URL parser (new URL()).
+  if [[ -z "${POSTGRES_ADMIN_PASSWORD:-}" ]]; then
+    die "POSTGRES_ADMIN_PASSWORD is not set — cannot construct migration connection string."
+  fi
+  local encoded_pw
+  # Read from env (not sys.argv) so the secret is never on the process command line.
+  encoded_pw=$(POSTGRES_ADMIN_PASSWORD="${POSTGRES_ADMIN_PASSWORD}" python3 -c \
+    "import urllib.parse, os; print(urllib.parse.quote(os.environ['POSTGRES_ADMIN_PASSWORD'], safe=''))")
+  DATABASE_URL="postgresql://${pg_admin_user}:${encoded_pw}@${pg_fqdn}:5432/${pg_db}?sslmode=require"
 
   # Detect current IP address for the temporary firewall rule
   local runner_ip
@@ -835,12 +844,6 @@ configure_github() {
 
   local repo="${GITHUB_REPO}"
 
-  # Build DATABASE_URL for the GitHub secret if migrations already ran
-  if [[ -z "${DATABASE_URL:-}" ]]; then
-    local pg_fqdn="psql-nova-circle-${ENVIRONMENT}.postgres.database.azure.com"
-    DATABASE_URL="postgresql://ncadmin:${POSTGRES_ADMIN_PASSWORD:-REPLACE_ME}@${pg_fqdn}:5432/nova_circle?sslmode=require"
-  fi
-
   # ── Resolve CORS_ORIGIN ────────────────────────────────────────────────────
   # 1. Use value passed via --cors-origin or env var (already in CORS_ORIGIN).
   # 2. Fall back to the clientUrl captured from the Bicep deployment output.
@@ -894,7 +897,6 @@ configure_github() {
   # ── Repository secrets (encrypted at rest) ────────────────────────────────
   step "Setting repository secrets..."
   gh secret set POSTGRES_ADMIN_PASSWORD --repo "${repo}" --body "${POSTGRES_ADMIN_PASSWORD}"
-  gh secret set DATABASE_URL            --repo "${repo}" --body "${DATABASE_URL}"
 
   # ── GitHub environments ───────────────────────────────────────────────────
   # Create the environments so they exist before the first workflow run.
