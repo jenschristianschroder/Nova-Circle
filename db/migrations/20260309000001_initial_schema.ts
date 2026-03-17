@@ -1,15 +1,14 @@
 import type { Knex } from 'knex';
 
 /**
- * Initial schema migration – enables the pgcrypto extension for gen_random_uuid() support.
- * The actual domain schema will be added in subsequent migrations.
- * This migration exists to verify that the migration tooling is wired up correctly.
+ * Initial schema migration – baseline migration to verify that the migration tooling is wired up correctly.
+ * gen_random_uuid() is available natively in PostgreSQL 13+ without any extension.
  */
-export async function up(knex: Knex): Promise<void> {
-  // Enable pgcrypto for gen_random_uuid() support.
-  await knex.raw('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+export async function up(_knex: Knex): Promise<void> {
+  // No-op: gen_random_uuid() is built-in from PostgreSQL 13+.
+  // Azure Database for PostgreSQL does not allow user-created extensions like pgcrypto.
 }
 
 export async function down(_knex: Knex): Promise<void> {
-  // pgcrypto is kept in place on rollback to avoid impacting other schemas.
+  // No-op.
 }
