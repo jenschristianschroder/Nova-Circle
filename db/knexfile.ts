@@ -20,17 +20,24 @@ function resolveDatabaseUrl(): string {
   return url;
 }
 
+const isProduction = process.env['NODE_ENV'] === 'production';
+
 const config: Knex.Config = {
   client: 'pg',
-  connection: resolveDatabaseUrl(),
+  connection: {
+    connectionString: resolveDatabaseUrl(),
+    // Enforce TLS for Azure PostgreSQL in production (mirrors src/server.ts).
+    ssl: isProduction ? { rejectUnauthorized: true } : false,
+  },
   migrations: {
     directory: './migrations',
     extension: 'ts',
     loadExtensions: ['.ts'],
     stub: 'migration.stub',
   },
+  // min: 0 avoids creating idle connections at startup during CLI migration runs.
   pool: {
-    min: 2,
+    min: 0,
     max: 10,
   },
 };
