@@ -74,6 +74,10 @@ export function createEventChecklistRouter(
         res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
