@@ -62,14 +62,14 @@ export class KnexEventChecklistRepository implements EventChecklistRepositoryPor
       .first();
     if (existing) return toChecklist(existing);
 
-    const result = await this.db.raw<{ rows: ChecklistRow[] }>(
-      `INSERT INTO event_checklists (event_id)
-       VALUES (?)
-       ON CONFLICT (event_id) DO UPDATE SET event_id = EXCLUDED.event_id
-       RETURNING *`,
-      [eventId],
-    );
-    const row = result.rows[0];
+    // Use merge() so that a concurrent insert conflict still returns the row via RETURNING *.
+    // DO NOTHING would return no rows on conflict, breaking this upsert pattern.
+    const rows = await this.db<ChecklistRow>('event_checklists')
+      .insert({ event_id: eventId })
+      .onConflict('event_id')
+      .merge(['event_id'])
+      .returning('*');
+    const row = rows[0];
     if (!row) throw new Error('Failed to create checklist');
     return toChecklist(row);
   }
