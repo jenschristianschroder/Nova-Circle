@@ -11,6 +11,7 @@ import { CompleteChecklistItemUseCase } from '../application/complete-checklist-
 import { DeleteChecklistItemUseCase } from '../application/delete-checklist-item.usecase.js';
 import { ReorderChecklistUseCase } from '../application/reorder-checklist.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
+import { requireAuth } from '../../../shared/auth/auth-middleware.js';
 
 function isNotFoundError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'NOT_FOUND';
@@ -32,6 +33,8 @@ export function createEventChecklistRouter(
 ): express.Router {
   const router = express.Router({ mergeParams: true });
 
+  router.use(requireAuth);
+
   const getChecklist = new GetChecklistUseCase(eventRepo, invitationRepo, checklistRepo);
   const addItem = new AddChecklistItemUseCase(eventRepo, invitationRepo, checklistRepo);
   const updateItem = new UpdateChecklistItemUseCase(
@@ -51,11 +54,7 @@ export function createEventChecklistRouter(
 
   // GET /api/v1/events/:eventId/checklist
   router.get('/', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
@@ -77,11 +76,7 @@ export function createEventChecklistRouter(
 
   // POST /api/v1/events/:eventId/checklist/items
   router.post('/items', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
@@ -116,11 +111,7 @@ export function createEventChecklistRouter(
 
   // PUT /api/v1/events/:eventId/checklist/items/:itemId
   router.put('/items/:itemId', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
@@ -209,11 +200,7 @@ export function createEventChecklistRouter(
 
   // POST /api/v1/events/:eventId/checklist/items/:itemId/complete
   router.post('/items/:itemId/complete', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
@@ -241,11 +228,7 @@ export function createEventChecklistRouter(
 
   // DELETE /api/v1/events/:eventId/checklist/items/:itemId/complete
   router.delete('/items/:itemId/complete', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
@@ -273,11 +256,7 @@ export function createEventChecklistRouter(
 
   // DELETE /api/v1/events/:eventId/checklist/items/:itemId
   router.delete('/items/:itemId', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
@@ -309,11 +288,7 @@ export function createEventChecklistRouter(
 
   // PUT /api/v1/events/:eventId/checklist/order
   router.put('/order', async (req: Request, res: Response) => {
-    const identity = req.identity;
-    if (!identity) {
-      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      return;
-    }
+    const identity = req.identity!;
 
     const eventId = req.params['eventId'] as string;
     if (!isValidUuid(eventId)) {
