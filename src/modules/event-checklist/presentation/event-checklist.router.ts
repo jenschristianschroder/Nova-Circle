@@ -70,6 +70,10 @@ export function createEventChecklistRouter(
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
         return;
       }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
@@ -99,6 +103,10 @@ export function createEventChecklistRouter(
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       if (isValidationError(err)) {
@@ -222,6 +230,14 @@ export function createEventChecklistRouter(
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
         return;
       }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
@@ -248,6 +264,14 @@ export function createEventChecklistRouter(
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
@@ -280,6 +304,10 @@ export function createEventChecklistRouter(
       }
       if (isForbiddenError(err)) {
         res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
@@ -317,6 +345,10 @@ export function createEventChecklistRouter(
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isForbiddenError(err)) {
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       if (isValidationError(err)) {
