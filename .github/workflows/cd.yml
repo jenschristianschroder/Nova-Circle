@@ -202,9 +202,9 @@ jobs:
           fi
           # URL-encode the password so special characters don't break the
           # connection string passed to pg's URL parser (new URL()).
+          # Read from env (not sys.argv) so the secret is never on the process command line.
           ENCODED_PW=$(python3 -c \
-            "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" \
-            "${POSTGRES_ADMIN_PASSWORD}")
+            "import urllib.parse, os; print(urllib.parse.quote(os.environ['POSTGRES_ADMIN_PASSWORD'], safe=''))")
           # Mask the encoded form so it is not visible in logs.
           echo "::add-mask::${ENCODED_PW}"
           DATABASE_URL="postgresql://ncadmin:${ENCODED_PW}@${postgres_fqdn}:5432/nova_circle?sslmode=require"

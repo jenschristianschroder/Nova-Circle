@@ -781,9 +781,9 @@ run_migrations() {
     die "POSTGRES_ADMIN_PASSWORD is not set — cannot construct migration connection string."
   fi
   local encoded_pw
-  encoded_pw=$(python3 -c \
-    "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" \
-    "${POSTGRES_ADMIN_PASSWORD}")
+  # Read from env (not sys.argv) so the secret is never on the process command line.
+  encoded_pw=$(POSTGRES_ADMIN_PASSWORD="${POSTGRES_ADMIN_PASSWORD}" python3 -c \
+    "import urllib.parse, os; print(urllib.parse.quote(os.environ['POSTGRES_ADMIN_PASSWORD'], safe=''))")
   DATABASE_URL="postgresql://${pg_admin_user}:${encoded_pw}@${pg_fqdn}:5432/${pg_db}?sslmode=require"
 
   # Detect current IP address for the temporary firewall rule
