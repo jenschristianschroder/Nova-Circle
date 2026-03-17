@@ -150,7 +150,7 @@ jobs:
           # Bicep compile time (before --parameters CLI overrides take effect).
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
-          az deployment group create \
+          POSTGRES_FQDN=$(az deployment group create \
             --name "nova-circle-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --template-file infra/main.bicep \
@@ -162,7 +162,9 @@ jobs:
               azureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
               azureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
               corsOrigin="${{ vars.CORS_ORIGIN }}" \
-            --output none
+            --query "properties.outputs.postgresFqdn.value" \
+            --output tsv)
+          echo "postgres_fqdn=${POSTGRES_FQDN}" >> "$GITHUB_ENV"
 
       # Run Knex migrations directly from the workflow runner.
       # A temporary PostgreSQL firewall rule is opened for the runner's IP,
@@ -191,9 +193,24 @@ jobs:
 
       - name: Run database migrations
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
           NODE_ENV: production
-        run: npm run migrate
+        run: |
+          if [[ -z "${POSTGRES_ADMIN_PASSWORD}" ]]; then
+            echo "::error::POSTGRES_ADMIN_PASSWORD secret is not set or is empty"
+            exit 1
+          fi
+          # URL-encode the password so special characters don't break the
+          # connection string passed to pg's URL parser (new URL()).
+          ENCODED_PW=$(python3 -c \
+            "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" \
+            "${POSTGRES_ADMIN_PASSWORD}")
+          # Mask the encoded form so it is not visible in logs.
+          echo "::add-mask::${ENCODED_PW}"
+          DATABASE_URL="postgresql://ncadmin:${ENCODED_PW}@${postgres_fqdn}:5432/nova_circle?sslmode=require"
+          echo "::add-mask::${DATABASE_URL}"
+          export DATABASE_URL
+          npm run migrate
 
       - name: Remove runner IP from PostgreSQL firewall
         if: always()
