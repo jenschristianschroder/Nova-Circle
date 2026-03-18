@@ -1,7 +1,0 @@
-{
-  "title": "Dummy test issue",
-  "body": "## Issue description\n\nThis is a dummy test issue created to verify the issue creation workflow (`pending-issues/` JSON mechanism) is functioning correctly.\n\n## High-level requirements / Expected behavior\n\n- The `process-issue-requests.yml` workflow should pick up this JSON file when merged to `main`.\n- A corresponding GitHub issue should be created automatically.\n- The JSON file should be deleted from `pending-issues/` after processing.\n\n## Additional notes\n\n- No code changes are required.\n- This issue exists solely to test the automated issue creation pipeline.\n- Can be closed immediately after confirming the workflow succeeded.\n\n## Acceptance criteria\n\n- [ ] The JSON file is committed to `pending-issues/` and merged to `main`.\n- [ ] The `process-issue-requests.yml` workflow runs without errors.\n- [ ] A GitHub issue with this title and body is created in the repository.\n- [ ] The JSON file is automatically deleted from `main` after processing.",
-  "labels": ["enhancement"],
-  "assignees": [],
-  "milestone": null
-}
