@@ -1,0 +1,103 @@
+name: Process Issue Requests
+
+# Triggered automatically when a JSON file is pushed (or merged) into pending-issues/.
+#
+# Agents submit issue requests by writing a JSON file to pending-issues/ on their
+# working branch and opening a PR to main. When the PR is merged this workflow
+# fires, creates each GitHub issue, and removes the processed files.
+#
+# JSON file format (pending-issues/YYYYMMDD-HHMMSS-<slug>.json):
+# {
+#   "title": "Issue title",
+#   "body": "Full issue body in Markdown",
+#   "labels": ["enhancement"],
+#   "assignees": [],
+#   "milestone": null
+# }
+
+on:
+  push:
+    branches: [main]
+    paths: ['pending-issues/*.json']
+
+permissions:
+  issues: write
+  contents: write
+
+jobs:
+  process:
+    name: Create issues from pending requests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create issues from JSON files
+        id: create
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs   = require('fs');
+            const path = require('path');
+
+            const dir   = 'pending-issues';
+            const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+
+            if (files.length === 0) {
+              console.log('No pending issue request files found.');
+              return [];
+            }
+
+            const created = [];
+
+            for (const file of files) {
+              const filePath = path.join(dir, file);
+              let content;
+              try {
+                content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+              } catch (err) {
+                core.warning(`Skipping ${file}: failed to parse JSON — ${err.message}`);
+                continue;
+              }
+
+              if (!content.title) {
+                core.warning(`Skipping ${file}: missing required field "title".`);
+                continue;
+              }
+
+              const payload = {
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: content.title,
+                ...(content.body        ? { body:      content.body                                          } : {}),
+                ...(content.labels?.length  ? { labels:    content.labels                                   } : {}),
+                ...(content.assignees?.length ? { assignees: content.assignees                              } : {}),
+                ...(content.milestone   ? { milestone: content.milestone                                    } : {}),
+              };
+
+              const { data } = await github.rest.issues.create(payload);
+              console.log(`Created issue #${data.number}: ${data.html_url}`);
+              created.push({ file, number: data.number, url: data.html_url });
+
+              fs.unlinkSync(filePath);
+            }
+
+            if (created.length > 0) {
+              const lines = created.map(c => `- #${c.number}: ${c.url}`).join('\n');
+              core.summary.addRaw(`### Issues created\n\n${lines}`);
+              await core.summary.write();
+            }
+
+            return created;
+
+      - name: Commit deletion of processed files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A pending-issues/
+          if git diff --staged --quiet; then
+            echo "Nothing to commit — all files already absent."
+          else
+            git commit -m "chore: remove processed issue request files [skip ci]"
+            git push
+          fi
