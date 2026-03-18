@@ -54,17 +54,28 @@ jobs:
             const owner = context.repo.owner;
             const repo  = context.repo.repo;
 
-            const title        = github.event.inputs.title;
-            const body         = github.event.inputs.body         || '';
-            const labelsRaw    = github.event.inputs.labels       || '';
-            const assigneesRaw = github.event.inputs.assignees    || '';
-            const milestoneRaw = github.event.inputs.milestone    || '';
+            const title        = context.payload.inputs.title;
+            const body         = context.payload.inputs.body         || '';
+            const labelsRaw    = context.payload.inputs.labels       || '';
+            const assigneesRaw = context.payload.inputs.assignees    || '';
+            const milestoneRaw = context.payload.inputs.milestone    || '';
 
             const labels    = labelsRaw    ? labelsRaw.split(',').map(s => s.trim()).filter(Boolean)    : [];
             const assignees = assigneesRaw ? assigneesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-            const milestoneNum = milestoneRaw ? parseInt(milestoneRaw, 10) : NaN;
-            const milestone    = Number.isInteger(milestoneNum) && milestoneNum > 0 ? milestoneNum : undefined;
+            let milestone;
+            if (milestoneRaw) {
+              if (!/^\d+$/.test(milestoneRaw)) {
+                core.setFailed(`Invalid milestone value: "${milestoneRaw}". Must be a positive integer.`);
+                return;
+              }
+              const parsed = parseInt(milestoneRaw, 10);
+              if (parsed < 1) {
+                core.setFailed(`Invalid milestone value: ${parsed}. Must be a positive integer.`);
+                return;
+              }
+              milestone = parsed;
+            }
 
             const payload = {
               owner,
