@@ -21,4 +21,6 @@ Issue Structure:
 # Acceptance criteria
 
 
-To create the actual issue, use the /.github/workflows/create-issue.yml workflow
+To create the actual issue, use the /.github/workflows/create-issue.yml workflow.
+Never make changes to the create-issue.yml workflow.
+Queue the workflow and a maintainer will approve to create the issue.
