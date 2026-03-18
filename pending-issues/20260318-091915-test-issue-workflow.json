@@ -1,0 +1,7 @@
+{
+  "title": "Test: validate create issue workflow",
+  "body": "This issue was created automatically to validate that the `process-issue-requests` workflow correctly picks up JSON files from `pending-issues/`, creates GitHub issues, and removes the processed files.\n\nIf this issue exists, the workflow ran successfully. It can be closed and deleted once confirmed.",
+  "labels": ["test"],
+  "assignees": [],
+  "milestone": null
+}
