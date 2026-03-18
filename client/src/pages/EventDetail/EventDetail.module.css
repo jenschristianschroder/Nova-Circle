@@ -1,0 +1,176 @@
+.page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--nc-space-2xl) var(--nc-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-xl);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-xs);
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+}
+
+.breadcrumbLink {
+  color: var(--nc-accent-default);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: var(--nc-content-secondary);
+}
+
+.eventHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nc-space-md);
+}
+
+.heading {
+  font-size: var(--nc-font-size-2xl);
+  font-weight: 700;
+  margin: 0;
+}
+
+.cancelledBadge {
+  display: inline-block;
+  margin-top: var(--nc-space-xs);
+  font-size: var(--nc-font-size-xs);
+  font-weight: 600;
+  color: var(--nc-danger-default);
+  background-color: var(--nc-danger-subtle);
+  padding: 2px var(--nc-space-sm);
+  border-radius: var(--nc-radius-sm);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-md);
+  background-color: var(--nc-surface-card);
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-lg);
+}
+
+.metaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nc-space-md);
+}
+
+.metaIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.metaItem strong {
+  display: block;
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+  font-weight: 500;
+}
+
+.metaItem p {
+  margin: var(--nc-space-xs) 0 0;
+  color: var(--nc-content-primary);
+}
+
+.subheading {
+  font-size: var(--nc-font-size-lg);
+  font-weight: 600;
+  margin: 0 0 var(--nc-space-md);
+}
+
+.rsvpSection {
+  background-color: var(--nc-surface-card);
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-lg);
+}
+
+.currentRsvp {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-sm);
+  margin-bottom: var(--nc-space-md);
+}
+
+.rsvpButtons {
+  display: flex;
+  gap: var(--nc-space-md);
+  flex-wrap: wrap;
+}
+
+.attendeesSection {
+  background-color: var(--nc-surface-card);
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-lg);
+}
+
+.attendeeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-sm);
+}
+
+.attendeeItem {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-md);
+  padding: var(--nc-space-sm) 0;
+  border-bottom: 1px solid var(--nc-border-default);
+}
+
+.attendeeItem:last-child {
+  border-bottom: none;
+}
+
+.attendeeAvatar {
+  font-size: 1.25rem;
+}
+
+.attendeeName {
+  flex: 1;
+  font-weight: 500;
+}
+
+.attendeeState {
+  font-size: var(--nc-font-size-xs);
+  padding: 2px var(--nc-space-xs);
+  border-radius: var(--nc-radius-sm);
+  background-color: var(--nc-surface-subtle);
+  color: var(--nc-content-secondary);
+}
+
+.attendeeState_accepted {
+  background-color: var(--nc-success-subtle);
+  color: var(--nc-success-default);
+}
+
+.attendeeState_declined {
+  background-color: var(--nc-danger-subtle);
+  color: var(--nc-danger-default);
+}
+
+.statusText {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-sm);
+}
+
+.errorText {
+  color: var(--nc-danger-default);
+  font-size: var(--nc-font-size-sm);
+}

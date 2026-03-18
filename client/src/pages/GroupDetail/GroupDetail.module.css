@@ -1,0 +1,163 @@
+.page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--nc-space-2xl) var(--nc-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-xl);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-xs);
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+}
+
+.breadcrumbLink {
+  color: var(--nc-accent-default);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: var(--nc-content-secondary);
+}
+
+.groupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--nc-space-md);
+  flex-wrap: wrap;
+}
+
+.heading {
+  font-size: var(--nc-font-size-2xl);
+  font-weight: 700;
+  margin: 0;
+}
+
+.description {
+  color: var(--nc-content-secondary);
+  margin: var(--nc-space-xs) 0 0;
+}
+
+.subheading {
+  font-size: var(--nc-font-size-lg);
+  font-weight: 600;
+  margin: 0 0 var(--nc-space-md);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-sm);
+}
+
+.eventCard {
+  width: 100%;
+  background-color: var(--nc-surface-card);
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-md) var(--nc-space-lg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nc-space-md);
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--nc-content-primary);
+}
+
+.eventCard:hover {
+  border-color: var(--nc-accent-default);
+  box-shadow: var(--nc-shadow-sm);
+}
+
+.eventCard:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 2px;
+}
+
+.eventCardCancelled {
+  opacity: 0.6;
+}
+
+.eventCardContent {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-md);
+  min-width: 0;
+}
+
+.eventIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.eventInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-xs);
+  min-width: 0;
+}
+
+.eventTitle {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventDate {
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+}
+
+.cancelledBadge {
+  font-size: var(--nc-font-size-xs);
+  font-weight: 600;
+  color: var(--nc-danger-default);
+  background-color: var(--nc-danger-subtle);
+  padding: 1px var(--nc-space-xs);
+  border-radius: var(--nc-radius-sm);
+  align-self: flex-start;
+}
+
+.eventChevron {
+  font-size: 1.5rem;
+  color: var(--nc-content-secondary);
+  flex-shrink: 0;
+}
+
+.statusText {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-sm);
+}
+
+.emptyText {
+  color: var(--nc-content-secondary);
+  background-color: var(--nc-surface-card);
+  border: 1px dashed var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-2xl);
+  text-align: center;
+}
+
+.errorText {
+  color: var(--nc-danger-default);
+  font-size: var(--nc-font-size-sm);
+}

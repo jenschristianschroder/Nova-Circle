@@ -1,0 +1,159 @@
+.page {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: var(--nc-space-2xl) var(--nc-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-xl);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-xs);
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+}
+
+.breadcrumbLink {
+  color: var(--nc-accent-default);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: var(--nc-content-secondary);
+}
+
+.heading {
+  font-size: var(--nc-font-size-2xl);
+  font-weight: 700;
+  margin: 0;
+}
+
+.modeTabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-sm);
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.modeTab {
+  padding: var(--nc-space-sm) var(--nc-space-lg);
+  background: var(--nc-surface-card);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--nc-font-size-sm);
+  font-weight: 500;
+  color: var(--nc-content-secondary);
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.modeTab:not(:last-child) {
+  border-right: 1px solid var(--nc-border-default);
+}
+
+.modeTab:hover {
+  background-color: var(--nc-surface-subtle);
+}
+
+.modeTabActive {
+  background-color: var(--nc-accent-default);
+  color: var(--nc-content-onAccent);
+}
+
+.modeTabActive:hover {
+  background-color: var(--nc-accent-hover);
+}
+
+.formCard {
+  background-color: var(--nc-surface-card);
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nc-space-xs);
+  margin-bottom: var(--nc-space-md);
+}
+
+.label {
+  font-size: var(--nc-font-size-sm);
+  font-weight: 500;
+  color: var(--nc-content-secondary);
+}
+
+.input,
+.textarea {
+  padding: var(--nc-space-sm) var(--nc-space-md);
+  border: 1px solid var(--nc-border-interactive);
+  border-radius: var(--nc-radius-sm);
+  background-color: var(--nc-surface-background);
+  color: var(--nc-content-primary);
+  font-size: var(--nc-font-size-md);
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--nc-accent-default);
+  box-shadow: 0 0 0 2px var(--nc-accent-subtle);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.captureHint {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-sm);
+  margin-bottom: var(--nc-space-md);
+}
+
+.issueBox {
+  background-color: var(--nc-danger-subtle);
+  border: 1px solid var(--nc-danger-default);
+  border-radius: var(--nc-radius-sm);
+  padding: var(--nc-space-md);
+  margin-bottom: var(--nc-space-md);
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-primary);
+}
+
+.issueTitle {
+  font-weight: 600;
+  margin: 0 0 var(--nc-space-xs);
+}
+
+.issueList {
+  margin: var(--nc-space-xs) 0 var(--nc-space-sm) var(--nc-space-md);
+  padding: 0;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--nc-space-md);
+  margin-top: var(--nc-space-lg);
+}
+
+.errorText {
+  color: var(--nc-danger-default);
+  font-size: var(--nc-font-size-sm);
+  margin-bottom: var(--nc-space-md);
+}

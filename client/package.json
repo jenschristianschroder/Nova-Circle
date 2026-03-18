@@ -18,8 +18,11 @@
     "license:report": "npx --yes license-checker-rseidelsohn@4.4.2 --production --excludePrivatePackages --json --out license-report.json"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.5.0",
+    "@azure/msal-react": "^5.0.7",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
