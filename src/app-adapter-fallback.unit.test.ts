@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createApp } from './app.js';
 import type { Knex } from 'knex';
+import type { IEventFieldExtractor } from './modules/event-capture/application/event-field-extractor.port.js';
+import type { ISpeechToTextAdapter } from './modules/event-capture/application/speech-to-text.port.js';
+import type { IImageExtractionAdapter } from './modules/event-capture/application/image-extraction.port.js';
+import type { IBlobStorageAdapter } from './modules/event-capture/application/blob-storage.port.js';
 
 /**
- * Verifies that the production guard in createApp() rejects missing AI
- * adapters when NODE_ENV is "production".  A real Knex instance is not
- * required – the guard fires before any database work, so a stubbed
- * Knex that returns itself on every builder method is sufficient.
+ * Verifies that createApp() starts correctly in production even when no real
+ * AI adapters are injected — fake adapters are used as a fallback.
+ *
+ * The production guard that used to throw for missing adapters was removed
+ * because no real Azure AI adapters exist yet; blocking startup in production
+ * prevented the health check from ever passing.
  */
 
 function stubKnex(): Knex {
@@ -32,7 +38,7 @@ function stubKnex(): Knex {
   return proxy as Knex;
 }
 
-describe('createApp production guard', () => {
+describe('createApp AI adapter fallback', () => {
   const originalEnv = process.env['NODE_ENV'];
 
   beforeEach(() => {
@@ -48,35 +54,29 @@ describe('createApp production guard', () => {
     vi.restoreAllMocks();
   });
 
-  it('throws when AI adapters are missing in production', () => {
+  it('does not throw when AI adapters are missing in production (fake adapters are used)', () => {
     expect(() =>
       createApp({
         db: stubKnex(),
         tokenValidator: { validate: vi.fn() },
       }),
-    ).toThrow(/Missing required AI adapters in production/);
+    ).not.toThrow();
   });
 
-  it('includes the names of all missing adapters in the error message', () => {
+  it('does not throw when all real adapters are provided in production', () => {
+    const eventFieldExtractor: IEventFieldExtractor = { extractFromText: vi.fn() };
+    const speechToTextAdapter: ISpeechToTextAdapter = { transcribe: vi.fn() };
+    const imageExtractionAdapter: IImageExtractionAdapter = { extractFields: vi.fn() };
+    const blobStorageAdapter: IBlobStorageAdapter = { store: vi.fn() };
+
     expect(() =>
       createApp({
         db: stubKnex(),
         tokenValidator: { validate: vi.fn() },
-      }),
-    ).toThrow(
-      /eventFieldExtractor.*speechToTextAdapter.*imageExtractionAdapter.*blobStorageAdapter/,
-    );
-  });
-
-  it('does not throw when all adapters are provided', () => {
-    expect(() =>
-      createApp({
-        db: stubKnex(),
-        tokenValidator: { validate: vi.fn() },
-        eventFieldExtractor: { extract: vi.fn() } as never,
-        speechToTextAdapter: { transcribe: vi.fn() } as never,
-        imageExtractionAdapter: { extract: vi.fn() } as never,
-        blobStorageAdapter: { store: vi.fn() } as never,
+        eventFieldExtractor,
+        speechToTextAdapter,
+        imageExtractionAdapter,
+        blobStorageAdapter,
       }),
     ).not.toThrow();
   });
