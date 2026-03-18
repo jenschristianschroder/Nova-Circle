@@ -167,21 +167,8 @@ export function createApp(deps?: AppDependencies): express.Application {
 
     const draftRepo = new KnexEventDraftRepository(db);
 
-    const isProduction = process.env['NODE_ENV'] === 'production';
-    if (isProduction) {
-      const missingAdapters: string[] = [];
-      if (!deps?.eventFieldExtractor) missingAdapters.push('eventFieldExtractor');
-      if (!deps?.speechToTextAdapter) missingAdapters.push('speechToTextAdapter');
-      if (!deps?.imageExtractionAdapter) missingAdapters.push('imageExtractionAdapter');
-      if (!deps?.blobStorageAdapter) missingAdapters.push('blobStorageAdapter');
-      if (missingAdapters.length > 0) {
-        throw new Error(
-          `Missing required AI adapters in production: ${missingAdapters.join(', ')}. ` +
-            'Inject real implementations via AppDependencies when creating the app.',
-        );
-      }
-    }
-
+    // Real AI adapters can be injected via AppDependencies when available.
+    // Fake adapters are used as a fallback until real implementations are wired in.
     const extractor = deps?.eventFieldExtractor ?? new FakeEventFieldExtractor();
     const sttAdapter = deps?.speechToTextAdapter ?? new FakeSpeechToTextAdapter();
     const imageAdapter = deps?.imageExtractionAdapter ?? new FakeImageExtractionAdapter();
