@@ -1,9 +1,9 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import type { GroupRepositoryPort } from '../domain/group.repository.port.js';
-import type { MembershipCheckerPort } from '../domain/membership-checker.port.js';
 import type { CreateGroupWithOwnerPort } from '../domain/group-creation.port.js';
 import type { AuditLogPort } from '../../audit-security/index.js';
+import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import { CreateGroupUseCase } from '../application/create-group.usecase.js';
 import { GetGroupUseCase } from '../application/get-group.usecase.js';
 import { UpdateGroupUseCase } from '../application/update-group.usecase.js';
@@ -27,7 +27,7 @@ function isValidationError(err: unknown): boolean {
 export function createGroupRouter(
   groupCreator: CreateGroupWithOwnerPort,
   groupRepo: GroupRepositoryPort,
-  membership: MembershipCheckerPort,
+  membership: GroupMemberRepositoryPort,
   auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router();
