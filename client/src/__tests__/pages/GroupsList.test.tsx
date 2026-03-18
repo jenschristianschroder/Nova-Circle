@@ -53,15 +53,17 @@ const sampleGroups = [
     id: 'g1',
     name: 'Family',
     description: 'Our family group',
-    createdByUserId: 'u1',
+    ownerId: 'u1',
     createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'g2',
     name: 'Friends',
     description: null,
-    createdByUserId: 'u1',
+    ownerId: 'u1',
     createdAt: '2026-01-02T00:00:00Z',
+    updatedAt: '2026-01-02T00:00:00Z',
   },
 ];
 
@@ -148,8 +150,9 @@ describe('GroupsList', () => {
       id: 'g3',
       name: 'New Group',
       description: null,
-      createdByUserId: 'u1',
+      ownerId: 'u1',
       createdAt: '2026-01-03T00:00:00Z',
+      updatedAt: '2026-01-03T00:00:00Z',
     };
     mockApiFetch
       .mockResolvedValueOnce(sampleGroups) // initial load

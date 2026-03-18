@@ -124,7 +124,7 @@ export function GroupDetail() {
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  onClick={() => navigate(`/events/${event.id}`)}
+                  onClick={() => navigate(`/groups/${groupId}/events/${event.id}`)}
                   aria-label={`Open event ${event.title}`}
                 >
                   <div className={styles.eventCardContent}>

@@ -6,7 +6,7 @@
  */
 
 export interface UserProfile {
-  userId: string;
+  id: string;
   displayName: string;
   avatarUrl: string | null;
   createdAt: string;

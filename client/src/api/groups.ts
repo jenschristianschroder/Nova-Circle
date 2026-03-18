@@ -9,13 +9,13 @@ export interface Group {
   id: string;
   name: string;
   description: string | null;
-  createdByUserId: string;
+  ownerId: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface GroupMember {
   userId: string;
-  displayName: string;
   role: 'owner' | 'admin' | 'member';
   joinedAt: string;
 }

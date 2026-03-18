@@ -47,7 +47,7 @@ export function EventCreate() {
         endAt: endAt ? new Date(endAt).toISOString() : undefined,
         description: description.trim() || undefined,
       });
-      navigate(`/events/${event.id}`);
+      navigate(`/groups/${groupId}/events/${event.id}`);
     } catch {
       setFormError('Failed to create event. Please check your inputs and try again.');
     } finally {
@@ -67,7 +67,7 @@ export function EventCreate() {
         text: captureText.trim(),
       });
       if (result.success) {
-        navigate(`/events/${result.eventId}`);
+        navigate(`/groups/${groupId}/events/${result.eventId}`);
       } else if (result.issues.length > 0) {
         setCaptureIssues(result.issues);
       } else {
@@ -103,23 +103,29 @@ export function EventCreate() {
       {/* Mode switcher */}
       <div className={styles.modeTabs} role="tablist" aria-label="Event creation mode">
         <button
+          id="form-tab"
           role="tab"
           type="button"
           className={[styles.modeTab, mode === 'form' ? styles.modeTabActive : '']
             .filter(Boolean)
             .join(' ')}
           aria-selected={mode === 'form'}
+          aria-controls="form-panel"
+          tabIndex={mode === 'form' ? 0 : -1}
           onClick={() => setMode('form')}
         >
           Structured form
         </button>
         <button
+          id="capture-tab"
           role="tab"
           type="button"
           className={[styles.modeTab, mode === 'capture' ? styles.modeTabActive : '']
             .filter(Boolean)
             .join(' ')}
           aria-selected={mode === 'capture'}
+          aria-controls="capture-panel"
+          tabIndex={mode === 'capture' ? 0 : -1}
           onClick={() => setMode('capture')}
         >
           Describe in text
@@ -128,7 +134,12 @@ export function EventCreate() {
 
       {/* Structured form */}
       {mode === 'form' && (
-        <section role="tabpanel" aria-labelledby="form-tab" className={styles.formCard}>
+        <section
+          id="form-panel"
+          role="tabpanel"
+          aria-labelledby="form-tab"
+          className={styles.formCard}
+        >
           <form onSubmit={(e) => void handleFormSubmit(e)} noValidate>
             <div className={styles.field}>
               <label htmlFor="event-title" className={styles.label}>
@@ -212,7 +223,12 @@ export function EventCreate() {
 
       {/* Text capture */}
       {mode === 'capture' && (
-        <section role="tabpanel" aria-labelledby="capture-tab" className={styles.formCard}>
+        <section
+          id="capture-panel"
+          role="tabpanel"
+          aria-labelledby="capture-tab"
+          className={styles.formCard}
+        >
           <p className={styles.captureHint}>
             Describe your event in plain text — the date, time, and title will be extracted
             automatically.

@@ -38,7 +38,7 @@ vi.mock('../../auth/useAuth', () => ({
   useAuth: () => ({
     isAuthenticated: true,
     isLoading: false,
-    account: { name: 'Test User' },
+    account: { name: 'Test User', localAccountId: 'u1' },
     getAccessToken: vi.fn().mockResolvedValue('mock-token'),
     login: vi.fn(),
     logout: vi.fn(),
@@ -55,21 +55,36 @@ const sampleEvent = {
   startAt: '2026-07-04T15:00:00Z',
   endAt: '2026-07-04T20:00:00Z',
   status: 'scheduled',
-  createdByUserId: 'u1',
+  createdBy: 'u1',
   createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
 };
 
 const sampleInvitations = [
-  { eventId: 'e1', userId: 'u1', displayName: 'Alice', state: 'accepted' },
-  { eventId: 'e1', userId: 'u2', displayName: 'Bob', state: 'invited' },
+  {
+    id: 'inv1',
+    eventId: 'e1',
+    userId: 'u1',
+    status: 'accepted',
+    invitedAt: '2026-01-01T00:00:00Z',
+    respondedAt: null,
+  },
+  {
+    id: 'inv2',
+    eventId: 'e1',
+    userId: 'u2',
+    status: 'invited',
+    invitedAt: '2026-01-01T00:00:00Z',
+    respondedAt: null,
+  },
 ];
 
-function renderEventDetail(eventId = 'e1') {
+function renderEventDetail(groupId = 'g1', eventId = 'e1') {
   return render(
     <ThemeProvider>
-      <MemoryRouter initialEntries={[`/events/${eventId}`]}>
+      <MemoryRouter initialEntries={[`/groups/${groupId}/events/${eventId}`]}>
         <Routes>
-          <Route path="/events/:eventId" element={<EventDetail />} />
+          <Route path="/groups/:groupId/events/:eventId" element={<EventDetail />} />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,
@@ -132,7 +147,7 @@ describe('EventDetail', () => {
 
   it('calls rsvp API when "Maybe" is clicked', async () => {
     const user = userEvent.setup();
-    const updatedInvitation = { ...sampleInvitations[0], state: 'tentative' };
+    const updatedInvitation = { ...sampleInvitations[0], status: 'tentative' };
     mockApiFetch
       .mockResolvedValueOnce(sampleEvent)
       .mockResolvedValueOnce(sampleInvitations)
@@ -146,12 +161,13 @@ describe('EventDetail', () => {
     await waitFor(() => expect(mockApiFetch).toHaveBeenCalledTimes(3));
   });
 
-  it('renders attendee list', async () => {
+  it('renders attendee list with member identifiers', async () => {
     mockApiFetch.mockResolvedValueOnce(sampleEvent).mockResolvedValueOnce(sampleInvitations);
     renderEventDetail();
     await waitFor(() => screen.getByRole('heading', { name: /attendees/i }));
-    expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.getByText('Bob')).toBeInTheDocument();
+    // Attendees display as "Member (userId…)" since backend doesn't return displayName
+    expect(screen.getByTitle('u1')).toBeInTheDocument();
+    expect(screen.getByTitle('u2')).toBeInTheDocument();
   });
 
   it('shows error state when event loading fails', async () => {

@@ -8,6 +8,10 @@
  *
  * The SkipLink is rendered inside ThemeProvider so it inherits tokens,
  * but outside the router so it is always reachable via keyboard.
+ *
+ * When VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID are absent (e.g. a
+ * local build without an .env file) the app renders a configuration error
+ * instead of silently constructing a broken MSAL instance.
  */
 
 import { PublicClientApplication } from '@azure/msal-browser';
@@ -15,14 +19,23 @@ import { MsalProvider } from '@azure/msal-react';
 import { RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from './design-system/ThemeContext';
 import { SkipLink } from './components/SkipLink';
-import { msalConfig } from './auth/msal-config';
+import { ConfigError } from './components/ConfigError';
+import { msalConfig, msalConfigured } from './auth/msal-config';
 import { router } from './router';
 import './design-system/global.css';
 
 /** Singleton MSAL instance — must be created once outside render. */
-const msalInstance = new PublicClientApplication(msalConfig);
+const msalInstance = msalConfigured ? new PublicClientApplication(msalConfig) : null;
 
 export function App() {
+  if (!msalInstance) {
+    return (
+      <ThemeProvider>
+        <ConfigError />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider>
       <SkipLink />

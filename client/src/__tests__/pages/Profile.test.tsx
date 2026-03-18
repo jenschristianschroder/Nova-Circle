@@ -44,7 +44,7 @@ vi.mock('../../api/client', () => ({
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 const sampleProfile = {
-  userId: 'u1',
+  id: 'u1',
   displayName: 'Alice',
   avatarUrl: null,
   createdAt: '2026-01-01T00:00:00Z',

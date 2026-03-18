@@ -89,4 +89,23 @@ export class KnexEventInvitationRepository implements EventInvitationRepositoryP
       .where({ event_id: eventId, user_id: userId })
       .update({ status: 'removed' });
   }
+
+  /**
+   * Updates the invitation status for an active (non-removed) invitation.
+   * Used for RSVP responses (accepted / declined / tentative).
+   * Returns null when no active invitation exists for the user.
+   */
+  async updateStatus(
+    eventId: string,
+    userId: string,
+    status: InvitationStatus,
+  ): Promise<EventInvitation | null> {
+    const rows = await this.db<EventInvitationRow>('event_invitations')
+      .where({ event_id: eventId, user_id: userId })
+      .whereNot('status', 'removed')
+      .update({ status, responded_at: new Date() })
+      .returning('*');
+    const row = rows[0];
+    return row ? toEventInvitation(row) : null;
+  }
 }

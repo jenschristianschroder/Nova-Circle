@@ -6,7 +6,8 @@
  */
 
 export type EventStatus = 'scheduled' | 'cancelled';
-export type InvitationState = 'invited' | 'accepted' | 'declined' | 'tentative' | 'removed';
+/** Mirrors the backend `InvitationStatus` type. */
+export type InvitationStatus = 'invited' | 'accepted' | 'declined' | 'tentative' | 'removed';
 
 export interface CalendarEvent {
   id: string;
@@ -16,15 +17,22 @@ export interface CalendarEvent {
   startAt: string;
   endAt: string | null;
   status: EventStatus;
-  createdByUserId: string;
+  createdBy: string;
   createdAt: string;
+  updatedAt: string;
 }
 
+/**
+ * Mirrors the backend `EventInvitation` shape.
+ * Note: the backend does not include `displayName` — show the userId only.
+ */
 export interface EventInvitation {
+  id: string;
   eventId: string;
   userId: string;
-  displayName: string;
-  state: InvitationState;
+  status: InvitationStatus;
+  invitedAt: string;
+  respondedAt: string | null;
 }
 
 type ApiFetch = <T>(path: string, init?: RequestInit) => Promise<T>;
@@ -36,8 +44,12 @@ export async function listGroupEvents(
   return apiFetch<CalendarEvent[]>(`/api/v1/groups/${groupId}/events`);
 }
 
-export async function getEvent(apiFetch: ApiFetch, eventId: string): Promise<CalendarEvent> {
-  return apiFetch<CalendarEvent>(`/api/v1/events/${eventId}`);
+export async function getEvent(
+  apiFetch: ApiFetch,
+  groupId: string,
+  eventId: string,
+): Promise<CalendarEvent> {
+  return apiFetch<CalendarEvent>(`/api/v1/groups/${groupId}/events/${eventId}`);
 }
 
 export async function createEvent(
@@ -51,14 +63,19 @@ export async function createEvent(
   });
 }
 
+/**
+ * RSVP to an event by updating the caller's own invitation status.
+ * Calls PUT /api/v1/groups/:groupId/events/:eventId/invitations/me
+ */
 export async function rsvpEvent(
   apiFetch: ApiFetch,
+  groupId: string,
   eventId: string,
-  state: Extract<InvitationState, 'accepted' | 'declined' | 'tentative'>,
+  status: Extract<InvitationStatus, 'accepted' | 'declined' | 'tentative'>,
 ): Promise<EventInvitation> {
-  return apiFetch<EventInvitation>(`/api/v1/events/${eventId}/invitations/me`, {
+  return apiFetch<EventInvitation>(`/api/v1/groups/${groupId}/events/${eventId}/invitations/me`, {
     method: 'PUT',
-    body: JSON.stringify({ state }),
+    body: JSON.stringify({ status }),
   });
 }
 
@@ -74,19 +91,26 @@ export type CaptureResult =
   | { success: true; eventId: string }
   | { success: false; draftId?: string; issues: string[] };
 
+/**
+ * Calls POST /api/v1/capture/text with { text, groupId }.
+ * Returns a discriminated union: success with eventId, or failure with issues.
+ */
 export async function captureEventFromText(
   apiFetch: ApiFetch,
   data: { groupId: string; text: string },
 ): Promise<CaptureResult> {
-  const raw = await apiFetch<{ eventId?: string; draftId?: string; issues?: string[] }>(
-    '/api/v1/capture',
-    {
-      method: 'POST',
-      body: JSON.stringify({ type: 'text', groupId: data.groupId, text: data.text }),
-    },
-  );
-  if (raw.eventId) {
+  const raw = await apiFetch<
+    { type: 'event'; eventId: string } | { type: 'draft'; draft: { id: string }; issues?: string[] }
+  >('/api/v1/capture/text', {
+    method: 'POST',
+    body: JSON.stringify({ text: data.text, groupId: data.groupId }),
+  });
+  if (raw.type === 'event') {
     return { success: true, eventId: raw.eventId };
   }
-  return { success: false, draftId: raw.draftId, issues: raw.issues ?? [] };
+  return {
+    success: false,
+    draftId: raw.draft.id,
+    issues: raw.issues ?? [],
+  };
 }

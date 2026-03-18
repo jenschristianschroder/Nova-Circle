@@ -52,8 +52,9 @@ const sampleGroup = {
   id: 'g1',
   name: 'Family',
   description: 'Our family group',
-  createdByUserId: 'u1',
+  ownerId: 'u1',
   createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
 };
 
 const sampleEvents = [
@@ -65,8 +66,9 @@ const sampleEvents = [
     startAt: '2026-07-04T15:00:00Z',
     endAt: null,
     status: 'scheduled',
-    createdByUserId: 'u1',
+    createdBy: 'u1',
     createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'e2',
@@ -76,8 +78,9 @@ const sampleEvents = [
     startAt: '2026-06-01T18:00:00Z',
     endAt: null,
     status: 'cancelled',
-    createdByUserId: 'u1',
+    createdBy: 'u1',
     createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   },
 ];
 
@@ -155,7 +158,7 @@ describe('GroupDetail', () => {
     renderGroupDetail();
     await waitFor(() => screen.getByRole('button', { name: /open event summer bbq/i }));
     await user.click(screen.getByRole('button', { name: /open event summer bbq/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/events/e1');
+    expect(mockNavigate).toHaveBeenCalledWith('/groups/g1/events/e1');
   });
 
   it('navigates to event creation when "+ New Event" is clicked', async () => {

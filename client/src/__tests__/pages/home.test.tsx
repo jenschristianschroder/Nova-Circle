@@ -8,9 +8,6 @@
  * Note: jsdom does not paint pixels, so these are DOM snapshots rather than
  * pixel-level screenshots. They verify the rendered HTML structure including
  * CSS-module class names, ARIA attributes, and element hierarchy.
- *
- * App-level integration tests live in __tests__/App.test.tsx and mock the
- * MSAL and routing providers.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

@@ -14,7 +14,7 @@ import {
   listEventInvitations,
   type CalendarEvent,
   type EventInvitation,
-  type InvitationState,
+  type InvitationStatus,
 } from '../../api/events';
 import { Button } from '../../components/Button';
 import styles from './EventDetail.module.css';
@@ -30,8 +30,8 @@ function formatDate(iso: string): string {
   });
 }
 
-/** Maps known invitation states to their attendee badge CSS class name. */
-const INVITATION_STATE_CLASS: Partial<Record<InvitationState, string>> = {
+/** Maps known invitation statuses to their attendee badge CSS class name. */
+const INVITATION_STATUS_CLASS: Partial<Record<InvitationStatus, string>> = {
   accepted: styles['attendeeState_accepted'] ?? '',
   declined: styles['attendeeState_declined'] ?? '',
   tentative: styles['attendeeState_tentative'] ?? '',
@@ -46,7 +46,7 @@ const RSVP_LABELS: Record<string, string> = {
 };
 
 export function EventDetail() {
-  const { eventId } = useParams<{ eventId: string }>();
+  const { groupId, eventId } = useParams<{ groupId: string; eventId: string }>();
   const { apiFetch } = useApiClient();
   const { account } = useAuth();
   const navigate = useNavigate();
@@ -64,14 +64,18 @@ export function EventDetail() {
   const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!eventId) return;
+    if (!groupId || !eventId) return;
     setIsLoading(true);
     setError(null);
+    // Clear stale invitation data so a previously viewed event's attendees
+    // are not shown while the new event's invitations load.
+    setInvitations([]);
+    setMyInvitation(null);
     try {
-      const eventData = await getEvent(apiFetch, eventId);
+      const eventData = await getEvent(apiFetch, groupId, eventId);
       setEvent(eventData);
       try {
-        const invitationData = await listEventInvitations(apiFetch, eventData.groupId, eventId);
+        const invitationData = await listEventInvitations(apiFetch, groupId, eventId);
         setInvitations(invitationData);
         // Match the caller's invitation by the MSAL account's localAccountId,
         // which corresponds to the Azure AD `oid` claim used as userId in the backend.
@@ -87,20 +91,20 @@ export function EventDetail() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiFetch, eventId, callerUserId]);
+  }, [apiFetch, groupId, eventId, callerUserId]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
   async function handleRsvp(
-    state: Extract<InvitationState, 'accepted' | 'declined' | 'tentative'>,
+    status: Extract<InvitationStatus, 'accepted' | 'declined' | 'tentative'>,
   ) {
-    if (!eventId) return;
+    if (!groupId || !eventId) return;
     setIsRsvping(true);
     setRsvpError(null);
     try {
-      const updated = await rsvpEvent(apiFetch, eventId, state);
+      const updated = await rsvpEvent(apiFetch, groupId, eventId, status);
       setMyInvitation(updated);
       setInvitations((prev) => prev.map((i) => (i.userId === updated.userId ? updated : i)));
     } catch {
@@ -201,7 +205,7 @@ export function EventDetail() {
           {myInvitation && (
             <p className={styles.currentRsvp}>
               Current status:{' '}
-              <strong>{RSVP_LABELS[myInvitation.state] ?? myInvitation.state}</strong>
+              <strong>{RSVP_LABELS[myInvitation.status] ?? myInvitation.status}</strong>
             </p>
           )}
           {rsvpError && (
@@ -213,7 +217,7 @@ export function EventDetail() {
             <Button
               variant="primary"
               size="md"
-              disabled={isRsvping || myInvitation?.state === 'accepted'}
+              disabled={isRsvping || myInvitation?.status === 'accepted'}
               onClick={() => void handleRsvp('accepted')}
             >
               Going
@@ -221,7 +225,7 @@ export function EventDetail() {
             <Button
               variant="secondary"
               size="md"
-              disabled={isRsvping || myInvitation?.state === 'tentative'}
+              disabled={isRsvping || myInvitation?.status === 'tentative'}
               onClick={() => void handleRsvp('tentative')}
             >
               Maybe
@@ -229,7 +233,7 @@ export function EventDetail() {
             <Button
               variant="danger"
               size="md"
-              disabled={isRsvping || myInvitation?.state === 'declined'}
+              disabled={isRsvping || myInvitation?.status === 'declined'}
               onClick={() => void handleRsvp('declined')}
             >
               Not going
@@ -242,23 +246,25 @@ export function EventDetail() {
       {invitations.length > 0 && (
         <section aria-labelledby="attendees-heading" className={styles.attendeesSection}>
           <h2 id="attendees-heading" className={styles.subheading}>
-            Attendees ({invitations.filter((i) => i.state !== 'removed').length})
+            Attendees ({invitations.filter((i) => i.status !== 'removed').length})
           </h2>
           <ul className={styles.attendeeList} role="list">
             {invitations
-              .filter((i) => i.state !== 'removed')
+              .filter((i) => i.status !== 'removed')
               .map((inv) => (
                 <li key={inv.userId} className={styles.attendeeItem}>
                   <span className={styles.attendeeAvatar} aria-hidden="true">
                     👤
                   </span>
-                  <span className={styles.attendeeName}>{inv.displayName}</span>
+                  <span className={styles.attendeeName} title={inv.userId}>
+                    Member ({inv.userId.slice(0, 8)}…)
+                  </span>
                   <span
-                    className={[styles.attendeeState, INVITATION_STATE_CLASS[inv.state] ?? '']
+                    className={[styles.attendeeState, INVITATION_STATUS_CLASS[inv.status] ?? '']
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    {RSVP_LABELS[inv.state] ?? inv.state}
+                    {RSVP_LABELS[inv.status] ?? inv.status}
                   </span>
                 </li>
               ))}

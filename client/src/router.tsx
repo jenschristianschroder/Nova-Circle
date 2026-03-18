@@ -2,14 +2,14 @@
  * Application router — defines all client-side routes.
  *
  * Route structure:
- *  /login                    → Login page (unauthenticated landing)
- *  /groups                   → GroupsList (authenticated)
- *  /groups/:groupId          → GroupDetail (authenticated)
- *  /groups/:groupId/events/new → EventCreate (authenticated)
- *  /events/:eventId          → EventDetail (authenticated)
- *  /profile                  → Profile (authenticated)
- *  /                         → Redirect to /groups
- *  *                         → Redirect to /groups
+ *  /login                                → Login page (unauthenticated landing)
+ *  /groups                               → GroupsList (authenticated)
+ *  /groups/:groupId                      → GroupDetail (authenticated)
+ *  /groups/:groupId/events/new           → EventCreate (authenticated)
+ *  /groups/:groupId/events/:eventId      → EventDetail (authenticated)
+ *  /profile                              → Profile (authenticated)
+ *  /                                     → Redirect to /groups
+ *  *                                     → Redirect to /groups
  *
  * Authenticated routes are wrapped in AppShell (persistent nav bar) and
  * ProtectedRoute (redirects unauthenticated users to /login).
@@ -42,7 +42,7 @@ export const router = createBrowserRouter([
       { path: 'groups', element: <GroupsList /> },
       { path: 'groups/:groupId', element: <GroupDetail /> },
       { path: 'groups/:groupId/events/new', element: <EventCreate /> },
-      { path: 'events/:eventId', element: <EventDetail /> },
+      { path: 'groups/:groupId/events/:eventId', element: <EventDetail /> },
       { path: 'profile', element: <Profile /> },
       { path: '*', element: <Navigate to="/groups" replace /> },
     ],
