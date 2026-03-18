@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - 'copilot/add-ai-adapters-again'
-    paths:
-      - '.github/workflows/create-ai-adapters-issue.yml'
 
 permissions:
   issues: write
