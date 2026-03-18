@@ -1,0 +1,101 @@
+name: Create Issue
+
+# Triggered by Copilot agents (or any caller) via the GitHub API:
+#   POST /repos/{owner}/{repo}/actions/workflows/create-issue.yml/dispatches
+#
+# Minimal required inputs: title
+# All other inputs are optional.
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: 'Issue title'
+        required: true
+        type: string
+      body:
+        description: 'Issue body (markdown)'
+        required: false
+        type: string
+        default: ''
+      labels:
+        description: 'Comma-separated list of label names to apply (e.g. "bug,enhancement")'
+        required: false
+        type: string
+        default: ''
+      assignees:
+        description: 'Comma-separated list of GitHub usernames to assign (e.g. "alice,bob")'
+        required: false
+        type: string
+        default: ''
+      milestone:
+        description: 'Milestone number to associate the issue with (integer)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  issues: write
+
+jobs:
+  create-issue:
+    name: Create issue
+    runs-on: ubuntu-latest
+    outputs:
+      issue-number: ${{ steps.create.outputs.issue-number }}
+      issue-url: ${{ steps.create.outputs.issue-url }}
+    steps:
+      - name: Create issue
+        id: create
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            const title        = context.payload.inputs.title;
+            const body         = context.payload.inputs.body         || '';
+            const labelsRaw    = context.payload.inputs.labels       || '';
+            const assigneesRaw = context.payload.inputs.assignees    || '';
+            const milestoneRaw = context.payload.inputs.milestone    || '';
+
+            const labels    = labelsRaw    ? labelsRaw.split(',').map(s => s.trim()).filter(Boolean)    : [];
+            const assignees = assigneesRaw ? assigneesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+            let milestone;
+            if (milestoneRaw) {
+              if (!/^\d+$/.test(milestoneRaw)) {
+                core.setFailed(`Invalid milestone value: "${milestoneRaw}". Must be a positive integer.`);
+                return;
+              }
+              const parsed = parseInt(milestoneRaw, 10);
+              if (parsed < 1) {
+                core.setFailed(`Invalid milestone value: ${parsed}. Must be a positive integer.`);
+                return;
+              }
+              milestone = parsed;
+            }
+
+            const payload = {
+              owner,
+              repo,
+              title,
+              ...(body      ? { body }      : {}),
+              ...(labels.length    ? { labels }    : {}),
+              ...(assignees.length ? { assignees } : {}),
+              ...(milestone        ? { milestone } : {}),
+            };
+
+            const { data } = await github.rest.issues.create(payload);
+
+            console.log(`Created issue #${data.number}: ${data.html_url}`);
+            core.setOutput('issue-number', String(data.number));
+            core.setOutput('issue-url', data.html_url);
+
+      - name: Summary
+        run: |
+          echo "### Issue created" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Number:** #${{ steps.create.outputs.issue-number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**URL:** ${{ steps.create.outputs.issue-url }}" >> "$GITHUB_STEP_SUMMARY"
