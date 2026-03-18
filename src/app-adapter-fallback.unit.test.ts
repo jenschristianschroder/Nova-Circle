@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createApp } from './app.js';
 import type { Knex } from 'knex';
+import type { IEventFieldExtractor } from './modules/event-capture/application/event-field-extractor.port.js';
+import type { ISpeechToTextAdapter } from './modules/event-capture/application/speech-to-text.port.js';
+import type { IImageExtractionAdapter } from './modules/event-capture/application/image-extraction.port.js';
+import type { IBlobStorageAdapter } from './modules/event-capture/application/blob-storage.port.js';
 
 /**
  * Verifies that createApp() starts correctly in production even when no real
@@ -60,14 +64,19 @@ describe('createApp AI adapter fallback', () => {
   });
 
   it('does not throw when all real adapters are provided in production', () => {
+    const eventFieldExtractor: IEventFieldExtractor = { extractFromText: vi.fn() };
+    const speechToTextAdapter: ISpeechToTextAdapter = { transcribe: vi.fn() };
+    const imageExtractionAdapter: IImageExtractionAdapter = { extractFields: vi.fn() };
+    const blobStorageAdapter: IBlobStorageAdapter = { store: vi.fn() };
+
     expect(() =>
       createApp({
         db: stubKnex(),
         tokenValidator: { validate: vi.fn() },
-        eventFieldExtractor: { extract: vi.fn() } as never,
-        speechToTextAdapter: { transcribe: vi.fn() } as never,
-        imageExtractionAdapter: { extract: vi.fn() } as never,
-        blobStorageAdapter: { store: vi.fn() } as never,
+        eventFieldExtractor,
+        speechToTextAdapter,
+        imageExtractionAdapter,
+        blobStorageAdapter,
       }),
     ).not.toThrow();
   });
