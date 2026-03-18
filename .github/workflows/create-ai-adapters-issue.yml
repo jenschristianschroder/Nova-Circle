@@ -13,110 +13,107 @@ jobs:
     name: Create AI adapters issue
     runs-on: ubuntu-latest
     steps:
-      - name: Create issue
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const body = `## Issue description
+      - name: Write issue body to file
+        run: |
+          cat > /tmp/issue-body.md << 'MARKDOWN'
+          ## Issue description
 
-The \`event-capture\` module defines four port interfaces that abstract AI and storage dependencies in the event creation pipeline. Currently all four are backed only by fake/in-memory implementations for testing purposes. The application already enforces that production mode (\`NODE_ENV=production\`) requires real adapter implementations — it throws at startup if any are missing.
+          The `event-capture` module defines four port interfaces that abstract AI and storage dependencies in the event creation pipeline. Currently all four are backed only by fake/in-memory implementations for testing purposes. The application already enforces that production mode (`NODE_ENV=production`) requires real adapter implementations — it throws at startup if any are missing.
 
-The four adapter ports requiring real implementations are:
+          The four adapter ports requiring real implementations are:
 
-- **\`IEventFieldExtractor\`** — Extracts structured event fields (title, description, start/end datetime, group name with confidence scores) from natural language text. Suggested provider: **Azure OpenAI** (GPT-4o or similar).
-- **\`ISpeechToTextAdapter\`** — Transcribes audio blobs to text with a confidence score. Suggested provider: **Azure AI Speech**.
-- **\`IImageExtractionAdapter\`** — Extracts raw text and candidate event fields from image blobs. Suggested provider: **Azure AI Vision** or **Azure OpenAI** multimodal.
-- **\`IBlobStorageAdapter\`** — Securely stores binary blobs and returns permanent URIs. Suggested provider: **Azure Blob Storage** with system-assigned managed identity.
+          - **`IEventFieldExtractor`** — Extracts structured event fields (title, description, start/end datetime, group name with confidence scores) from natural language text. Suggested provider: **Azure OpenAI** (GPT-4o or similar).
+          - **`ISpeechToTextAdapter`** — Transcribes audio blobs to text with a confidence score. Suggested provider: **Azure AI Speech**.
+          - **`IImageExtractionAdapter`** — Extracts raw text and candidate event fields from image blobs. Suggested provider: **Azure AI Vision** or **Azure OpenAI** multimodal.
+          - **`IBlobStorageAdapter`** — Securely stores binary blobs and returns permanent URIs. Suggested provider: **Azure Blob Storage** with system-assigned managed identity.
 
-Port interfaces:
-- \`src/modules/event-capture/application/ports/event-field-extractor.port.ts\`
-- \`src/modules/event-capture/application/ports/speech-to-text.port.ts\`
-- \`src/modules/event-capture/application/ports/image-extraction.port.ts\`
-- \`src/modules/event-capture/application/ports/blob-storage.port.ts\`
+          Port interfaces:
+          - `src/modules/event-capture/application/ports/event-field-extractor.port.ts`
+          - `src/modules/event-capture/application/ports/speech-to-text.port.ts`
+          - `src/modules/event-capture/application/ports/image-extraction.port.ts`
+          - `src/modules/event-capture/application/ports/blob-storage.port.ts`
 
-Fake implementations (CI): \`src/modules/event-capture/infrastructure/fakes/\`
+          Fake implementations (CI): `src/modules/event-capture/infrastructure/fakes/`
 
-DI entry point: \`src/app.ts\` (\`AppDependencies\` interface, production enforcement block).
+          DI entry point: `src/app.ts` (`AppDependencies` interface, production enforcement block).
 
----
+          ---
 
-## High-level requirements / Expected behavior
+          ## High-level requirements / Expected behavior
 
-### General adapter requirements
-- All adapters must use **system-assigned managed identity** (no static keys or connection strings committed to code).
-- All adapters must be **stateless** — no internal mutable state beyond configuration passed at construction time.
-- All adapters are **dependency-injected** via \`AppDependencies\` in \`src/app.ts\`, replacing fake defaults for production.
-- All adapters live under \`src/modules/event-capture/infrastructure/adapters/\` following existing module structure conventions.
-- Configuration (endpoints, model names, container names, etc.) comes from typed environment variables validated at startup.
+          ### General adapter requirements
+          - All adapters must use **system-assigned managed identity** (no static keys or connection strings committed to code).
+          - All adapters must be **stateless** — no internal mutable state beyond configuration passed at construction time.
+          - All adapters are **dependency-injected** via `AppDependencies` in `src/app.ts`, replacing fake defaults for production.
+          - All adapters live under `src/modules/event-capture/infrastructure/adapters/` following existing module structure conventions.
+          - Configuration (endpoints, model names, container names, etc.) comes from typed environment variables validated at startup.
 
-### \`AzureOpenAIEventFieldExtractor\` (implements \`IEventFieldExtractor\`)
-- Calls Azure OpenAI Chat Completions API with structured output (JSON mode or function calling).
-- Returns \`ExtractedEventFields\` with per-field confidence scores.
-- Uses deterministic, version-controlled prompts (not generated at runtime from raw user content).
-- Handles API errors gracefully as structured \`low_confidence_extraction\` draft issues.
-- Never allows the model to directly create or mutate domain entities — extraction output flows through existing pipeline validation.
+          ### `AzureOpenAIEventFieldExtractor` (implements `IEventFieldExtractor`)
+          - Calls Azure OpenAI Chat Completions API with structured output (JSON mode or function calling).
+          - Returns `ExtractedEventFields` with per-field confidence scores.
+          - Uses deterministic, version-controlled prompts (not generated at runtime from raw user content).
+          - Handles API errors gracefully as structured `low_confidence_extraction` draft issues.
+          - Never allows the model to directly create or mutate domain entities — extraction output flows through existing pipeline validation.
 
-### \`AzureAISpeechToTextAdapter\` (implements \`ISpeechToTextAdapter\`)
-- Accepts audio \`Blob\` input (WAV, MP3, OGG); calls Azure AI Speech SDK or REST API for transcription.
-- Returns transcript string and confidence score (0–1).
-- Handles unsupported formats or low-quality audio with structured error results, not unhandled exceptions.
+          ### `AzureAISpeechToTextAdapter` (implements `ISpeechToTextAdapter`)
+          - Accepts audio `Blob` input (WAV, MP3, OGG); calls Azure AI Speech SDK or REST API for transcription.
+          - Returns transcript string and confidence score (0–1).
+          - Handles unsupported formats or low-quality audio with structured error results, not unhandled exceptions.
 
-### \`AzureAIImageExtractionAdapter\` (implements \`IImageExtractionAdapter\`)
-- Accepts image \`Blob\`; calls Azure AI Vision (OCR) or Azure OpenAI multimodal endpoint.
-- Returns raw extracted text and \`CandidateEventFields\`.
-- Logs raw OCR output at DEBUG level only; no private location data in broad logs.
+          ### `AzureAIImageExtractionAdapter` (implements `IImageExtractionAdapter`)
+          - Accepts image `Blob`; calls Azure AI Vision (OCR) or Azure OpenAI multimodal endpoint.
+          - Returns raw extracted text and `CandidateEventFields`.
+          - Logs raw OCR output at DEBUG level only; no private location data in broad logs.
 
-### \`AzureBlobStorageAdapter\` (implements \`IBlobStorageAdapter\`)
-- Uses \`@azure/storage-blob\` with \`DefaultAzureCredential\` (system-assigned managed identity).
-- Stores blobs in a configurable container; returns permanent URI.
-- No storage account keys or SAS tokens in code or committed config.
+          ### `AzureBlobStorageAdapter` (implements `IBlobStorageAdapter`)
+          - Uses `@azure/storage-blob` with `DefaultAzureCredential` (system-assigned managed identity).
+          - Stores blobs in a configurable container; returns permanent URI.
+          - No storage account keys or SAS tokens in code or committed config.
 
-### Wiring
-- Real adapters registered in \`AppDependencies\` when \`NODE_ENV=production\`.
-- Missing env vars cause fast-fail at startup with a clear, actionable error message.
-- Fake adapters remain unchanged for CI.
+          ### Wiring
+          - Real adapters registered in `AppDependencies` when `NODE_ENV=production`.
+          - Missing env vars cause fast-fail at startup with a clear, actionable error message.
+          - Fake adapters remain unchanged for CI.
 
----
+          ---
 
-## Additional notes
+          ## Additional notes
 
-- \`CapturePipelineService\` orchestration must not change — only the infrastructure layer changes.
-- Clean architecture layers: domain and application must not import infrastructure types.
-- Azure credentials via \`DefaultAzureCredential\` from \`@azure/identity\`, consistent with the rest of the project.
-- AI prompts stored as version-controlled constants, not inline strings.
-- Context sent to OpenAI kept minimal and focused on event field extraction (token cost management).
-- Structured observability logs (operation name, safe identifiers, latency, error category) via Application Insights already in place.
-- Raw user content (text, transcripts, OCR output) must NOT be logged at INFO level or above.
-- If an Azure AI endpoint is unavailable or returns a non-retryable error, the adapter must return a structured failure result so the pipeline can produce a draft event with appropriate issue codes rather than crashing.
+          - `CapturePipelineService` orchestration must not change — only the infrastructure layer changes.
+          - Clean architecture layers: domain and application must not import infrastructure types.
+          - Azure credentials via `DefaultAzureCredential` from `@azure/identity`, consistent with the rest of the project.
+          - AI prompts stored as version-controlled constants, not inline strings.
+          - Context sent to OpenAI kept minimal and focused on event field extraction (token cost management).
+          - Structured observability logs (operation name, safe identifiers, latency, error category) via Application Insights already in place.
+          - Raw user content (text, transcripts, OCR output) must NOT be logged at INFO level or above.
+          - If an Azure AI endpoint is unavailable or returns a non-retryable error, the adapter must return a structured failure result so the pipeline can produce a draft event with appropriate issue codes rather than crashing.
 
----
+          ---
 
-## Acceptance criteria
+          ## Acceptance criteria
 
-- [ ] \`AzureOpenAIEventFieldExtractor\` implemented under \`src/modules/event-capture/infrastructure/adapters/\` satisfying \`IEventFieldExtractor\`.
-- [ ] \`AzureAISpeechToTextAdapter\` implemented under the same directory, satisfying \`ISpeechToTextAdapter\`.
-- [ ] \`AzureAIImageExtractionAdapter\` implemented under the same directory, satisfying \`IImageExtractionAdapter\`.
-- [ ] \`AzureBlobStorageAdapter\` implemented under the same directory, satisfying \`IBlobStorageAdapter\`.
-- [ ] All adapters use \`DefaultAzureCredential\` — no static keys or SAS tokens in code.
-- [ ] All adapters wired into \`AppDependencies\` in \`src/app.ts\` for \`NODE_ENV=production\`.
-- [ ] Required env vars validated at startup with clear, actionable error messages.
-- [ ] Fake adapters unchanged; all existing CI tests pass.
-- [ ] Unit tests exist for each adapter with mocked Azure SDK clients (no live Azure calls in CI).
-- [ ] Integration tests exist for real Azure endpoints guarded by env var or test tag.
-- [ ] Adapter errors propagate as structured draft issues, not unhandled exceptions.
-- [ ] No raw user content logged at INFO level or above.
-- [ ] TypeScript strict-mode compilation passes with no new errors.
-- [ ] CI passes with all unit and integration tests using fakes.`;
+          - [ ] `AzureOpenAIEventFieldExtractor` implemented under `src/modules/event-capture/infrastructure/adapters/` satisfying `IEventFieldExtractor`.
+          - [ ] `AzureAISpeechToTextAdapter` implemented under the same directory, satisfying `ISpeechToTextAdapter`.
+          - [ ] `AzureAIImageExtractionAdapter` implemented under the same directory, satisfying `IImageExtractionAdapter`.
+          - [ ] `AzureBlobStorageAdapter` implemented under the same directory, satisfying `IBlobStorageAdapter`.
+          - [ ] All adapters use `DefaultAzureCredential` — no static keys or SAS tokens in code.
+          - [ ] All adapters wired into `AppDependencies` in `src/app.ts` for `NODE_ENV=production`.
+          - [ ] Required env vars validated at startup with clear, actionable error messages.
+          - [ ] Fake adapters unchanged; all existing CI tests pass.
+          - [ ] Unit tests exist for each adapter with mocked Azure SDK clients (no live Azure calls in CI).
+          - [ ] Integration tests exist for real Azure endpoints guarded by env var or test tag.
+          - [ ] Adapter errors propagate as structured draft issues, not unhandled exceptions.
+          - [ ] No raw user content logged at INFO level or above.
+          - [ ] TypeScript strict-mode compilation passes with no new errors.
+          - [ ] CI passes with all unit and integration tests using fakes.
+          MARKDOWN
 
-            const { data } = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: 'Implement production AI adapters for event-capture pipeline',
-              body,
-              labels: ['enhancement'],
-            });
-
-            console.log(`Created issue #${data.number}: ${data.html_url}`);
-            core.summary.addRaw(`### Issue created\n\n**Number:** #${data.number}\n**URL:** ${data.html_url}`);
-            await core.summary.write();
+      - name: Create GitHub issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Implement production AI adapters for event-capture pipeline" \
+            --body-file /tmp/issue-body.md \
+            --label "enhancement"
