@@ -19,3 +19,6 @@ Issue Structure:
 # High-level requirements / Expected behavior
 # Additional notes
 # Acceptance criteria
+
+
+To create the actual issue, use the /.github/workflows/create-issue.yml workflow
