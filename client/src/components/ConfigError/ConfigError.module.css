@@ -1,0 +1,35 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--nc-space-xl);
+  background-color: var(--nc-surface-background);
+  color: var(--nc-content-primary);
+  font-family: var(--nc-font-family-body);
+  text-align: center;
+}
+
+.heading {
+  font-size: var(--nc-font-size-xl);
+  font-weight: 700;
+  margin-bottom: var(--nc-space-md);
+  color: var(--nc-danger-default);
+}
+
+.message {
+  font-size: var(--nc-font-size-md);
+  color: var(--nc-content-secondary);
+  max-width: 36rem;
+  line-height: 1.6;
+}
+
+.code {
+  font-family: var(--nc-font-family-mono);
+  font-size: var(--nc-font-size-sm);
+  background-color: var(--nc-surface-subtle);
+  padding: 1px var(--nc-space-xs);
+  border-radius: var(--nc-radius-sm);
+  color: var(--nc-content-primary);
+}

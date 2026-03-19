@@ -1,0 +1,104 @@
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--nc-surface-background);
+  color: var(--nc-content-primary);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  background-color: var(--nc-surface-card);
+  border-bottom: 1px solid var(--nc-border-default);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.headerInner {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--nc-space-sm) var(--nc-space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-lg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-sm);
+  font-weight: 600;
+  font-size: var(--nc-font-size-lg);
+  text-decoration: none;
+  color: var(--nc-content-primary);
+  flex-shrink: 0;
+}
+
+.brandIcon {
+  font-size: 1.5rem;
+  color: var(--nc-accent-default);
+}
+
+.brandName {
+  letter-spacing: -0.01em;
+}
+
+.navList {
+  display: flex;
+  gap: var(--nc-space-md);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.navLink {
+  color: var(--nc-content-secondary);
+  text-decoration: none;
+  font-size: var(--nc-font-size-sm);
+  font-weight: 500;
+  padding: var(--nc-space-xs) var(--nc-space-sm);
+  border-radius: var(--nc-radius-sm);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+
+.navLink:hover {
+  color: var(--nc-content-primary);
+  background-color: var(--nc-surface-subtle);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 2px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-md);
+  margin-left: auto;
+}
+
+.signOutButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+  padding: var(--nc-space-xs) var(--nc-space-sm);
+  border-radius: var(--nc-radius-sm);
+  transition: color 0.15s;
+}
+
+.signOutButton:hover {
+  color: var(--nc-danger-default);
+}
+
+.signOutButton:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 2px;
+}

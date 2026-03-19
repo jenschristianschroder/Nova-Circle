@@ -35,6 +35,11 @@ export class KnexGroupMemberRepository implements GroupMemberRepositoryPort {
     return rows.map(toGroupMember);
   }
 
+  async listByUser(userId: string): Promise<GroupMember[]> {
+    const rows = await this.db<GroupMemberRow>('group_members').where({ user_id: userId });
+    return rows.map(toGroupMember);
+  }
+
   async add(data: AddMemberData): Promise<GroupMember> {
     const rows = await this.db<GroupMemberRow>('group_members')
       .insert({

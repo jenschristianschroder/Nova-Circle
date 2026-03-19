@@ -1,13 +1,14 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import type { GroupRepositoryPort } from '../domain/group.repository.port.js';
-import type { MembershipCheckerPort } from '../domain/membership-checker.port.js';
 import type { CreateGroupWithOwnerPort } from '../domain/group-creation.port.js';
 import type { AuditLogPort } from '../../audit-security/index.js';
+import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import { CreateGroupUseCase } from '../application/create-group.usecase.js';
 import { GetGroupUseCase } from '../application/get-group.usecase.js';
 import { UpdateGroupUseCase } from '../application/update-group.usecase.js';
 import { DeleteGroupUseCase } from '../application/delete-group.usecase.js';
+import { ListMyGroupsUseCase } from '../application/list-my-groups.usecase.js';
 import { logger } from '../../../shared/logger/logger.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 
@@ -26,7 +27,7 @@ function isValidationError(err: unknown): boolean {
 export function createGroupRouter(
   groupCreator: CreateGroupWithOwnerPort,
   groupRepo: GroupRepositoryPort,
-  membership: MembershipCheckerPort,
+  membership: GroupMemberRepositoryPort,
   auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router();
@@ -35,6 +36,23 @@ export function createGroupRouter(
   const getGroup = new GetGroupUseCase(groupRepo, membership);
   const updateGroup = new UpdateGroupUseCase(groupRepo, membership);
   const deleteGroup = new DeleteGroupUseCase(groupRepo, membership);
+  const listMyGroups = new ListMyGroupsUseCase(membership, groupRepo);
+
+  // GET /api/v1/groups — returns all groups where the caller is a member.
+  router.get('/', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+    try {
+      const groups = await listMyGroups.execute(identity);
+      res.json(groups);
+    } catch (err: unknown) {
+      logger.error('Failed to list groups for user', err);
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
 
   router.post('/', async (req: Request, res: Response) => {
     const identity = req.identity;

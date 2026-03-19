@@ -14,6 +14,8 @@ import { UpdateEventUseCase } from '../application/update-event.usecase.js';
 import { ListEventInviteesUseCase } from '../application/list-event-invitees.usecase.js';
 import { AddEventInviteeUseCase } from '../application/add-event-invitee.usecase.js';
 import { RemoveEventInviteeUseCase } from '../application/remove-event-invitee.usecase.js';
+import { RespondToEventInvitationUseCase } from '../application/respond-to-event-invitation.usecase.js';
+import type { RsvpStatus } from '../application/respond-to-event-invitation.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 import { logger } from '../../../shared/logger/logger.js';
 
@@ -55,6 +57,7 @@ export function createEventRouter(
     memberRepo,
     auditLog,
   );
+  const respondToInvitation = new RespondToEventInvitationUseCase(eventRepo, invitationRepo);
 
   // POST /api/v1/groups/:groupId/events
   router.post('/', async (req: Request, res: Response) => {
@@ -474,6 +477,57 @@ export function createEventRouter(
       }
       if (isValidationError(err)) {
         res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      if (isConflictError(err)) {
+        res.status(409).json({ error: (err as Error).message, code: 'CONFLICT' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
+
+  // PUT /api/v1/groups/:groupId/events/:eventId/invitations/me — RSVP
+  router.put('/:eventId/invitations/me', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    const groupId = req.params['groupId'] as string;
+    if (!isValidUuid(groupId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const eventId = req.params['eventId'] as string;
+    if (!isValidUuid(eventId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const { status } = req.body as { status?: unknown };
+    const validStatuses: RsvpStatus[] = ['accepted', 'declined', 'tentative'];
+    if (typeof status !== 'string' || !validStatuses.includes(status as RsvpStatus)) {
+      res.status(400).json({
+        error: 'status must be one of: accepted, declined, tentative',
+        code: 'VALIDATION_ERROR',
+      });
+      return;
+    }
+
+    try {
+      const invitation = await respondToInvitation.execute(
+        identity,
+        groupId,
+        eventId,
+        status as RsvpStatus,
+      );
+      res.json(invitation);
+    } catch (err: unknown) {
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
         return;
       }
       if (isConflictError(err)) {

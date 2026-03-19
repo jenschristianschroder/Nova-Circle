@@ -1,0 +1,12 @@
+.loadingPage {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--nc-surface-background);
+}
+
+.loadingText {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-lg);
+}

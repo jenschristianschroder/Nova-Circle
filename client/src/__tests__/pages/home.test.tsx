@@ -1,10 +1,9 @@
 /**
- * Visual-regression snapshot tests for the Home page.
+ * Visual-regression snapshot tests for the Home page design-system showcase.
  *
  * Captures DOM snapshots of the full Home page (and its constituent sections)
  * for both light and dark modes so that any unintentional structural or
- * class-name change is caught during CI. These snapshots satisfy the
- * "visual regression tests for key screens" acceptance criterion for M7.
+ * class-name change is caught during CI.
  *
  * Note: jsdom does not paint pixels, so these are DOM snapshots rather than
  * pixel-level screenshots. They verify the rendered HTML structure including
@@ -13,7 +12,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { App } from '../../App';
 import { ThemeProvider } from '../../design-system/ThemeContext';
 import { Home } from '../../pages/Home';
 
@@ -76,30 +74,8 @@ describe('Home page snapshot', () => {
 });
 
 // ─── App (full tree) snapshots ────────────────────────────────────────────────
-// Snapshot the full App tree (ThemeProvider + SkipLink + Home) to catch
-// any wiring-level regressions.
-
-describe('App snapshot', () => {
-  it('renders correctly in light mode', () => {
-    localStorage.setItem('nc-theme-mode', 'light');
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: mockMatchMedia(false),
-    });
-    const { container } = render(<App />);
-    expect(container).toMatchSnapshot();
-  });
-
-  it('renders correctly in dark mode', () => {
-    localStorage.setItem('nc-theme-mode', 'dark');
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: mockMatchMedia(true),
-    });
-    const { container } = render(<App />);
-    expect(container).toMatchSnapshot();
-  });
-});
+// App now uses MSAL + React Router providers. Full App-level snapshot tests
+// live in __tests__/App.test.tsx which mocks the MSAL and router providers.
 
 // ─── Structural assertions ────────────────────────────────────────────────────
 // Verify the key structural landmarks are always present regardless of mode.
