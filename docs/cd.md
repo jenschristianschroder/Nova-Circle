@@ -166,17 +166,14 @@ works across all GitHub plan types.
 Go to: `https://github.com/<owner>/<repo>/settings/environments`
 → Click `production` → Enable **Required reviewers** → Add approvers.
 
-**2. Configure the API app registration for client redirect URIs**
+**2. Configure the API app registration for OAuth2 (if using JWT auth)**
 
-The bootstrap script creates the app registration, sets the Application ID URI, and
-automatically exposes the `user_impersonation` OAuth2 permission scope. The only
-remaining manual step is adding redirect URIs for your specific mobile/web clients.
-Go to Azure Portal → Entra ID → App Registrations → `nova-circle-api-<env>`:
+The bootstrap script creates the app registration and sets the Application ID URI,
+but client apps and redirect URIs must be configured for your specific mobile/web
+clients. Go to Azure Portal → Entra ID → App Registrations → `nova-circle-api-<env>`:
+- **Expose an API** — add scopes (e.g. `access_as_user`)
 - **Authentication** — add redirect URIs for mobile/SPA clients
 - **API permissions** — in any client app, grant permissions to this API
-
-> **Note:** The `user_impersonation` scope under **Expose an API** is configured
-> automatically by the bootstrap script. No manual scope creation is needed.
 
 ---
 
