@@ -19,6 +19,12 @@ param containerImage string
 @description('Container Registry login server for managed-identity pull (e.g. crnovadev<suffix>.azurecr.io)')
 param registryLoginServer string
 
+@description('Azure Client ID injected into the SPA at runtime for MSAL authentication')
+param azureClientId string = ''
+
+@description('Azure Tenant ID injected into the SPA at runtime for MSAL authentication')
+param azureTenantId string = ''
+
 var appName = 'ca-nova-circle-client-${environmentName}'
 
 // Only configure ACR pull when the image is actually from the provisioned registry.
@@ -67,6 +73,19 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.25') // 0.25 vCPU (Consumption minimum)
             memory: '0.5Gi'  // 0.5 GiB
           }
+          // Inject Azure credentials so entrypoint.sh can write env-config.js
+          // at container startup. These are public OAuth identifiers (not
+          // secrets) so Key Vault indirection is not required.
+          env: [
+            {
+              name: 'VITE_AZURE_CLIENT_ID'
+              value: azureClientId
+            }
+            {
+              name: 'VITE_AZURE_TENANT_ID'
+              value: azureTenantId
+            }
+          ]
           probes: [
             {
               type: 'Liveness'

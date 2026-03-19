@@ -12,6 +12,7 @@ RUN npm ci
 COPY index.html ./
 COPY vite.config.ts ./
 COPY tsconfig*.json ./
+COPY public/ ./public/
 COPY src/ ./src/
 
 RUN npm run build
@@ -24,6 +25,14 @@ FROM nginx:1.27-alpine AS runtime
 RUN rm -rf /usr/share/nginx/html/*
 
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Runtime environment injection:
+# entrypoint.sh runs before nginx starts (via /docker-entrypoint.d/) and
+# writes env-config.js from container environment variables so the React SPA
+# can read VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID at runtime without
+# requiring the image to be rebuilt per environment.
+COPY entrypoint.sh /docker-entrypoint.d/40-env-config.sh
+RUN chmod +x /docker-entrypoint.d/40-env-config.sh
 
 # SPA config: all unknown paths fall back to index.html for client-side routing.
 # Static assets built by Vite include content hashes, so they are cached
