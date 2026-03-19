@@ -47,7 +47,7 @@
 #   1. az login          — browser-based Azure authentication
 #   2. gh auth login     — browser-based GitHub authentication
 #   3. Add required reviewers to the 'production' environment in GitHub UI
-#   4. Configure OAuth2 scopes / redirect URIs on the API app registration
+#   4. Add redirect URIs for mobile/SPA clients on the API app registration
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -656,6 +656,37 @@ setup_api_app() {
       || warn "Could not set identifier URI — set manually in Azure Portal: ${app_id_uri}"
   else
     step "Application ID URI already set: ${app_id_uri}"
+  fi
+
+  # Expose the user_impersonation OAuth2 permission scope so that client apps
+  # can request tokens with api://<API_APP_ID>/user_impersonation.
+  # The scope ID is a stable, hard-coded UUID — never regenerated at runtime —
+  # to prevent duplicate scope entries across idempotent bootstrap runs.
+  local USER_IMPERSONATION_SCOPE_ID="a4803e83-3de5-4e86-a3d7-2e0b3a4e5c61"
+
+  local existing_scope
+  existing_scope=$(az ad app show \
+    --id "${API_APP_ID}" \
+    --query "api.oauth2PermissionScopes[?value=='user_impersonation' && isEnabled==\`true\`].value" \
+    -o tsv 2>/dev/null || echo "")
+  if [[ "${existing_scope}" == "user_impersonation" ]]; then
+    step "OAuth2 scope 'user_impersonation' already exists and is enabled — skipping"
+  else
+    step "Exposing OAuth2 scope 'user_impersonation' on API app registration"
+    az ad app update \
+      --id "${API_APP_ID}" \
+      --add "api.oauth2PermissionScopes" "{
+        \"id\": \"${USER_IMPERSONATION_SCOPE_ID}\",
+        \"adminConsentDescription\": \"Allow the application to access the Nova-Circle API on behalf of the signed-in user.\",
+        \"adminConsentDisplayName\": \"Access the Nova-Circle API\",
+        \"isEnabled\": true,
+        \"type\": \"User\",
+        \"userConsentDescription\": \"Allow the application to access the Nova-Circle API on your behalf.\",
+        \"userConsentDisplayName\": \"Access the Nova-Circle API\",
+        \"value\": \"user_impersonation\"
+      }" \
+      --output none 2>/dev/null \
+      || warn "Could not expose user_impersonation scope — add it manually in Azure Portal → Expose an API"
   fi
 
   step "API app registration ready: ${API_APP_ID}"
