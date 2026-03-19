@@ -1,10 +1,12 @@
 /**
  * MSAL configuration for Azure Entra ID authentication.
  *
- * Reads client ID and tenant ID from Vite environment variables so they
- * can differ per deployment without rebuilding. Both variables must be
- * provided in production; in local/test environments they may be omitted
- * (the app will detect the missing config and fall back gracefully).
+ * In production containers, client ID and tenant ID are injected at runtime
+ * via `window.__ENV__` (written by `/docker-entrypoint.d/40-env-config.sh`
+ * before nginx starts). In local development they fall back to Vite's
+ * `import.meta.env` (VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID from an
+ * `.env` file). Both variables must be provided in production; when absent
+ * the app renders a configuration error instead of a broken MSAL instance.
  */
 
 import {
@@ -14,8 +16,12 @@ import {
   BrowserCacheLocation,
 } from '@azure/msal-browser';
 
-const clientId = import.meta.env.VITE_AZURE_CLIENT_ID as string | undefined;
-const tenantId = import.meta.env.VITE_AZURE_TENANT_ID as string | undefined;
+const clientId = (window.__ENV__?.VITE_AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID) as
+  | string
+  | undefined;
+const tenantId = (window.__ENV__?.VITE_AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID) as
+  | string
+  | undefined;
 
 /** True when Azure credentials are present in the environment. */
 export const msalConfigured = Boolean(clientId && tenantId);

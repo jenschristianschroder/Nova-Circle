@@ -53,6 +53,12 @@ param azureClientId string = ''
 @description('Allowed CORS origins for the API (comma-separated, e.g. "https://app.novacircle.com")')
 param corsOrigin string = ''
 
+@description('Azure Client ID for the frontend SPA MSAL config (injected at container runtime)')
+param frontendAzureClientId string = ''
+
+@description('Azure Tenant ID for the frontend SPA MSAL config (injected at container runtime)')
+param frontendAzureTenantId string = ''
+
 // ── Modules ───────────────────────────────────────────────────────────────
 
 // 1. Observability: Log Analytics Workspace + Application Insights
@@ -121,6 +127,8 @@ module containerAppFrontendMod 'modules/container-app-frontend.bicep' = {
     containerAppEnvId: containerAppEnvMod.outputs.resourceId
     containerImage: frontendContainerImage
     registryLoginServer: containerRegistryMod.outputs.loginServer
+    azureClientId: frontendAzureClientId
+    azureTenantId: frontendAzureTenantId
   }
 }
 
