@@ -36,7 +36,8 @@ RUN chmod +x /docker-entrypoint.d/40-env-config.sh
 
 # SPA config: all unknown paths fall back to index.html for client-side routing.
 # Static assets built by Vite include content hashes, so they are cached
-# aggressively; HTML is never cached to pick up new deployments immediately.
+# aggressively; HTML and runtime-generated config are never cached to pick up
+# new deployments and environment changes immediately.
 RUN printf 'server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -45,6 +46,12 @@ RUN printf 'server {\n\
     # SPA fallback\n\
     location / {\n\
         try_files $uri $uri/ /index.html;\n\
+    }\n\
+\n\
+    # Never cache the runtime-generated env config — it changes per environment\n\
+    # and per deployment (written by /docker-entrypoint.d/40-env-config.sh).\n\
+    location = /env-config.js {\n\
+        add_header Cache-Control "no-store";\n\
     }\n\
 \n\
     # Cache hashed assets for 1 year\n\
