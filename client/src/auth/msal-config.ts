@@ -16,10 +16,12 @@ import {
   BrowserCacheLocation,
 } from '@azure/msal-browser';
 
-const clientId = (window.__ENV__?.VITE_AZURE_CLIENT_ID ||
-  import.meta.env.VITE_AZURE_CLIENT_ID) as string | undefined;
-const tenantId = (window.__ENV__?.VITE_AZURE_TENANT_ID ||
-  import.meta.env.VITE_AZURE_TENANT_ID) as string | undefined;
+const clientId = (window.__ENV__?.VITE_AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID) as
+  | string
+  | undefined;
+const tenantId = (window.__ENV__?.VITE_AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID) as
+  | string
+  | undefined;
 
 /** True when Azure credentials are present in the environment. */
 export const msalConfigured = Boolean(clientId && tenantId);
