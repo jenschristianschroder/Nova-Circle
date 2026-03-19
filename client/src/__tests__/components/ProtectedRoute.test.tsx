@@ -40,10 +40,7 @@ function renderProtectedRoute(children: React.ReactNode, initialPath = '/protect
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
           <Route path="/login" element={<div>Login page</div>} />
-          <Route
-            path="/protected"
-            element={<ProtectedRoute>{children}</ProtectedRoute>}
-          />
+          <Route path="/protected" element={<ProtectedRoute>{children}</ProtectedRoute>} />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,
