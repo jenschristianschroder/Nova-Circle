@@ -84,9 +84,10 @@ describe('ProtectedRoute — loading state', () => {
 
     renderProtectedRoute(<div>Protected content</div>);
 
-    // The loading container sets aria-busy="true" and aria-live="polite".
-    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
-    expect(document.querySelector('[aria-live="polite"]')).not.toBeNull();
+    // The same loading container element must carry both aria-busy="true" and
+    // aria-live="polite" — assert on a single element to enforce the contract.
+    const loadingContainer = document.querySelector('[aria-busy="true"][aria-live="polite"]');
+    expect(loadingContainer).not.toBeNull();
   });
 });
 
