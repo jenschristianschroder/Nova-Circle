@@ -259,3 +259,9 @@ Every pull request runs the full CI pipeline defined in [docs/architecture/ci-cd
 6. **Build** – `tsc` compiles cleanly
 
 The build must be green before merging.
+
+---
+
+## Contributing
+
+To report a bug or request a feature, use the file-based issue submission workflow rather than creating issues directly in GitHub. See [docs/contributing/issue-submission.md](docs/contributing/issue-submission.md) for the step-by-step guide, the JSON field reference, and the recommended four-section issue body structure.
