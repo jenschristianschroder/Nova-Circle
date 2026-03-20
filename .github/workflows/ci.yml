@@ -305,7 +305,7 @@ jobs:
       - name: Wait for container to be ready
         run: |
           for i in $(seq 1 10); do
-            if curl --silent --fail http://localhost:8080/ > /dev/null; then
+            if curl --silent --fail --connect-timeout 2 --max-time 5 http://localhost:8080/ > /dev/null; then
               echo "Container is ready"
               exit 0
             fi
@@ -317,7 +317,7 @@ jobs:
           exit 1
 
       - name: Smoke test – GET / returns 200
-        run: curl --fail http://localhost:8080/
+        run: curl --fail --connect-timeout 5 --max-time 10 http://localhost:8080/
 
       - name: Stop and remove container
         if: always()
