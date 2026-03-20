@@ -145,3 +145,10 @@
   color: var(--nc-content-secondary);
   font-size: var(--nc-font-size-sm);
 }
+
+/* ── Loading state ───────────────────────────────────────────────────────── */
+.loadingText {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-lg);
+  margin: auto;
+}

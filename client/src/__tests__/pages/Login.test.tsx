@@ -3,39 +3,48 @@
  *
  * Verifies that unauthenticated users see the login screen with a sign-in
  * button and that clicking it triggers the MSAL login redirect flow.
+ * Also verifies that authenticated users are redirected to /groups and that
+ * a loading indicator is shown while MSAL resolves auth state.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../design-system/ThemeContext';
 import { Login } from '../../pages/Login';
 
 // Mock useAuth so Login doesn't need a real MSAL context.
 const mockLogin = vi.fn().mockResolvedValue(undefined);
 
+const mockAuthState = {
+  isAuthenticated: false,
+  isLoading: false,
+  account: null,
+  getAccessToken: vi.fn(),
+  login: mockLogin,
+  logout: vi.fn(),
+};
+
 vi.mock('../../auth/useAuth', () => ({
-  useAuth: () => ({
-    isAuthenticated: false,
-    isLoading: false,
-    account: null,
-    getAccessToken: vi.fn(),
-    login: mockLogin,
-    logout: vi.fn(),
-  }),
+  useAuth: () => mockAuthState,
 }));
 
 function renderLogin() {
   return render(
-    <ThemeProvider>
-      <Login />
-    </ThemeProvider>,
+    <MemoryRouter>
+      <ThemeProvider>
+        <Login />
+      </ThemeProvider>
+    </MemoryRouter>,
   );
 }
 
 beforeEach(() => {
   localStorage.clear();
   mockLogin.mockClear();
+  mockAuthState.isAuthenticated = false;
+  mockAuthState.isLoading = false;
 });
 
 afterEach(() => {
@@ -88,5 +97,19 @@ describe('Login page', () => {
     renderLogin();
     expect(screen.queryByRole('heading', { name: /component showcase/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: /colour token swatches/i })).not.toBeInTheDocument();
+  });
+
+  it('shows a loading indicator while MSAL is resolving auth state', () => {
+    mockAuthState.isLoading = true;
+    renderLogin();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();
+  });
+
+  it('redirects authenticated users to /groups without rendering the login form', () => {
+    mockAuthState.isAuthenticated = true;
+    renderLogin();
+    expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /your private group calendar/i })).not.toBeInTheDocument();
   });
 });
