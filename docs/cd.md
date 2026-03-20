@@ -131,7 +131,7 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
   --location swedencentral \
   --environment dev \
   --github-repo owner/Nova-Circle \
-  --app-redirect-uri https://nova-circle.example.com
+  --app-redirect-uri https://<your-site-origin>
 
 # Preview Bicep changes without creating anything:
 export POSTGRES_ADMIN_PASSWORD='<strong-password>'
@@ -177,9 +177,14 @@ OAuth2 scopes still need to be added manually for client apps. Go to Azure Porta
 - **API permissions** — in any client app, grant permissions to this API
 
 > **SPA redirect URIs are now automated.** Pass the live-site origin with
-> `--app-redirect-uri https://your-site-origin.example.com` when running
-> `bootstrap.sh`. For non-production environments `http://localhost:5173` is
-> always registered automatically.
+> `--app-redirect-uri https://<your-site-origin>` when running `bootstrap.sh`.
+> For non-production environments `http://localhost:5173` is always registered
+> automatically.
+>
+> **`--app-redirect-uri` is required for `prod`.** If it is omitted, no SPA
+> redirect URI will be registered and every sign-in will fail with
+> `AADSTS500113`. Bootstrap will emit a warning with a direct link to the
+> Authentication blade so you can add it manually if needed.
 
 ---
 

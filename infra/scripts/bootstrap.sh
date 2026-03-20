@@ -671,9 +671,37 @@ setup_api_app() {
   #
   # The MSAL client always uses window.location.origin as the redirectUri, so that
   # origin must be registered here before Entra ID will accept the OIDC redirect.
+  # Entra ID performs an exact URI match, so the registered value must be an origin
+  # (scheme + host + optional port, no path, query, or fragment).
+
+  # Validate and normalize APP_REDIRECT_URI when provided.
+  if [[ -n "${APP_REDIRECT_URI:-}" ]]; then
+    # Strip a single trailing slash to normalize.
+    APP_REDIRECT_URI="${APP_REDIRECT_URI%/}"
+    # Reject values that include a path, query string, or fragment — Entra ID will
+    # not match them against window.location.origin and sign-in will fail silently.
+    if [[ "${APP_REDIRECT_URI}" =~ ^https?://[^/?#]+(:[0-9]+)?(/[^/?#].*)? ]]; then
+      local uri_path="${BASH_REMATCH[2]:-}"
+      if [[ -n "${uri_path}" ]]; then
+        warn "APP_REDIRECT_URI '${APP_REDIRECT_URI}' contains a path component ('${uri_path}')."
+        warn "Entra ID requires a plain origin (scheme + host + optional port). The URI will not be registered."
+        APP_REDIRECT_URI=""
+      fi
+    fi
+  fi
+
   local -a desired_spa_uris=()
   [[ "${ENVIRONMENT}" != "prod" ]] && desired_spa_uris+=("http://localhost:5173")
   [[ -n "${APP_REDIRECT_URI:-}" ]]  && desired_spa_uris+=("${APP_REDIRECT_URI}")
+
+  # In production, require APP_REDIRECT_URI. Without it, no SPA redirect URI is
+  # registered and every sign-in will fail with AADSTS500113.
+  if [[ "${ENVIRONMENT}" == "prod" && -z "${APP_REDIRECT_URI:-}" ]]; then
+    local auth_blade_url="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Authentication/appId/${API_APP_ID}/isMSAApp~/false"
+    warn "ENVIRONMENT=prod but --app-redirect-uri is not set. No SPA redirect URI will be registered."
+    warn "SPA sign-in will fail with AADSTS500113. Register the live-site origin manually:"
+    warn "  ${auth_blade_url}"
+  fi
 
   if [[ ${#desired_spa_uris[@]} -gt 0 ]]; then
     step "Registering SPA platform redirect URIs..."
@@ -698,13 +726,21 @@ setup_api_app() {
       [[ "${already_present}" == "false" ]] && merged_spa_uris+=("${uri}")
     done
 
-    az ad app update \
+    local spa_update_err=""
+    if ! spa_update_err=$(az ad app update \
       --id "${API_APP_ID}" \
       --spa-redirect-uris "${merged_spa_uris[@]}" \
-      --output none 2>/dev/null \
-      || warn "Could not register SPA redirect URIs — add them manually in Azure Portal → Authentication."
-
-    step "SPA redirect URIs: ${merged_spa_uris[*]}"
+      --output none 2>&1); then
+      local auth_blade_url="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Authentication/appId/${API_APP_ID}/isMSAApp~/false"
+      warn "Could not register SPA redirect URIs — add them manually in Azure Portal → Authentication:"
+      warn "  ${auth_blade_url}"
+      warn "Azure CLI output: ${spa_update_err}"
+      if [[ "${ENVIRONMENT}" == "prod" ]]; then
+        die "SPA redirect URI registration failed in prod. Fix the error above and re-run bootstrap."
+      fi
+    else
+      step "SPA redirect URIs: ${merged_spa_uris[*]}"
+    fi
   fi
 
   step "API app registration ready: ${API_APP_ID}"
