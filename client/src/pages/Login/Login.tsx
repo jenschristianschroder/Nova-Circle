@@ -5,12 +5,25 @@
  * the MSAL redirect login flow. No personal data is rendered or stored here.
  */
 
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { Button } from '../../components/Button';
 import styles from './Login.module.css';
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className={styles.page} aria-live="polite" aria-busy="true">
+        <span className={styles.loadingText}>Loading…</span>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/groups" replace />;
+  }
 
   return (
     <div className={styles.page}>
