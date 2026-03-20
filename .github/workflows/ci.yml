@@ -285,6 +285,45 @@ jobs:
         run: npm run build
 
   # ──────────────────────────────────────────────────────────────────────────
+  # Client container build – builds client/Dockerfile and smoke-tests that
+  # the nginx container serves a valid response on GET /.
+  # Catches broken Vite builds, missing assets, or nginx config errors before
+  # they reach the CD pipeline.
+  # ──────────────────────────────────────────────────────────────────────────
+  client-container-build:
+    name: client-container-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build client Docker image
+        run: docker build --tag nova-circle-client:ci client/
+
+      - name: Start client container
+        run: docker run -d --name nova-circle-client-ci -p 8080:80 nova-circle-client:ci
+
+      - name: Wait for container to be ready
+        run: |
+          for i in $(seq 1 10); do
+            if curl --silent --fail http://localhost:8080/ > /dev/null; then
+              echo "Container is ready"
+              exit 0
+            fi
+            echo "Attempt $i: container not ready yet, waiting 2 s..."
+            sleep 2
+          done
+          echo "ERROR: Container did not become ready in time"
+          docker logs nova-circle-client-ci
+          exit 1
+
+      - name: Smoke test – GET / returns 200
+        run: curl --fail http://localhost:8080/
+
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f nova-circle-client-ci || true
+
+  # ──────────────────────────────────────────────────────────────────────────
   # Client – lint, typecheck, and tests for the web client (M7 UI polish)
   # ──────────────────────────────────────────────────────────────────────────
   client:
