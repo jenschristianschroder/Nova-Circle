@@ -130,7 +130,8 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
   --resource-group rg-nova-circle-dev \
   --location swedencentral \
   --environment dev \
-  --github-repo owner/Nova-Circle
+  --github-repo owner/Nova-Circle \
+  --app-redirect-uri https://<your-site-origin>
 
 # Preview Bicep changes without creating anything:
 export POSTGRES_ADMIN_PASSWORD='<strong-password>'
@@ -148,6 +149,7 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
 | CD service principal | App Registration + Service Principal + OIDC federated credentials |
 | RBAC for CD principal | Contributor + User Access Administrator on the resource group |
 | API app registration | App Registration for JWT validation (`api://nova-circle-<env>`) |
+| SPA redirect URIs | `http://localhost:5173` (non-prod) + any `--app-redirect-uri` value |
 | Bicep infrastructure | All Azure resources (ACR, Container App, PostgreSQL, etc.) |
 | AcrPush assignment | Grants CD service principal AcrPush on the ACR |
 | Database migrations | Opens temporary firewall rule, runs `npm run migrate`, removes rule |
@@ -166,14 +168,23 @@ works across all GitHub plan types.
 Go to: `https://github.com/<owner>/<repo>/settings/environments`
 → Click `production` → Enable **Required reviewers** → Add approvers.
 
-**2. Configure the API app registration OAuth2 scopes / redirect URIs**
+**2. Expose OAuth2 scopes on the API app registration**
 
-The bootstrap script creates the app registration and sets the Application ID URI,
-but client apps and redirect URIs must be configured for your specific mobile/web
-clients. Go to Azure Portal → Entra ID → App Registrations → `nova-circle-api-<env>`:
+The bootstrap script registers SPA redirect URIs automatically (see above), but
+OAuth2 scopes still need to be added manually for client apps. Go to Azure Portal
+→ Entra ID → App Registrations → `nova-circle-api-<env>`:
 - **Expose an API** — add scopes (e.g. `user_impersonation`; must match the scope configured in the client, `api://<clientId>/user_impersonation`)
-- **Authentication** — add redirect URIs for mobile/SPA clients
 - **API permissions** — in any client app, grant permissions to this API
+
+> **SPA redirect URIs are now automated.** Pass the live-site origin with
+> `--app-redirect-uri https://<your-site-origin>` when running `bootstrap.sh`.
+> For non-production environments `http://localhost:5173` is always registered
+> automatically.
+>
+> **`--app-redirect-uri` is required for `prod`.** If it is omitted, no SPA
+> redirect URI will be registered and every sign-in will fail with
+> `AADSTS500113`. Bootstrap will emit a warning with a direct link to the
+> Authentication blade so you can add it manually if needed.
 
 ---
 
