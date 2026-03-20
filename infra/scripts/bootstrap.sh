@@ -25,6 +25,7 @@
 #   -e, --environment <name>       Environment suffix: dev|staging|prod (default: dev)
 #   -r, --github-repo <owner/repo> GitHub repository slug (default: from git remote)
 #       --cors-origin <origins>    Comma-separated allowed CORS origins (default: "")
+#       --app-redirect-uri <url>   SPA redirect URI to register on the API app (e.g. https://nova-circle.example.com)
 #       --skip-github              Skip GitHub variable/secret configuration
 #       --skip-infra               Skip Bicep infrastructure deployment
 #       --skip-migrations          Skip initial database migrations
@@ -34,6 +35,7 @@
 # Environment variables (alternative to interactive prompts):
 #   POSTGRES_ADMIN_PASSWORD  PostgreSQL administrator password
 #   CORS_ORIGIN              Comma-separated allowed CORS origins
+#   APP_REDIRECT_URI         SPA redirect URI to register on the API app registration
 #
 # Required Azure permissions on the target subscription or resource group:
 #   • Contributor
@@ -47,7 +49,6 @@
 #   1. az login          — browser-based Azure authentication
 #   2. gh auth login     — browser-based GitHub authentication
 #   3. Add required reviewers to the 'production' environment in GitHub UI
-#   4. Configure OAuth2 scopes / redirect URIs on the API app registration
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -87,6 +88,7 @@ ${BOLD}Options:${RESET}
   -e, --environment <name>       Environment suffix: dev|staging|prod (default: dev)
   -r, --github-repo <owner/repo> GitHub repository slug (default: from git remote)
       --cors-origin <origins>    Comma-separated allowed CORS origins (default: "")
+      --app-redirect-uri <url>   SPA redirect URI to register on the API app (e.g. https://nova-circle.example.com)
       --skip-github              Skip GitHub variable/secret configuration
       --skip-infra               Skip Bicep infrastructure deployment
       --skip-migrations          Skip initial database migrations
@@ -96,6 +98,7 @@ ${BOLD}Options:${RESET}
 ${BOLD}Environment variables:${RESET}
   POSTGRES_ADMIN_PASSWORD  PostgreSQL administrator password (avoids prompt)
   CORS_ORIGIN              Allowed CORS origins (comma-separated)
+  APP_REDIRECT_URI         SPA redirect URI to register on the API app registration
 
 ${BOLD}Required Azure permissions:${RESET}
   Contributor + User Access Administrator on the target resource group.
@@ -133,6 +136,7 @@ LOCATION="swedencentral"
 ENVIRONMENT="dev"
 GITHUB_REPO=""
 CORS_ORIGIN="${CORS_ORIGIN:-}"
+APP_REDIRECT_URI="${APP_REDIRECT_URI:-}"
 SKIP_GITHUB=false
 SKIP_INFRA=false
 SKIP_MIGRATIONS=false
@@ -146,6 +150,7 @@ while [[ $# -gt 0 ]]; do
     -e|--environment)    ENVIRONMENT="$2";     shift 2 ;;
     -r|--github-repo)    GITHUB_REPO="$2";     shift 2 ;;
     --cors-origin)       CORS_ORIGIN="$2";     shift 2 ;;
+    --app-redirect-uri)  APP_REDIRECT_URI="$2"; shift 2 ;;
     --skip-github)       SKIP_GITHUB=true;     shift   ;;
     --skip-infra)        SKIP_INFRA=true;      shift   ;;
     --skip-migrations)   SKIP_MIGRATIONS=true; shift   ;;
@@ -658,6 +663,50 @@ setup_api_app() {
     step "Application ID URI already set: ${app_id_uri}"
   fi
 
+  # Register SPA platform redirect URIs (idempotent — preserves existing URIs).
+  #
+  # Always include http://localhost:5173 for non-production environments so local
+  # development works without any extra configuration.  Include the operator-supplied
+  # --app-redirect-uri value (e.g. the live site origin) when provided.
+  #
+  # The MSAL client always uses window.location.origin as the redirectUri, so that
+  # origin must be registered here before Entra ID will accept the OIDC redirect.
+  local -a desired_spa_uris=()
+  [[ "${ENVIRONMENT}" != "prod" ]] && desired_spa_uris+=("http://localhost:5173")
+  [[ -n "${APP_REDIRECT_URI:-}" ]]  && desired_spa_uris+=("${APP_REDIRECT_URI}")
+
+  if [[ ${#desired_spa_uris[@]} -gt 0 ]]; then
+    step "Registering SPA platform redirect URIs..."
+
+    # Read existing SPA redirect URIs from the app registration.
+    local existing_spa_raw
+    existing_spa_raw=$(az ad app show \
+      --id "${API_APP_ID}" \
+      --query "spa.redirectUris" -o tsv 2>/dev/null || echo "")
+
+    # Merge existing + desired, deduplicating by exact URI match.
+    local -a merged_spa_uris=()
+    while IFS= read -r uri; do
+      [[ -n "${uri}" ]] && merged_spa_uris+=("${uri}")
+    done <<< "${existing_spa_raw}"
+
+    for uri in "${desired_spa_uris[@]}"; do
+      local already_present=false
+      for existing in "${merged_spa_uris[@]-}"; do
+        [[ "${existing}" == "${uri}" ]] && already_present=true && break
+      done
+      [[ "${already_present}" == "false" ]] && merged_spa_uris+=("${uri}")
+    done
+
+    az ad app update \
+      --id "${API_APP_ID}" \
+      --spa-redirect-uris "${merged_spa_uris[@]}" \
+      --output none 2>/dev/null \
+      || warn "Could not register SPA redirect URIs — add them manually in Azure Portal → Authentication."
+
+    step "SPA redirect URIs: ${merged_spa_uris[*]}"
+  fi
+
   step "API app registration ready: ${API_APP_ID}"
 }
 
@@ -936,8 +985,8 @@ print_summary() {
     echo    "     (automated deployment approval gate):"
     echo    "     https://github.com/${GITHUB_REPO}/settings/environments"
     echo    ""
-    echo    "  2. Configure the API app registration for your client apps"
-    echo    "     (redirect URIs, OAuth2 scopes) if JWT auth is needed:"
+    echo    "  2. Expose OAuth2 scopes on the API app registration if JWT auth is"
+    echo    "     needed (e.g. user_impersonation) for your client apps:"
     local tenant_portal_url="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/${API_APP_ID:-}"
     echo    "     ${tenant_portal_url}"
     echo    ""
@@ -947,7 +996,7 @@ print_summary() {
     echo    ""
     echo    "  1. Configure GitHub variables and secrets (see docs/cd.md)."
     echo    "  2. Add required reviewers to the 'production' environment."
-    echo    "  3. Configure the API app registration for JWT auth if needed."
+    echo    "  3. Expose OAuth2 scopes on the API app registration if JWT auth is needed."
     echo    "  4. Push or merge a change to 'main' to trigger the first CD run."
   fi
   echo ""
