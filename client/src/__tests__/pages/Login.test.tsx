@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from '../../design-system/ThemeContext';
 import { Login } from '../../pages/Login';
 
@@ -30,13 +30,20 @@ vi.mock('../../auth/useAuth', () => ({
   useAuth: () => mockAuthState,
 }));
 
+/**
+ * Renders Login inside a MemoryRouter with a /groups sentinel route so that
+ * <Navigate to="/groups"> can be observed via the sentinel text.
+ */
 function renderLogin() {
   return render(
-    <MemoryRouter>
-      <ThemeProvider>
-        <Login />
-      </ThemeProvider>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/groups" element={<div>Groups page</div>} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
@@ -106,10 +113,10 @@ describe('Login page', () => {
     expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();
   });
 
-  it('redirects authenticated users to /groups without rendering the login form', () => {
+  it('redirects authenticated users to /groups', () => {
     mockAuthState.isAuthenticated = true;
     renderLogin();
+    expect(screen.getByText('Groups page')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /your private group calendar/i })).not.toBeInTheDocument();
   });
 });
