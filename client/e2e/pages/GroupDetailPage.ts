@@ -13,17 +13,20 @@ export class GroupDetailPage {
   /** The heading that displays the group name. */
   readonly groupNameHeading: Locator;
 
-  /** All event list items/cards shown for this group. */
+  /**
+   * All event card buttons in the events list.
+   * The UI renders each event as `<button aria-label="Open event {title}">`.
+   */
   readonly eventListItems: Locator;
 
-  /** The "New event" / "Create event" button or link. */
+  /** The "+ New Event" button that navigates to the EventCreate page. */
   readonly newEventButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.groupNameHeading = page.getByRole('heading').first();
-    this.eventListItems = page.locator('[data-testid="event-card"]');
-    this.newEventButton = page.getByRole('link', { name: /new event|create event/i });
+    this.groupNameHeading = page.getByRole('heading', { level: 1 });
+    this.eventListItems = page.getByRole('button', { name: /^open event /i });
+    this.newEventButton = page.getByRole('button', { name: /\+ new event/i });
   }
 
   /**
@@ -36,12 +39,13 @@ export class GroupDetailPage {
   }
 
   /**
-   * Returns the event card element that contains the given event title text.
+   * Returns the event card button for the event with the given title.
+   * Matches the aria-label `"Open event {title}"`.
    *
-   * @param title - The exact or partial event title to search for.
+   * @param title - The exact event title.
    */
   eventCardByTitle(title: string): Locator {
-    return this.page.locator('[data-testid="event-card"]', { hasText: title });
+    return this.page.getByRole('button', { name: `Open event ${title}` });
   }
 
   /**
@@ -55,7 +59,7 @@ export class GroupDetailPage {
   }
 
   /**
-   * Clicks the "New event" button / link, navigating to the EventCreate page.
+   * Clicks the "+ New Event" button, navigating to the EventCreate page.
    */
   async clickNewEvent(): Promise<void> {
     await this.newEventButton.click();

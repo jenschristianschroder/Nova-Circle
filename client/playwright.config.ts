@@ -12,6 +12,12 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
 
+  /**
+   * Global setup script — runs once before all test projects.
+   * Produces e2e/.auth/user.json with a valid signed-in storage state.
+   */
+  globalSetup: './e2e/global-setup.ts',
+
   /** Global timeout per test (ms). */
   timeout: 30_000,
 
@@ -39,8 +45,12 @@ export default defineConfig({
   ],
 
   use: {
-    /** Base URL for all page.goto() calls that use relative paths. */
-    baseURL: process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173',
+    /**
+     * Base URL for all page.goto() calls that use relative paths.
+     * Default matches the Vite dev server port configured in client/vite.config.ts
+     * (`server.port: 3000`).
+     */
+    baseURL: process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000',
 
     /** Collect traces on first retry so failures can be investigated. */
     trace: 'on-first-retry',
@@ -53,12 +63,6 @@ export default defineConfig({
   },
 
   projects: [
-    /** Global setup runs once before all test projects. */
-    {
-      name: 'setup',
-      testMatch: /global-setup\.ts/,
-    },
-
     {
       name: 'chromium',
       use: {
@@ -66,19 +70,16 @@ export default defineConfig({
         /** Load saved auth state produced by global-setup.ts. */
         storageState: 'e2e/.auth/user.json',
       },
-      dependencies: ['setup'],
     },
 
     /** Optional: enable firefox / webkit in local runs or extended CI. */
     // {
     //   name: 'firefox',
     //   use: { ...devices['Desktop Firefox'], storageState: 'e2e/.auth/user.json' },
-    //   dependencies: ['setup'],
     // },
     // {
     //   name: 'webkit',
     //   use: { ...devices['Desktop Safari'], storageState: 'e2e/.auth/user.json' },
-    //   dependencies: ['setup'],
     // },
   ],
 });

@@ -69,16 +69,14 @@ async function globalSetup(_config: FullConfig): Promise<void> {
   }
 
   const baseURL =
-    process.env['PLAYWRIGHT_BASE_URL'] ??
-    _config.projects[0]?.use?.baseURL ??
-    'http://localhost:5173';
+    process.env['PLAYWRIGHT_BASE_URL'] ?? _config.use?.baseURL ?? 'http://localhost:3000';
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
-    console.log(`[global-setup] Signing in as ${email} against ${baseURL}`);
+    console.log(`[global-setup] Starting test user sign-in against ${baseURL}`);
 
     // Navigate to the login page; ProtectedRoute will redirect here for
     // unauthenticated users.

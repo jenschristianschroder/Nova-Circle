@@ -125,6 +125,16 @@ export class ApiHelper {
       if (bearerToken) break;
     }
 
+    if (!bearerToken) {
+      throw new Error(
+        `No MSAL access token found in Playwright storage state at "${statePath}". ` +
+          'Ensure that the E2E auth global setup has run successfully and that the ' +
+          'storage state includes a valid MSAL access token entry. ' +
+          'Re-run the setup or check PLAYWRIGHT_AUTH_STATE_FILE / ' +
+          'PLAYWRIGHT_TEST_USER_EMAIL / PLAYWRIGHT_TEST_USER_PASSWORD.',
+      );
+    }
+
     return new ApiHelper(resolvedBaseUrl, bearerToken);
   }
 
@@ -188,8 +198,14 @@ export class ApiHelper {
     return this.request<EventSummary>('POST', `/groups/${groupId}/events`, body);
   }
 
-  /** Deletes an event by group and event ID. */
-  async deleteEvent(groupId: string, eventId: string): Promise<void> {
+  /**
+   * Cancels an event by group and event ID.
+   *
+   * Note: The backend performs a soft-cancel (marks the event as cancelled)
+   * rather than permanently deleting it. The HTTP DELETE verb is used because
+   * that is the backend API's route convention for this operation.
+   */
+  async cancelEvent(groupId: string, eventId: string): Promise<void> {
     return this.request<void>('DELETE', `/groups/${groupId}/events/${eventId}`);
   }
 }

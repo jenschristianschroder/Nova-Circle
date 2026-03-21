@@ -13,13 +13,13 @@ export class LoginPage {
   /** The main sign-in button that triggers the MSAL auth flow. */
   readonly signInButton: Locator;
 
-  /** The brand / application name heading shown on the login page. */
+  /** The brand / application name text shown on the login page. */
   readonly brandHeading: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.signInButton = page.getByRole('button', { name: /sign in/i });
-    this.brandHeading = page.getByRole('heading', { name: /nova.?circle/i });
+    this.brandHeading = page.getByText(/nova.?circle/i);
   }
 
   /** Navigates to the /login page. */

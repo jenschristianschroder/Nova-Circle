@@ -10,24 +10,30 @@ import { type Page, type Locator } from '@playwright/test';
 export class GroupsListPage {
   readonly page: Page;
 
-  /** All group card elements in the list. */
+  /**
+   * All group card buttons in the list.
+   * The UI renders each group as `<button aria-label="Open group {name}">`.
+   */
   readonly groupCards: Locator;
 
-  /** The "New group" / "Create group" button or link. */
+  /** The "+ New Group" button that reveals the create-group form. */
   readonly newGroupButton: Locator;
 
-  /** The input field for the new-group name (inline form). */
+  /**
+   * The group name input in the create-group form.
+   * Matches `<input id="group-name">` (label text is "Name").
+   */
   readonly newGroupNameInput: Locator;
 
-  /** The submit button for the new-group inline form. */
+  /** The "Create group" submit button inside the create-group form. */
   readonly newGroupSubmitButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.groupCards = page.locator('[data-testid="group-card"]');
-    this.newGroupButton = page.getByRole('button', { name: /new group|create group/i });
-    this.newGroupNameInput = page.getByLabel(/group name/i);
-    this.newGroupSubmitButton = page.getByRole('button', { name: /create|save/i });
+    this.groupCards = page.getByRole('button', { name: /^open group /i });
+    this.newGroupButton = page.getByRole('button', { name: /\+ new group/i });
+    this.newGroupNameInput = page.locator('#group-name');
+    this.newGroupSubmitButton = page.getByRole('button', { name: /create group/i });
   }
 
   /** Navigates to the /groups page. */
@@ -36,12 +42,13 @@ export class GroupsListPage {
   }
 
   /**
-   * Returns the group card element that contains the given group name text.
+   * Returns the group card button for the group with the given name.
+   * Matches the aria-label `"Open group {name}"`.
    *
-   * @param name - The exact or partial group name to search for.
+   * @param name - The exact group name.
    */
   groupCardByName(name: string): Locator {
-    return this.page.locator('[data-testid="group-card"]', { hasText: name });
+    return this.page.getByRole('button', { name: `Open group ${name}` });
   }
 
   /**

@@ -398,6 +398,15 @@ jobs:
       - name: Install client dependencies
         run: npm ci
 
+      - name: Validate required variables
+        run: |
+          if [ -z "$PLAYWRIGHT_BASE_URL" ]; then
+            echo "ERROR: PLAYWRIGHT_BASE_URL is not set."
+            echo "Set vars.PLAYWRIGHT_BASE_URL in GitHub Actions to the URL of the running client."
+            exit 1
+          fi
+          echo "PLAYWRIGHT_BASE_URL=${PLAYWRIGHT_BASE_URL}"
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 

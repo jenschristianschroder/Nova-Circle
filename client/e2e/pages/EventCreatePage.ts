@@ -10,52 +10,75 @@ import { type Page, type Locator } from '@playwright/test';
 export class EventCreatePage {
   readonly page: Page;
 
-  // ── Structured form fields ───────────────────────────────────────────────
+  // ── Structured form fields ─────────────────────────────────────────────────
 
-  /** The event title input in the structured form. */
+  /**
+   * The event title input in the structured form.
+   * Matches `<input id="event-title">` (label: "Title").
+   */
   readonly titleInput: Locator;
 
-  /** The event start date/time input. */
+  /**
+   * The event start date & time input.
+   * Matches `<input id="event-start">` (label: "Start date & time").
+   */
   readonly startAtInput: Locator;
 
-  /** The event end date/time input (optional). */
+  /**
+   * The event end date & time input (optional).
+   * Matches `<input id="event-end">` (label: "End date & time").
+   */
   readonly endAtInput: Locator;
 
-  /** The event description textarea. */
+  /**
+   * The event description textarea in the structured form.
+   * Matches `<textarea id="event-description">` (label: "Description").
+   */
   readonly descriptionTextarea: Locator;
 
-  /** The submit button for the structured form. */
+  /**
+   * The "Create event" submit button for the structured form.
+   */
   readonly submitButton: Locator;
 
-  // ── Text capture mode ────────────────────────────────────────────────────
+  // ── Text capture mode ──────────────────────────────────────────────────────
 
-  /** The natural-language capture textarea. */
+  /**
+   * The natural-language event description textarea.
+   * Matches `<textarea id="capture-text">` (label: "Event description").
+   */
   readonly captureTextarea: Locator;
 
-  /** The submit button for the text-capture mode. */
+  /**
+   * The "Create from text" submit button for the capture form.
+   */
   readonly captureSubmitButton: Locator;
 
-  /** The toggle / tab that switches to text-capture mode. */
+  /**
+   * The "Describe in text" tab that switches to text-capture mode.
+   */
   readonly captureTab: Locator;
 
-  /** The toggle / tab that switches to structured form mode. */
+  /**
+   * The "Structured form" tab that switches back to the form mode.
+   */
   readonly formTab: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
-    // Structured form
-    this.titleInput = page.getByLabel(/title/i);
-    this.startAtInput = page.getByLabel(/start/i);
-    this.endAtInput = page.getByLabel(/end/i);
-    this.descriptionTextarea = page.getByLabel(/description/i);
-    this.submitButton = page.getByRole('button', { name: /create event|save/i });
+    // Structured form — target by stable element IDs
+    this.titleInput = page.locator('#event-title');
+    this.startAtInput = page.locator('#event-start');
+    this.endAtInput = page.locator('#event-end');
+    this.descriptionTextarea = page.locator('#event-description');
+    this.submitButton = page.getByRole('button', { name: /create event/i });
 
-    // Text capture
-    this.captureTextarea = page.getByLabel(/describe your event|natural language|capture/i);
-    this.captureSubmitButton = page.getByRole('button', { name: /capture|extract/i });
-    this.captureTab = page.getByRole('tab', { name: /text|natural language|capture/i });
-    this.formTab = page.getByRole('tab', { name: /form|structured/i });
+    // Text capture — target by stable element IDs and exact button text
+    this.captureTextarea = page.locator('#capture-text');
+    this.captureSubmitButton = page.getByRole('button', { name: /create from text/i });
+    this.captureTab = page.getByRole('tab', { name: /describe in text/i });
+    this.formTab = page.getByRole('tab', { name: /structured form/i });
   }
 
   /**
@@ -71,8 +94,8 @@ export class EventCreatePage {
    * Fills in the structured event form and submits it.
    *
    * @param title   - Event title.
-   * @param startAt - ISO-8601 date-time string for the start.
-   * @param endAt   - Optional ISO-8601 date-time string for the end.
+   * @param startAt - datetime-local string (YYYY-MM-DDTHH:mm) for the start.
+   * @param endAt   - Optional datetime-local string for the end.
    */
   async fillAndSubmitForm(title: string, startAt: string, endAt?: string): Promise<void> {
     await this.titleInput.fill(title);
@@ -84,11 +107,13 @@ export class EventCreatePage {
   }
 
   /**
-   * Types natural-language text into the capture textarea and submits it.
+   * Switches to the "Describe in text" tab, types natural-language text into
+   * the capture textarea, and submits it.
    *
    * @param text - The natural language event description.
    */
   async captureFromText(text: string): Promise<void> {
+    await this.captureTab.click();
     await this.captureTextarea.fill(text);
     await this.captureSubmitButton.click();
   }
