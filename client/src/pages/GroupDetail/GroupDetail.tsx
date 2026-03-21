@@ -145,9 +145,7 @@ export function GroupDetail() {
 
   const canEdit =
     myProfile !== null &&
-    (myMembership?.role === 'owner' ||
-      myMembership?.role === 'admin' ||
-      group?.ownerId === myProfile.id);
+    (myMembership?.role === 'owner' || myMembership?.role === 'admin');
 
   const canDelete = myProfile !== null && group?.ownerId === myProfile.id;
 
