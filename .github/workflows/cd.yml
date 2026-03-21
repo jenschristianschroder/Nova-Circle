@@ -100,12 +100,13 @@ jobs:
   #   1. Deploy Bicep with the CURRENT image (no new revision yet).
   #   2. Run DB migrations against the updated schema.
   #   3. Create a NEW revision of each Container App (0 % traffic initially).
-  #   4. Smoke-test the new revisions via their revision-specific URLs.
-  #   5. Shift 100 % traffic to the new revisions.
-  #   6. Run Playwright E2E tests against the live application.
-  #   7a. E2E pass  → deactivate the old revisions (promotion).
-  #   7b. E2E fail  → restore traffic to the old revisions and deactivate the
-  #       new ones (rollback), then fail the job.
+  #   4. Smoke-test the new API revision via its revision-specific URL.
+  #   5. Run Playwright E2E tests against the new frontend revision's
+  #      revision-specific URL — old revisions continue to serve 100 % of
+  #      live traffic throughout so users are never exposed to the candidate.
+  #   6a. E2E pass  → shift 100 % traffic to new revisions, deactivate old.
+  #   6b. E2E fail  → deactivate the new revisions (no traffic restore needed
+  #       — live traffic was never moved) and fail the job.
   #
   # Protected by the `production` GitHub environment (requires a reviewer).
   #
@@ -246,8 +247,8 @@ jobs:
             --yes --output none || true
 
       # ── Phase 3: Create new revisions with 0 % traffic ────────────────────
-      # Record the currently active revision names so we can restore traffic to
-      # them if the E2E gate fails.
+      # Record the currently active revision names so they can be deactivated
+      # after a successful E2E gate (promote path).
       - name: Record old revision names
         id: old-revisions
         run: |
@@ -399,27 +400,27 @@ jobs:
           echo "::error::New API revision health check failed after 60 s"
           exit 1
 
-      # ── Phase 5: Shift 100 % traffic to the new revisions ─────────────────
-      - name: Shift traffic to new API revision
+      # Derive the new frontend revision's revision-specific URL so Playwright
+      # can target it directly while the old revision still carries all traffic.
+      - name: Derive new frontend revision URL
+        id: new-client-rev-url
         run: |
-          az containerapp ingress traffic set \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --revision-weight "${{ steps.new-api-revision.outputs.revision }}=100" \
-            --output none
+          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          REV="${{ steps.new-client-revision.outputs.revision }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          MAIN_FQDN=$(az containerapp show \
+            --name "${APP}" --resource-group "${RG}" \
+            --query "properties.configuration.ingress.fqdn" --output tsv)
+          ENV_DOMAIN="${MAIN_FQDN#*.}"
+          REV_URL="https://${REV}.${ENV_DOMAIN}"
+          echo "New frontend revision URL: ${REV_URL}"
+          echo "url=${REV_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Shift traffic to new frontend revision
-        run: |
-          az containerapp ingress traffic set \
-            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --revision-weight "${{ steps.new-client-revision.outputs.revision }}=100" \
-            --output none
-
-      # ── Phase 6: E2E gate — Playwright tests ──────────────────────────────
-      # Tests run against the live application (new revisions now serve 100 %
-      # of traffic).  continue-on-error allows the promote/rollback steps below
-      # to always execute regardless of the test outcome.
+      # ── Phase 5: E2E gate — Playwright tests against new revision ─────────
+      # Tests run directly against the new frontend revision's revision-specific
+      # URL while 100 % of live traffic still goes to the old revisions.
+      # Users are never exposed to the candidate revision during the gate.
+      # continue-on-error allows the promote/rollback steps to always execute.
       - name: Install client dependencies (E2E)
         working-directory: client
         run: npm ci
@@ -446,13 +447,13 @@ jobs:
         working-directory: client
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
+      - name: Run E2E tests against new revision (0 % live traffic)
         id: e2e
         continue-on-error: true
         working-directory: client
         env:
           CI: 'true'
-          PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_BASE_URL: ${{ steps.new-client-rev-url.outputs.url }}
           PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL }}
           PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD }}
         run: npm run test:e2e
@@ -484,13 +485,34 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # ── Phase 7a: Promote — E2E passed ────────────────────────────────────
-      # Deactivate the old revisions now that the new ones are fully promoted.
+      # ── Phase 6a: Promote — E2E passed ────────────────────────────────────
+      # Shift 100 % live traffic to the new revisions, then deactivate the old
+      # ones.  Traffic is only moved after the E2E gate passes.
+      - name: Promote — shift traffic to new API revision
+        if: steps.e2e.outcome == 'success'
+        run: |
+          echo "E2E passed — shifting 100 % traffic to new API revision: ${{ steps.new-api-revision.outputs.revision }}"
+          az containerapp ingress traffic set \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight "${{ steps.new-api-revision.outputs.revision }}=100" \
+            --output none
+
+      - name: Promote — shift traffic to new frontend revision
+        if: steps.e2e.outcome == 'success'
+        run: |
+          echo "E2E passed — shifting 100 % traffic to new frontend revision: ${{ steps.new-client-revision.outputs.revision }}"
+          az containerapp ingress traffic set \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight "${{ steps.new-client-revision.outputs.revision }}=100" \
+            --output none
+
       - name: Promote — deactivate old API revision
         if: steps.e2e.outcome == 'success'
         run: |
           OLD_REV="${{ steps.old-revisions.outputs.api }}"
-          echo "E2E passed — deactivating old API revision: ${OLD_REV}"
+          echo "Deactivating old API revision: ${OLD_REV}"
           az containerapp revision deactivate \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -502,7 +524,7 @@ jobs:
         if: steps.e2e.outcome == 'success'
         run: |
           OLD_REV="${{ steps.old-revisions.outputs.client }}"
-          echo "E2E passed — deactivating old frontend revision: ${OLD_REV}"
+          echo "Deactivating old frontend revision: ${OLD_REV}"
           az containerapp revision deactivate \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -510,36 +532,15 @@ jobs:
             --output none \
             || echo "::warning::Could not deactivate old frontend revision ${OLD_REV} — it may already be inactive."
 
-      # ── Phase 7b: Rollback — E2E failed ───────────────────────────────────
-      # Restore 100 % traffic to the old revisions, then deactivate the new
-      # ones so they stop consuming resources.
-      - name: Rollback — restore old API revision traffic
-        if: steps.e2e.outcome == 'failure'
-        run: |
-          OLD_REV="${{ steps.old-revisions.outputs.api }}"
-          echo "E2E failed — restoring traffic to old API revision: ${OLD_REV}"
-          az containerapp ingress traffic set \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --revision-weight "${OLD_REV}=100" \
-            --output none
-
-      - name: Rollback — restore old frontend revision traffic
-        if: steps.e2e.outcome == 'failure'
-        run: |
-          OLD_REV="${{ steps.old-revisions.outputs.client }}"
-          echo "E2E failed — restoring traffic to old frontend revision: ${OLD_REV}"
-          az containerapp ingress traffic set \
-            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --revision-weight "${OLD_REV}=100" \
-            --output none
-
+      # ── Phase 6b: Rollback — E2E failed ───────────────────────────────────
+      # Because live traffic never moved to the new revisions, no traffic
+      # restore is required.  Simply deactivate the new revisions so they stop
+      # consuming resources, then fail the job.
       - name: Rollback — deactivate new API revision
         if: steps.e2e.outcome == 'failure'
         run: |
           NEW_REV="${{ steps.new-api-revision.outputs.revision }}"
-          echo "Deactivating failed new API revision: ${NEW_REV}"
+          echo "E2E failed — deactivating new API revision: ${NEW_REV}"
           az containerapp revision deactivate \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -551,7 +552,7 @@ jobs:
         if: steps.e2e.outcome == 'failure'
         run: |
           NEW_REV="${{ steps.new-client-revision.outputs.revision }}"
-          echo "Deactivating failed new frontend revision: ${NEW_REV}"
+          echo "E2E failed — deactivating new frontend revision: ${NEW_REV}"
           az containerapp revision deactivate \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -562,5 +563,5 @@ jobs:
       - name: Fail — E2E tests did not pass
         if: steps.e2e.outcome == 'failure'
         run: |
-          echo "::error::E2E tests failed. Traffic has been restored to the previous revision."
+          echo "::error::E2E tests failed. New revisions have been deactivated; old revisions continue to serve all traffic."
           exit 1
