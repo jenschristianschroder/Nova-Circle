@@ -258,12 +258,12 @@ jobs:
           OLD_API=$(az containerapp show \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]" \
+            --query 'properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]' \
             --output tsv)
           OLD_CLIENT=$(az containerapp show \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]" \
+            --query 'properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]' \
             --output tsv)
           echo "Old API revision:      ${OLD_API}"
           echo "Old frontend revision: ${OLD_CLIENT}"
