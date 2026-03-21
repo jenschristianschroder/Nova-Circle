@@ -3,7 +3,8 @@
  *
  * Verifies that the authenticated group detail page renders group info,
  * shows the event list, handles loading/error states, navigates to event
- * detail on event card click, and allows owners to edit and delete the group.
+ * detail on event card click, and allows owners and admins to edit the group
+ * (with deletion restricted to the owner).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

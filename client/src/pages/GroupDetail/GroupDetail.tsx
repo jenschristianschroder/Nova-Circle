@@ -60,7 +60,11 @@ export function GroupDetail() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!groupId) return;
+    if (!groupId) {
+      setIsLoading(false);
+      setError('Group not found.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -184,7 +188,42 @@ export function GroupDetail() {
         <span aria-current="page">{group?.name}</span>
       </nav>
 
-      {isEditing ? (
+      <div className={styles.groupHeader}>
+        <div>
+          <h1 className={styles.heading}>{group?.name}</h1>
+          {group?.description && !isEditing && (
+            <p className={styles.description}>{group.description}</p>
+          )}
+        </div>
+        {!isEditing && !isConfirmingDelete && (
+          <div className={styles.groupActions}>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => navigate(`/groups/${groupId}/events/new`)}
+            >
+              + New Event
+            </Button>
+            {canEdit && (
+              <Button variant="secondary" size="md" onClick={startEditing} aria-label="Edit group">
+                Edit
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="danger"
+                size="md"
+                onClick={startConfirmDelete}
+                aria-label="Delete group"
+              >
+                Delete
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isEditing && (
         <section className={styles.editForm} aria-labelledby="edit-group-heading">
           <h2 id="edit-group-heading" className={styles.subheading}>
             Edit group
@@ -232,7 +271,9 @@ export function GroupDetail() {
             </div>
           </form>
         </section>
-      ) : isConfirmingDelete ? (
+      )}
+
+      {isConfirmingDelete && (
         <section className={styles.deleteConfirm} aria-labelledby="delete-confirm-heading">
           <h2 id="delete-confirm-heading" className={styles.subheading}>
             Delete &ldquo;{group?.name}&rdquo;?
@@ -265,37 +306,6 @@ export function GroupDetail() {
             </Button>
           </div>
         </section>
-      ) : (
-        <div className={styles.groupHeader}>
-          <div>
-            <h1 className={styles.heading}>{group?.name}</h1>
-            {group?.description && <p className={styles.description}>{group.description}</p>}
-          </div>
-          <div className={styles.groupActions}>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => navigate(`/groups/${groupId}/events/new`)}
-            >
-              + New Event
-            </Button>
-            {canEdit && (
-              <Button variant="secondary" size="md" onClick={startEditing} aria-label="Edit group">
-                Edit
-              </Button>
-            )}
-            {canDelete && (
-              <Button
-                variant="danger"
-                size="md"
-                onClick={startConfirmDelete}
-                aria-label="Delete group"
-              >
-                Delete
-              </Button>
-            )}
-          </div>
-        </div>
       )}
 
       <section aria-labelledby="events-heading">
