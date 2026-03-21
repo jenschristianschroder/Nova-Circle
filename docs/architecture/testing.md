@@ -253,8 +253,23 @@ A change is only done when all of the following are true:
 
 ---
 
+## E2E Tests (Playwright)
+
+Browser-level end-to-end tests are documented separately.  They sit above the API layer in the test pyramid and verify that the full stack — browser, client app, backend API, and Azure AD authentication — works together in a real environment.
+
+See [playwright.md](playwright.md) for:
+
+- Project structure (`client/e2e/`) and page object conventions
+- Authentication strategy (`global-setup.ts`)
+- Environment variables and local run instructions
+- CI configuration and GitHub Actions setup checklist
+- `ApiHelper` usage for deterministic test data setup and teardown
+
+---
+
 ## Related Documents
 
+- [playwright.md](playwright.md) — Playwright E2E test suite, configuration, and CI setup
 - [ci-cd.md](ci-cd.md) — CI/CD pipeline, quality gates, and merge blockers
 - [access-control.md](access-control.md) — Authorization model and test matrix
 - [event-management.md](event-management.md) — Event domain and required tests
