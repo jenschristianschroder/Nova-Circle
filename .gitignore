@@ -95,6 +95,9 @@ package-lock.json.bak
 test-results/
 playwright-report/
 .playwright/
+client/playwright-report/
+client/test-results/
+client/e2e/.auth/
 
 # -----------------------------------------------------------------------------
 # Docker
