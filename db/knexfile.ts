@@ -1,4 +1,5 @@
 import type { Knex } from 'knex';
+import { resolveDbSsl } from '../src/infrastructure/database-ssl.js';
 
 /**
  * Returns the database URL from environment variables.
@@ -22,12 +23,13 @@ function resolveDatabaseUrl(): string {
 
 const isProduction = process.env['NODE_ENV'] === 'production';
 
+const databaseUrl = resolveDatabaseUrl();
+
 const config: Knex.Config = {
   client: 'pg',
   connection: {
-    connectionString: resolveDatabaseUrl(),
-    // Enforce TLS for Azure PostgreSQL in production (mirrors src/server.ts).
-    ssl: isProduction ? { rejectUnauthorized: true } : false,
+    connectionString: databaseUrl,
+    ssl: resolveDbSsl(databaseUrl, isProduction),
   },
   migrations: {
     directory: './migrations',
