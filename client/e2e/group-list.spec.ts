@@ -19,16 +19,32 @@ import { GroupDetailPage } from './pages/GroupDetailPage';
 test.describe('Group list page', () => {
   let api: ApiHelper;
   let group: GroupSummary | undefined;
+  let seedError: Error | undefined;
 
   // Use a timestamp-based name so parallel runs never collide.
   const groupName = `E2E Group List ${Date.now()}`;
 
   test.beforeAll(async () => {
-    api = ApiHelper.fromStorageState();
-    group = await api.createGroup({
-      name: groupName,
-      description: 'Seeded for E2E group-list tests',
-    });
+    try {
+      // Pass the same base URL that Playwright uses so API seeding and browser
+      // navigation always hit the same origin (defaults to http://localhost:3000).
+      api = ApiHelper.fromStorageState(
+        undefined,
+        process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000',
+      );
+      group = await api.createGroup({
+        name: groupName,
+        description: 'Seeded for E2E group-list tests',
+      });
+    } catch (err) {
+      seedError = err instanceof Error ? err : new Error(String(err));
+    }
+  });
+
+  // Skip every test in this suite when seeding failed.  test.skip() inside
+  // beforeAll itself is ignored by Playwright; beforeEach is the correct hook.
+  test.beforeEach(() => {
+    test.skip(!!seedError, `Data seeding failed: ${seedError?.message ?? 'unknown error'}`);
   });
 
   test.afterAll(async () => {
@@ -72,10 +88,6 @@ test.describe('Group list page', () => {
   test('Scenario 4 — clicking a group card navigates to the group detail page', async ({
     page,
   }) => {
-    // If beforeAll failed to create the group, skip rather than throw a
-    // misleading error from undefined access.
-    if (!group) test.skip();
-
     const groupsPage = new GroupsListPage(page);
     const groupDetailPage = new GroupDetailPage(page);
 

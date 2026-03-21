@@ -21,6 +21,7 @@ test.describe('Event detail page', () => {
   let group: GroupSummary | undefined;
   let activeEvent: EventSummary | undefined;
   let cancelledEvent: EventSummary | undefined;
+  let seedError: Error | undefined;
 
   // Use timestamp-based names so parallel runs never collide.
   const groupName = `E2E Event Detail ${Date.now()}`;
@@ -28,27 +29,42 @@ test.describe('Event detail page', () => {
   const cancelledEventTitle = `E2E Cancelled Event ${Date.now()}`;
 
   test.beforeAll(async () => {
-    api = ApiHelper.fromStorageState();
+    try {
+      // Pass the same base URL that Playwright uses so API seeding and browser
+      // navigation always hit the same origin (defaults to http://localhost:3000).
+      api = ApiHelper.fromStorageState(
+        undefined,
+        process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000',
+      );
 
-    // Create a group that will own both test events.
-    group = await api.createGroup({ name: groupName });
+      // Create a group that will own both test events.
+      group = await api.createGroup({ name: groupName });
 
-    // Seed an active (future) event.
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    activeEvent = await api.createEvent({
-      title: activeEventTitle,
-      startAt: new Date(Date.now() + sevenDays).toISOString(),
-      groupId: group.id,
-    });
+      // Seed an active (future) event.
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      activeEvent = await api.createEvent({
+        title: activeEventTitle,
+        startAt: new Date(Date.now() + sevenDays).toISOString(),
+        groupId: group.id,
+      });
 
-    // Seed a cancelled event (cancel immediately after creation).
-    const fourteenDays = 14 * 24 * 60 * 60 * 1000;
-    cancelledEvent = await api.createEvent({
-      title: cancelledEventTitle,
-      startAt: new Date(Date.now() + fourteenDays).toISOString(),
-      groupId: group.id,
-    });
-    await api.cancelEvent(group.id, cancelledEvent.id);
+      // Seed a cancelled event (cancel immediately after creation).
+      const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+      cancelledEvent = await api.createEvent({
+        title: cancelledEventTitle,
+        startAt: new Date(Date.now() + fourteenDays).toISOString(),
+        groupId: group.id,
+      });
+      await api.cancelEvent(group.id, cancelledEvent.id);
+    } catch (err) {
+      seedError = err instanceof Error ? err : new Error(String(err));
+    }
+  });
+
+  // Skip every test in this suite when seeding failed.  test.skip() inside
+  // beforeAll itself is ignored by Playwright; beforeEach is the correct hook.
+  test.beforeEach(() => {
+    test.skip(!!seedError, `Data seeding failed: ${seedError?.message ?? 'unknown error'}`);
   });
 
   test.afterAll(async () => {
@@ -61,8 +77,6 @@ test.describe('Event detail page', () => {
   // ── Scenario 1 — Page renders with event title ────────────────────────────
 
   test('Scenario 1 — page renders with event title', async ({ page }) => {
-    if (!group || !activeEvent) test.skip();
-
     const eventPage = new EventDetailPage(page);
     await eventPage.goto(group!.id, activeEvent!.id);
 
@@ -82,8 +96,6 @@ test.describe('Event detail page', () => {
   // ── Scenario 2 — Breadcrumb navigation is present ────────────────────────
 
   test('Scenario 2 — breadcrumb navigation is present', async ({ page }) => {
-    if (!group || !activeEvent) test.skip();
-
     const eventPage = new EventDetailPage(page);
     await eventPage.goto(group!.id, activeEvent!.id);
 
@@ -103,8 +115,6 @@ test.describe('Event detail page', () => {
   // ── Scenario 3 — RSVP section is visible for active events ───────────────
 
   test('Scenario 3 — RSVP section is visible for active events', async ({ page }) => {
-    if (!group || !activeEvent) test.skip();
-
     const eventPage = new EventDetailPage(page);
     await eventPage.goto(group!.id, activeEvent!.id);
 
@@ -119,8 +129,6 @@ test.describe('Event detail page', () => {
   // ── Scenario 4 — Attendee list shows at least the test user ──────────────
 
   test('Scenario 4 — attendee list shows at least the test user', async ({ page }) => {
-    if (!group || !activeEvent) test.skip();
-
     const eventPage = new EventDetailPage(page);
     await eventPage.goto(group!.id, activeEvent!.id);
 
@@ -134,8 +142,6 @@ test.describe('Event detail page', () => {
   // ── Scenario 5 — Cancelled event does not show RSVP buttons ─────────────
 
   test('Scenario 5 — cancelled event does not show RSVP buttons', async ({ page }) => {
-    if (!group || !cancelledEvent) test.skip();
-
     const eventPage = new EventDetailPage(page);
     await eventPage.goto(group!.id, cancelledEvent!.id);
 
