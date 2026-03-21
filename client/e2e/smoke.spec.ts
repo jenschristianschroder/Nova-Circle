@@ -14,6 +14,11 @@ import { test, expect } from '@playwright/test';
 import { LoginPage } from './pages/LoginPage';
 import { GroupsListPage } from './pages/GroupsListPage';
 
+/** Maximum time to wait for the groups API fetch to resolve after page load.
+ *  The budget is generous to accommodate slow cold-start scenarios in Azure
+ *  Container Apps where the first request after a scale-out can be delayed. */
+const GROUPS_LOAD_TIMEOUT_MS = 15_000;
+
 // ── Unauthenticated redirect ─────────────────────────────────────────────────
 
 test.describe('Unauthenticated redirect', () => {
@@ -34,7 +39,7 @@ test.describe('Unauthenticated redirect', () => {
 // ── Authenticated smoke test ─────────────────────────────────────────────────
 
 test.describe('Authenticated smoke test', () => {
-  test('authenticated user sees the groups list page', async ({ page }) => {
+  test('authenticated user sees the groups list page with no API error', async ({ page }) => {
     const groupsPage = new GroupsListPage(page);
     await groupsPage.goto();
 
@@ -43,5 +48,14 @@ test.describe('Authenticated smoke test', () => {
 
     // The page should be reachable (no error boundary visible).
     await expect(page.locator('body')).toBeVisible();
+
+    // Wait for the groups fetch to resolve (loading indicator disappears).
+    // A generous budget covers slow cold-start scenarios in Azure Container Apps.
+    await expect(page.getByText('Loading groups…')).not.toBeVisible({ timeout: GROUPS_LOAD_TIMEOUT_MS });
+
+    // The API must have succeeded — the error banner must not be shown.
+    // This assertion catches backend failures such as a broken database
+    // connection that would otherwise only surface as skipped group-list tests.
+    await expect(page.getByText('Failed to load groups')).not.toBeVisible();
   });
 });
