@@ -93,7 +93,9 @@ test.describe('Event creation page', () => {
     await eventCreatePage.fillAndSubmitForm(eventTitle, startAt);
 
     // After a successful submit, the browser must navigate to the event detail page.
-    await page.waitForURL(/\/groups\/.+\/events\/.+/);
+    // The regex excludes /events/new to ensure the wait only resolves after the
+    // actual event ID is present in the URL.
+    await page.waitForURL(/\/groups\/[^/]+\/events\/(?!new)[^/]+/);
 
     // Wait for the event detail page to finish loading before asserting content.
     await page.getByText('Loading event…').waitFor({ state: 'hidden' });
@@ -148,17 +150,28 @@ test.describe('Event creation page', () => {
 
   test('Scenario 5 — successful event creation via text capture', async ({ page }) => {
     test.skip(
-      !process.env['RUN_CAPTURE_E2E'],
+      process.env['RUN_CAPTURE_E2E'] !== 'true',
       'Capture scenarios require RUN_CAPTURE_E2E=true and an available AI service.',
     );
 
     const eventCreatePage = new EventCreatePage(page);
     await eventCreatePage.goto(group!.id);
 
-    await eventCreatePage.captureFromText('Team lunch on Friday March 27 2026 at noon');
+    // Build a natural-language capture string using a date 10 days from now so
+    // the prompt never references a past date, keeping the test valid long-term.
+    const future = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const captureText = `Team lunch on ${monthNames[future.getMonth()]} ${future.getDate()} ${future.getFullYear()} at noon`;
+
+    await eventCreatePage.captureFromText(captureText);
 
     // A successful capture must navigate to the created event's detail page.
-    await page.waitForURL(/\/groups\/.+\/events\/.+/);
+    // The regex excludes /events/new to ensure the wait only resolves once the
+    // actual event ID is present in the URL.
+    await page.waitForURL(/\/groups\/[^/]+\/events\/(?!new)[^/]+/);
 
     // The event title heading must be visible once the page has loaded.
     await page.getByText('Loading event…').waitFor({ state: 'hidden' });
@@ -173,7 +186,7 @@ test.describe('Event creation page', () => {
     page,
   }) => {
     test.skip(
-      !process.env['RUN_CAPTURE_E2E'],
+      process.env['RUN_CAPTURE_E2E'] !== 'true',
       'Capture scenarios require RUN_CAPTURE_E2E=true and an available AI service.',
     );
 
@@ -188,11 +201,16 @@ test.describe('Event creation page', () => {
     // The page must not navigate away from the create form.
     await expect(page).toHaveURL(`/groups/${group!.id}/events/new`);
 
-    // The issue alert region must appear with one or more messages.
-    // Issue codes are rendered with underscores replaced by spaces
-    // (e.g. "missing_start_date" → "missing start date").
-    const issueAlert = page.getByRole('alert');
+    // The issues container must appear with the specific heading and at least
+    // one rendered issue list item. Filtering by heading text distinguishes
+    // this from the generic capture error alert that also uses role="alert".
+    const issueAlert = page
+      .getByRole('alert')
+      .filter({ hasText: 'Could not extract all event details' });
     await expect(issueAlert).toBeVisible();
+
+    // At least one issue message must be rendered inside the alert.
+    await expect(issueAlert.getByRole('listitem').first()).toBeVisible();
 
     // The capture textarea must remain editable so the user can refine input.
     await expect(eventCreatePage.captureTextarea).toBeEditable();
@@ -204,6 +222,11 @@ test.describe('Event creation page', () => {
     const eventCreatePage = new EventCreatePage(page);
     await eventCreatePage.goto(group!.id);
 
+    // Fill in structured form fields to verify they do not carry over to capture mode.
+    await eventCreatePage.titleInput.fill('Structured title that must not carry over');
+    const future = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await eventCreatePage.startAtInput.fill(future.toISOString().slice(0, 16));
+
     // Switch to capture mode.
     await eventCreatePage.captureTab.click();
 
@@ -214,7 +237,7 @@ test.describe('Event creation page', () => {
     const placeholder = await eventCreatePage.captureTextarea.getAttribute('placeholder');
     expect(placeholder?.length).toBeGreaterThan(0);
 
-    // No values must carry over from the structured form: textarea starts empty.
+    // The textarea must start empty — structured form values must not carry over.
     await expect(eventCreatePage.captureTextarea).toHaveValue('');
   });
 });
