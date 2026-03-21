@@ -1,5 +1,6 @@
 import knex from 'knex';
 import { createApp } from './app.js';
+import { resolveDbSsl } from './infrastructure/database-ssl.js';
 import { EntraTokenValidator } from './shared/auth/entra-token-validator.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { logger, setTelemetryClient } from './shared/logger/logger.js';
@@ -36,13 +37,14 @@ if (isProduction && !databaseUrl) {
   process.exit(1);
 }
 
+// Determine the SSL configuration for the database connection.
+// See src/infrastructure/database-ssl.ts for the full rationale.
 const db = databaseUrl
   ? knex({
       client: 'pg',
       connection: {
         connectionString: databaseUrl,
-        // Enforce TLS for Azure PostgreSQL in production.
-        ssl: isProduction ? { rejectUnauthorized: true } : false,
+        ssl: resolveDbSsl(databaseUrl, isProduction),
       },
       pool: { min: 2, max: 10 },
     })
