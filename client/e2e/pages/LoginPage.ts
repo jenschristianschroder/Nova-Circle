@@ -5,7 +5,7 @@
  * No assertions are made here; use the locators in your tests.
  */
 
-import { type Page, type Locator } from '@playwright/test';
+import { type Page, type Locator, expect } from '@playwright/test';
 
 export class LoginPage {
   readonly page: Page;
@@ -30,5 +30,22 @@ export class LoginPage {
   /** Clicks the sign-in button. */
   async clickSignIn(): Promise<void> {
     await this.signInButton.click();
+  }
+
+  /**
+   * Asserts that the key Login page elements (sign-in button and brand
+   * heading) are visible.  Useful after a redirect lands on /login.
+   */
+  async expectVisible(): Promise<void> {
+    await expect(this.signInButton).toBeVisible();
+    await expect(this.brandHeading).toBeVisible();
+  }
+
+  /**
+   * Returns a RegExp that matches the /login path, tolerating trailing
+   * slashes or query parameters appended by MSAL.
+   */
+  url(): RegExp {
+    return /\/login/;
   }
 }
