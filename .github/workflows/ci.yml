@@ -362,46 +362,16 @@ jobs:
           if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────────────────────────────
-  # E2E tests – Playwright browser automation against the deployed (or locally
-  # served) client application.
+  # E2E tests – Playwright browser automation.
   #
-  # This job is conditional on vars.RUN_E2E == 'true' so it does not fail PRs
-  # when no deployment target or Azure AD test credentials are available.
-  #
-  # Authentication strategy (in order of preference):
-  #
-  #   1. Pre-authenticated state (RECOMMENDED – avoids MFA / Conditional Access):
-  #      Store a base64-encoded Playwright storage-state file as the secret
-  #      PLAYWRIGHT_AUTH_STATE_B64.  The job decodes it to e2e/.auth/injected.json
-  #      and sets PLAYWRIGHT_AUTH_STATE_FILE so global-setup.ts skips the
-  #      interactive sign-in entirely.
-  #
-  #      To generate / refresh the secret:
-  #        cd client
-  #        PLAYWRIGHT_BASE_URL=<your-app-url> \
-  #        PLAYWRIGHT_TEST_USER_EMAIL=<email> \
-  #        PLAYWRIGHT_TEST_USER_PASSWORD=<password> \
-  #        npx playwright test --project=setup
-  #        base64 < e2e/.auth/user.json   # copy output → GitHub secret PLAYWRIGHT_AUTH_STATE_B64
-  #
-  #      Refresh the secret when CI starts failing again (Azure AD refresh tokens
-  #      expire after 90 days by default, though tenant policy may shorten this).
-  #
-  #   2. Headless username / password sign-in (fallback):
-  #      Set secrets PLAYWRIGHT_TEST_USER_EMAIL and PLAYWRIGHT_TEST_USER_PASSWORD.
-  #      This path requires the test account to have NO MFA and no Conditional
-  #      Access Policy that blocks sign-ins from unknown / cloud-runner IPs.
-  #      If your Azure AD tenant enforces MFA, this path will always fail –
-  #      use the pre-authenticated state approach above instead.
-  #
-  # Required variables:
-  #   vars.RUN_E2E             – set to 'true' to enable this job
-  #   vars.PLAYWRIGHT_BASE_URL – URL of the running client (e.g. https://app.example.com)
+  # This job is permanently disabled in CI (if: false).
+  # Playwright E2E now runs exclusively in the CD pipeline as the blue/green
+  # pre-promotion gate — see .github/workflows/cd.yml Phase 5.
   # ──────────────────────────────────────────────────────────────────────────
   e2e:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
-    if: vars.RUN_E2E == 'true'
+    if: false  # Playwright E2E now runs in the CD pipeline as a blue/green deployment gate
     needs: client
     defaults:
       run:
