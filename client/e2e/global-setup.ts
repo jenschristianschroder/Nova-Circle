@@ -120,10 +120,18 @@ async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Microsoft may display a "Stay signed in?" prompt after a successful
     // password entry.  Dismiss it by clicking "No" so the redirect completes.
-    const staySignedInPrompt = page.getByText(/stay signed in/i);
-    const noButton = page.getByRole('button', { name: /^no$/i });
-    if (await staySignedInPrompt.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await noButton.click();
+    // waitFor() is used instead of isVisible() so that we reliably wait for
+    // the prompt to finish rendering before deciding it is absent.  If the
+    // page navigates away before the timeout (i.e. there is no prompt), the
+    // resulting error is caught and we fall through to the final waitForURL.
+    try {
+      await page
+        .getByRole('heading', { name: /stay signed in/i })
+        .waitFor({ state: 'visible', timeout: 10_000 });
+      console.log('[global-setup] "Stay signed in?" prompt detected, clicking No…');
+      await page.getByRole('button', { name: /^no$/i }).click();
+    } catch {
+      // Prompt did not appear — proceed to wait for the app redirect.
     }
 
     // Wait until we are redirected back to the application (groups page).
