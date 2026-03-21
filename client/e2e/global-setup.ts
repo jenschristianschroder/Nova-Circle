@@ -68,8 +68,11 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     return;
   }
 
-  const baseURL =
+  // Normalize the base URL: strip any trailing slash so that URL
+  // concatenation (e.g. `${baseURL}/groups`) never produces a double-slash.
+  const rawBaseURL =
     process.env['PLAYWRIGHT_BASE_URL'] ?? _config.use?.baseURL ?? 'http://localhost:3000';
+  const baseURL = rawBaseURL.replace(/\/+$/, '');
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
@@ -98,9 +101,17 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     await page.getByLabel(/password/i).fill(password);
     await page.getByRole('button', { name: /sign in/i }).click();
 
+    // Microsoft may display a "Stay signed in?" prompt after a successful
+    // password entry.  Dismiss it by clicking "No" so the redirect completes.
+    const staySignedInPrompt = page.getByText(/stay signed in/i);
+    const noButton = page.getByRole('button', { name: /^no$/i });
+    if (await staySignedInPrompt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await noButton.click();
+    }
+
     // Wait until we are redirected back to the application (groups page).
     // The timeout covers MFA prompts or slow Azure AD responses.
-    await page.waitForURL(`${baseURL}/groups`, { timeout: 30_000 });
+    await page.waitForURL(`${baseURL}/groups`, { timeout: 60_000 });
 
     fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
     await context.storageState({ path: AUTH_STATE_PATH });

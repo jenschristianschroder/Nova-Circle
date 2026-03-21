@@ -74,7 +74,9 @@ export class ApiHelper {
   private readonly bearerToken: string;
 
   private constructor(baseUrl: string, bearerToken: string) {
-    this.baseUrl = baseUrl;
+    // Normalize: strip trailing slash so URL concatenation never produces
+    // double-slashes (e.g. when PLAYWRIGHT_BASE_URL includes a trailing /).
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.bearerToken = bearerToken;
   }
 
