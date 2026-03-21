@@ -401,7 +401,7 @@ jobs:
   e2e:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
-    if: vars.RUN_E2E == 'true'
+    if: false  # Playwright E2E now runs in the CD pipeline as a blue/green deployment gate
     needs: client
     defaults:
       run:
