@@ -247,33 +247,43 @@ jobs:
             --yes --output none || true
 
       # ── Phase 3: Create new revisions with 0 % traffic ────────────────────
-      # Record the currently active revision names so they can be deactivated
-      # after a successful E2E gate (promote path).
+      # Record the revision currently receiving live traffic (non-zero weight)
+      # so it can be deactivated after a successful E2E gate (promote path).
+      # Using the traffic weight query rather than latestRevisionName ensures
+      # we target the correct revision even when traffic was previously pinned
+      # to an older revision (e.g., after a rollback).
       - name: Record old revision names
         id: old-revisions
         run: |
           OLD_API=$(az containerapp show \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.latestRevisionName" \
+            --query "properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]" \
             --output tsv)
           OLD_CLIENT=$(az containerapp show \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.latestRevisionName" \
+            --query "properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]" \
             --output tsv)
           echo "Old API revision:      ${OLD_API}"
           echo "Old frontend revision: ${OLD_CLIENT}"
           echo "api=${OLD_API}"       >> "$GITHUB_OUTPUT"
           echo "client=${OLD_CLIENT}" >> "$GITHUB_OUTPUT"
 
-      # Build a short, ACA-compatible revision suffix from the commit SHA:
-      # lowercase alphanumeric, max 10 chars, must start with a letter.
-      # We use 'r' + the first 7 hex chars of the SHA.
+      # Build a short, ACA-compatible revision suffix:
+      # - lowercase alphanumeric, max 10 chars, must start with a letter.
+      # - Format: 'r' + first 7 hex chars of the commit SHA + 2-char hex of
+      #   the run attempt (wraps at 256).  The run-attempt component ensures
+      #   uniqueness when the workflow is re-run for the same commit SHA.
       - name: Compute revision suffix
         id: rev-suffix
         run: |
-          SUFFIX="r$(echo '${{ needs.build-and-push.outputs.image-tag }}' | cut -c1-7 | tr '[:upper:]' '[:lower:]')"
+          BASE_SHA_PART=$(echo '${{ needs.build-and-push.outputs.image-tag }}' | cut -c1-7 | tr '[:upper:]' '[:lower:]')
+          ATTEMPT_NUMBER=${GITHUB_RUN_ATTEMPT:-1}
+          ATTEMPT_MOD=$(( (ATTEMPT_NUMBER - 1) % 256 ))
+          ATTEMPT_HEX=$(printf '%02x' "${ATTEMPT_MOD}")
+          SUFFIX="r${BASE_SHA_PART}${ATTEMPT_HEX}"
+          echo "Computed revision suffix: ${SUFFIX}"
           echo "suffix=${SUFFIX}" >> "$GITHUB_OUTPUT"
 
       # Configure the managed-identity ACR pull credential before updating the
