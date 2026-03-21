@@ -1,8 +1,8 @@
 /**
  * LoginPage — Page Object Model for the /login route.
  *
- * Provides typed locator accessors and action methods for the Login page.
- * No assertions are made here; use the locators in your tests.
+ * Provides typed locator accessors, action methods, and assertion helpers
+ * for the Login page.
  */
 
 import { type Page, type Locator, expect } from '@playwright/test';
@@ -13,13 +13,17 @@ export class LoginPage {
   /** The main sign-in button that triggers the MSAL auth flow. */
   readonly signInButton: Locator;
 
-  /** The brand / application name text shown on the login page. */
+  /**
+   * The brand name shown in the page header banner.
+   * Scoped to `role="banner"` so it does not match the footer or features
+   * section text that also contains "Nova-Circle".
+   */
   readonly brandHeading: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.signInButton = page.getByRole('button', { name: /sign in/i });
-    this.brandHeading = page.getByText(/nova.?circle/i);
+    this.brandHeading = page.getByRole('banner').getByText('Nova-Circle', { exact: true });
   }
 
   /** Navigates to the /login page. */
@@ -42,8 +46,8 @@ export class LoginPage {
   }
 
   /**
-   * Returns a RegExp that matches the /login path, tolerating trailing
-   * slashes or query parameters appended by MSAL.
+   * Returns a RegExp that matches the /login path, tolerating a trailing
+   * slash (e.g. `/login/`).
    */
   url(): RegExp {
     return /\/login/;
