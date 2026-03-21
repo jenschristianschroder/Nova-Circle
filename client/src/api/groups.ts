@@ -46,3 +46,18 @@ export async function listGroupMembers(
 ): Promise<GroupMember[]> {
   return apiFetch<GroupMember[]>(`/api/v1/groups/${groupId}/members`);
 }
+
+export async function updateGroup(
+  apiFetch: ApiFetch,
+  groupId: string,
+  data: { name?: string; description?: string | null },
+): Promise<Group> {
+  return apiFetch<Group>(`/api/v1/groups/${groupId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGroup(apiFetch: ApiFetch, groupId: string): Promise<void> {
+  await apiFetch<void>(`/api/v1/groups/${groupId}`, { method: 'DELETE' });
+}
