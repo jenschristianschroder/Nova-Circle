@@ -78,6 +78,10 @@ async function globalSetup(_config: FullConfig): Promise<void> {
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  // Directory for debug screenshots — uploaded as a CI artifact on failure.
+  const screenshotDir = path.join(__dirname, '..', 'test-results');
+  fs.mkdirSync(screenshotDir, { recursive: true });
+
   try {
     console.log(`[global-setup] Starting test user sign-in against ${baseURL}`);
 
@@ -85,21 +89,34 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     // unauthenticated users.
     await page.goto(`${baseURL}/login`);
 
-    // Click the "Sign in" button which triggers the MSAL redirect flow.
-    // Azure AD / External ID then renders its own hosted login UI.
-    //
-    // NOTE: The selectors below target Microsoft's hosted login page and may
-    // require updates if Microsoft changes the UI.  If this step fails, check
-    // whether the Azure AD login page layout has changed and update the
-    // locators accordingly.
+    // Click the "Sign in" button which triggers the MSAL loginRedirect() flow.
     const signInButton = page.getByRole('button', { name: /sign in/i });
     await signInButton.click();
 
-    // Fill in credentials on the Azure AD login page.
-    await page.getByLabel(/email|username/i).fill(email);
-    await page.getByRole('button', { name: /next|continue/i }).click();
-    await page.getByLabel(/password/i).fill(password);
-    await page.getByRole('button', { name: /sign in/i }).click();
+    // Wait for the browser to land on the Microsoft-hosted login page.
+    // MSAL's loginRedirect() performs a full-page navigation so we must wait
+    // for the destination URL before interacting with its form elements.
+    //
+    // NOTE: The CSS selectors below use the stable `name` attributes that
+    // Microsoft's standard login page has used for many years
+    // (input[name="loginfmt"] for the username/email field,
+    //  input[name="passwd"] for the password field).  These are more reliable
+    //  than aria-label or role selectors which can vary across tenant
+    //  configurations and UI refreshes.  If this step breaks, inspect the
+    //  page source at login.microsoftonline.com to verify the field names.
+    await page.waitForURL(/login\.microsoftonline\.com/, { timeout: 30_000 });
+    console.log('[global-setup] Reached Azure AD login page');
+
+    // Fill in the username / email and advance to the password step.
+    await page.locator('input[name="loginfmt"]').fill(email);
+    await page.locator('input[type="submit"]').click();
+
+    // The password input appears on the same or a subsequent step; wait for
+    // it to be visible before filling to avoid a race with Azure AD's JS.
+    await page.waitForSelector('input[name="passwd"]', { timeout: 15_000 });
+    await page.locator('input[name="passwd"]').fill(password);
+    await page.locator('input[type="submit"]').click();
+    console.log('[global-setup] Credentials submitted');
 
     // Microsoft may display a "Stay signed in?" prompt after a successful
     // password entry.  Dismiss it by clicking "No" so the redirect completes.
@@ -110,12 +127,22 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     }
 
     // Wait until we are redirected back to the application (groups page).
-    // The timeout covers MFA prompts or slow Azure AD responses.
     await page.waitForURL(`${baseURL}/groups`, { timeout: 60_000 });
 
     fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
     await context.storageState({ path: AUTH_STATE_PATH });
     console.log(`[global-setup] Auth state saved to ${AUTH_STATE_PATH}`);
+  } catch (err) {
+    // Capture a screenshot at the point of failure so that CI artifacts give
+    // a visual clue about what went wrong (e.g. wrong page, error message).
+    try {
+      const screenshotPath = path.join(screenshotDir, 'global-setup-failure.png');
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      console.error(`[global-setup] Failure screenshot saved to ${screenshotPath}`);
+    } catch {
+      // Ignore screenshot errors — the original error is more important.
+    }
+    throw err;
   } finally {
     await browser.close();
   }
