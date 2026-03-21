@@ -120,18 +120,43 @@ async function globalSetup(_config: FullConfig): Promise<void> {
 
     // Microsoft may display a "Stay signed in?" prompt after a successful
     // password entry.  Dismiss it by clicking "No" so the redirect completes.
-    // waitFor() is used instead of isVisible() so that we reliably wait for
-    // the prompt to finish rendering before deciding it is absent.  If the
-    // page navigates away before the timeout (i.e. there is no prompt), the
-    // resulting error is caught and we fall through to the final waitForURL.
+    // waitFor() polls until the heading is visible or the timeout expires.
+    // Expected non-error cases (prompt absent → TimeoutError, or the page
+    // navigated away before we could check → navigation/detach error) are
+    // logged and suppressed.  Any other error is rethrown so genuine failures
+    // (e.g. the "No" button selector changing) surface immediately.
     try {
       await page
         .getByRole('heading', { name: /stay signed in/i })
         .waitFor({ state: 'visible', timeout: 10_000 });
       console.log('[global-setup] "Stay signed in?" prompt detected, clicking No…');
       await page.getByRole('button', { name: /^no$/i }).click();
-    } catch {
-      // Prompt did not appear — proceed to wait for the app redirect.
+    } catch (err: unknown) {
+      // Only suppress expected cases:
+      //  - timeout while waiting for the prompt heading, meaning it never appeared
+      //  - navigation / detached-frame / closed-page errors during redirect
+      if (err instanceof Error) {
+        const isTimeoutError = err.name === 'TimeoutError';
+        const isNavigationOrDetachError =
+          /Target page, context or browser has been closed/i.test(err.message) ||
+          /Navigation interrupted/i.test(err.message) ||
+          /Execution context was destroyed/i.test(err.message);
+
+        if (isTimeoutError || isNavigationOrDetachError) {
+          console.log(
+            '[global-setup] "Stay signed in?" prompt not shown or dismissed during redirect; continuing…',
+          );
+        } else {
+          console.error(
+            '[global-setup] Unexpected error while handling "Stay signed in?" prompt:',
+            err,
+          );
+          throw err;
+        }
+      } else {
+        // Non-Error throwables are unexpected; rethrow to avoid masking issues.
+        throw err;
+      }
     }
 
     // Wait until we are redirected back to the application (groups page).
