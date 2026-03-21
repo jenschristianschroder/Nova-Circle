@@ -24,7 +24,7 @@ The E2E test suite lives under `client/e2e/` and uses [Playwright](https://playw
 
 E2E tests are intentionally few and focused on verifying that the main navigation and authentication paths work in a deployed environment.  They complement — and do not replace — the backend unit, integration, and API tests documented in [testing.md](testing.md).
 
-> **Note:** The project-wide `copilot-instructions.md` requires all external dependencies (including authentication) to be mocked in CI.  E2E tests are an intentional exception: they test the complete stack, including real Azure AD authentication.  This exception exists because mocking Azure AD at the browser level would make the tests meaningless as infrastructure verification.
+> **Note:** The project-wide [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) requires all external dependencies (including authentication) to be mocked in CI.  E2E tests are an intentional exception: they test the complete stack, including real Azure AD authentication.  This exception exists because mocking Azure AD at the browser level would make the tests meaningless as infrastructure verification.
 
 ### Spec files
 
@@ -77,10 +77,12 @@ If credentials are provided via `PLAYWRIGHT_TEST_USER_EMAIL` and `PLAYWRIGHT_TES
 4. Click "Next / Continue".
 5. Fill the password field.
 6. Click "Sign in".
-7. Wait up to 30 seconds for a redirect back to `${PLAYWRIGHT_BASE_URL}/groups` (this window accommodates MFA prompts and slow Azure AD responses).
+7. Wait up to 30 seconds for a redirect back to `${PLAYWRIGHT_BASE_URL}/groups` (this timeout accounts for slow Azure AD responses but does **not** handle interactive MFA prompts).
 8. Save the resulting storage state to `e2e/.auth/user.json`.
 
 > **Important:** The locators in step 3–6 target Microsoft's hosted Azure AD login UI.  If Microsoft changes that UI, the selectors will need updating.
+>
+> **MFA requirement:** The test user used for Path 2 must be able to complete sign-in without additional interactive challenges (for example, MFA approvals, captchas, or forced password changes).  If your tenant enforces MFA, use Path 1 with an injected `PLAYWRIGHT_AUTH_STATE_FILE` captured from a manually authenticated session instead of relying on the headless sign-in flow.
 
 ### Path 3 — Fallback (local dev without credentials)
 
@@ -152,10 +154,13 @@ Only Chromium is enabled.  Firefox and Safari projects are present but commented
 cd client
 npx playwright install --with-deps chromium
 
-# 2. Set environment variables (example — use your actual values)
+# 2. Set environment variables (example — do not put real passwords in shell history)
 export PLAYWRIGHT_BASE_URL=http://localhost:3000
 export PLAYWRIGHT_TEST_USER_EMAIL=testuser@example.com
-export PLAYWRIGHT_TEST_USER_PASSWORD=S3cr3tPassword
+export PLAYWRIGHT_TEST_USER_PASSWORD=<redacted>
+#    Prefer loading secrets from a local .env file (ignored by Git), a secret manager,
+#    or by prefixing the command for a single run, for example:
+#    PLAYWRIGHT_TEST_USER_PASSWORD=<redacted> npm run test:e2e
 
 # 3. Run all E2E tests (headless)
 npm run test:e2e
@@ -285,7 +290,7 @@ test.beforeEach(async () => {
 | Parameter | Default | Description |
 |---|---|---|
 | `storageStatePath` | `e2e/.auth/user.json` | Path to the Playwright storage state file |
-| `baseUrl` | `PLAYWRIGHT_BASE_URL` or `http://localhost:5173` | Base URL of the backend API |
+| `baseUrl` | `PLAYWRIGHT_BASE_URL` or `http://localhost:5173` | Origin that serves the `/api` path (typically the app/client origin), not necessarily the backend server's direct host/port |
 
 ### Available methods
 
@@ -293,10 +298,10 @@ test.beforeEach(async () => {
 |---|---|---|
 | `listGroups()` | `GET /api/v1/groups` | Lists all groups the test user belongs to |
 | `createGroup(payload)` | `POST /api/v1/groups` | Creates a group and returns its summary |
-| `deleteGroup(groupId)` | `DELETE /api/v1/groups/:id` | Deletes a group by ID (owner only) |
-| `listEvents(groupId)` | `GET /api/v1/groups/:id/events` | Lists events in a group |
-| `createEvent(payload)` | `POST /api/v1/groups/:id/events` | Creates an event and returns its summary |
-| `cancelEvent(groupId, eventId)` | `DELETE /api/v1/groups/:id/events/:id` | Soft-cancels an event |
+| `deleteGroup(groupId)` | `DELETE /api/v1/groups/:groupId` | Deletes a group by ID (owner only) |
+| `listEvents(groupId)` | `GET /api/v1/groups/:groupId/events` | Lists events in a group |
+| `createEvent(payload)` | `POST /api/v1/groups/:groupId/events` | Creates an event and returns its summary |
+| `cancelEvent(groupId, eventId)` | `DELETE /api/v1/groups/:groupId/events/:eventId` | Soft-cancels an event |
 
 ### Example: create and clean up test data
 
