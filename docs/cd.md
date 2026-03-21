@@ -149,6 +149,7 @@ export POSTGRES_ADMIN_PASSWORD='<strong-password>'
 | CD service principal | App Registration + Service Principal + OIDC federated credentials |
 | RBAC for CD principal | Contributor + User Access Administrator on the resource group |
 | API app registration | App Registration for JWT validation (`api://nova-circle-<env>`) |
+| CD ownership of API app | CD service principal added as owner so it can manage SPA redirect URIs |
 | SPA redirect URIs | `http://localhost:5173` (non-prod) + any `--app-redirect-uri` value |
 | Bicep infrastructure | All Azure resources (ACR, Container App, PostgreSQL, etc.) |
 | AcrPush assignment | Grants CD service principal AcrPush on the ACR |
@@ -185,6 +186,13 @@ OAuth2 scopes still need to be added manually for client apps. Go to Azure Porta
 > redirect URI will be registered and every sign-in will fail with
 > `AADSTS500113`. Bootstrap will emit a warning with a direct link to the
 > Authentication blade so you can add it manually if needed.
+>
+> **Playwright E2E redirect URIs are managed automatically by CD.** Before running
+> E2E tests, the CD workflow registers the new revision's revision-specific origin
+> as a temporary SPA redirect URI. After tests complete (pass or fail) it removes it.
+> This works because `bootstrap.sh` grants the CD service principal ownership of the
+> API app registration. If you see `AADSTS50011` in E2E test logs, verify the CD
+> service principal is an app owner: `az ad app owner list --id <API_AZURE_CLIENT_ID>`.
 
 ---
 

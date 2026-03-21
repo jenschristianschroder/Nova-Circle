@@ -431,6 +431,30 @@ jobs:
       # URL while 100 % of live traffic still goes to the old revisions.
       # Users are never exposed to the candidate revision during the gate.
       # continue-on-error allows the promote/rollback steps to always execute.
+
+      # MSAL uses window.location.origin as redirectUri, so the revision-specific
+      # origin must be registered as an Azure AD SPA redirect URI before sign-in
+      # will succeed.  We add it here and remove it again after tests complete
+      # (see "Remove revision URL from Azure AD SPA redirect URIs" below).
+      # The CD service principal must be an owner of the API app registration —
+      # bootstrap.sh ensures this by calling `az ad app owner add`.
+      - name: Add revision URL to Azure AD SPA redirect URIs
+        id: add-redirect-uri
+        run: |
+          CLIENT_ID="${{ vars.API_AZURE_CLIENT_ID }}"
+          REV_URL="${{ steps.new-client-rev-url.outputs.url }}"
+          # Read the current SPA redirect URI list and append the revision URL.
+          CURRENT=$(az ad app show --id "${CLIENT_ID}" \
+            --query "spa.redirectUris" --output json 2>/dev/null || echo "[]")
+          # Build updated list as a bash array (redirect URIs are valid URLs and
+          # never contain spaces, so newline-split word expansion is safe).
+          mapfile -t UPDATED < <(echo "${CURRENT}" | \
+            jq -r --arg url "${REV_URL}" '. + [$url] | unique | .[]')
+          az ad app update --id "${CLIENT_ID}" \
+            --spa-redirect-uris "${UPDATED[@]}" \
+            --output none
+          echo "Added ${REV_URL} to SPA redirect URIs."
+
       - name: Install client dependencies (E2E)
         working-directory: client
         run: npm ci
@@ -494,6 +518,28 @@ jobs:
           path: client/test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+      # Remove the revision-specific URL that was registered before E2E tests.
+      # Runs unconditionally (always()) so it cleans up on both success and failure.
+      - name: Remove revision URL from Azure AD SPA redirect URIs
+        if: always()
+        run: |
+          CLIENT_ID="${{ vars.API_AZURE_CLIENT_ID }}"
+          REV_URL="${{ steps.new-client-rev-url.outputs.url }}"
+          CURRENT=$(az ad app show --id "${CLIENT_ID}" \
+            --query "spa.redirectUris" --output json 2>/dev/null || echo "[]")
+          # Build the remaining list as a bash array, excluding the revision URL.
+          mapfile -t REMAINING < <(echo "${CURRENT}" | \
+            jq -r --arg url "${REV_URL}" '[.[] | select(. != $url)] | .[]')
+          if [[ ${#REMAINING[@]} -gt 0 ]]; then
+            az ad app update --id "${CLIENT_ID}" \
+              --spa-redirect-uris "${REMAINING[@]}" \
+              --output none \
+              || echo "::warning::Could not remove ${REV_URL} from SPA redirect URIs on app ${CLIENT_ID} — remove manually."
+          else
+            echo "No other SPA redirect URIs remain; skipping update to avoid clearing all URIs."
+          fi
+          echo "Removed ${REV_URL} from SPA redirect URIs."
 
       # ── Phase 6a: Promote — E2E passed ────────────────────────────────────
       # Shift 100 % live traffic to the new revisions, then deactivate the old
