@@ -372,7 +372,7 @@ jobs:
   #
   #   1. Pre-authenticated state (RECOMMENDED – avoids MFA / Conditional Access):
   #      Store a base64-encoded Playwright storage-state file as the secret
-  #      PLAYWRIGHT_AUTH_STATE_B64.  The job decodes it to e2e/.auth/user.json
+  #      PLAYWRIGHT_AUTH_STATE_B64.  The job decodes it to e2e/.auth/injected.json
   #      and sets PLAYWRIGHT_AUTH_STATE_FILE so global-setup.ts skips the
   #      interactive sign-in entirely.
   #
@@ -442,8 +442,8 @@ jobs:
         run: |
           if [ -n "$PLAYWRIGHT_AUTH_STATE_B64" ]; then
             mkdir -p e2e/.auth
-            printf '%s' "$PLAYWRIGHT_AUTH_STATE_B64" | base64 -d > e2e/.auth/user.json
-            echo "PLAYWRIGHT_AUTH_STATE_FILE=${{ github.workspace }}/client/e2e/.auth/user.json" >> "$GITHUB_ENV"
+            printf '%s' "$PLAYWRIGHT_AUTH_STATE_B64" | base64 -d > e2e/.auth/injected.json
+            echo "PLAYWRIGHT_AUTH_STATE_FILE=${{ github.workspace }}/client/e2e/.auth/injected.json" >> "$GITHUB_ENV"
             echo "Pre-authenticated state restored – headless sign-in will be skipped."
           else
             echo "PLAYWRIGHT_AUTH_STATE_B64 not set – will attempt headless sign-in."
