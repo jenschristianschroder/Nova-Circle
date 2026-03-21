@@ -148,8 +148,7 @@ export function GroupDetail() {
   }
 
   const canEdit =
-    myProfile !== null &&
-    (myMembership?.role === 'owner' || myMembership?.role === 'admin');
+    myProfile !== null && (myMembership?.role === 'owner' || myMembership?.role === 'admin');
 
   const canDelete = myProfile !== null && group?.ownerId === myProfile.id;
 
@@ -288,12 +287,7 @@ export function GroupDetail() {
             </p>
           )}
           <div className={styles.formActions}>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={cancelDelete}
-              disabled={isDeleting}
-            >
+            <Button type="button" variant="secondary" onClick={cancelDelete} disabled={isDeleting}>
               Cancel
             </Button>
             <Button
