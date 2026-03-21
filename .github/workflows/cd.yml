@@ -94,8 +94,27 @@ jobs:
           fi
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Deploy infrastructure, run migrations, and smoke-test the live API.
+  # Deploy infrastructure, run migrations, then perform a blue/green revision
+  # swap gated by Playwright E2E tests:
+  #
+  #   1. Deploy Bicep with the CURRENT image (no new revision yet).
+  #   2. Run DB migrations against the updated schema.
+  #   3. Create a NEW revision of each Container App (0 % traffic initially).
+  #   4. Smoke-test the new revisions via their revision-specific URLs.
+  #   5. Shift 100 % traffic to the new revisions.
+  #   6. Run Playwright E2E tests against the live application.
+  #   7a. E2E pass  → deactivate the old revisions (promotion).
+  #   7b. E2E fail  → restore traffic to the old revisions and deactivate the
+  #       new ones (rollback), then fail the job.
+  #
   # Protected by the `production` GitHub environment (requires a reviewer).
+  #
+  # Required secrets (production environment):
+  #   POSTGRES_ADMIN_PASSWORD        – PostgreSQL admin password for migrations
+  #   PLAYWRIGHT_AUTH_STATE_B64      – base64-encoded Playwright storage state
+  #                                    (preferred; avoids MFA / Conditional Access)
+  #   PLAYWRIGHT_TEST_USER_EMAIL     – fallback headless sign-in email
+  #   PLAYWRIGHT_TEST_USER_PASSWORD  – fallback headless sign-in password
   # ────────────────────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to production
@@ -116,6 +135,7 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      # ── Phase 1: Deploy infrastructure with the CURRENT image ──────────────
       # Keep the currently running images while infra resources are updated.
       # This prevents a new (un-migrated) revision from going live before
       # migrations have run.
@@ -143,7 +163,8 @@ jobs:
 
       # Update all Azure infrastructure (networking, DB, Container App env, etc.)
       # but keep both Container Apps on their current images so no new revision
-      # starts against the old schema.
+      # starts against the old schema.  The Bicep templates set
+      # activeRevisionsMode: 'Multiple' so subsequent revision operations work.
       - name: Deploy infrastructure (Bicep)
         env:
           # main.bicepparam uses readEnvironmentVariable() which is evaluated at
@@ -168,6 +189,7 @@ jobs:
             --output tsv)
           echo "postgres_fqdn=${POSTGRES_FQDN}" >> "$GITHUB_ENV"
 
+      # ── Phase 2: Run DB migrations ─────────────────────────────────────────
       # Run Knex migrations directly from the workflow runner.
       # A temporary PostgreSQL firewall rule is opened for the runner's IP,
       # then removed after migrations complete (or if any step fails).
@@ -184,7 +206,7 @@ jobs:
             --end-ip-address "${RUNNER_IP}" \
             --output none
 
-      - name: Set up Node.js for migrations
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -223,14 +245,41 @@ jobs:
             --rule-name "gh-actions-runner" \
             --yes --output none || true
 
-      # Only after migrations succeed, switch both Container Apps to the new images.
-      # This ensures the new API revision starts against a fully migrated schema.
-      #
-      # Configure the managed-identity registry credential first.  When the Bicep
-      # deployment ran with the MCR placeholder as the current image (useAcr=false),
-      # it writes registries:[] which clears any existing ACR pull credential.
-      # az containerapp registry set restores it so the ACR image pull succeeds.
-      - name: Switch API Container App to new image
+      # ── Phase 3: Create new revisions with 0 % traffic ────────────────────
+      # Record the currently active revision names so we can restore traffic to
+      # them if the E2E gate fails.
+      - name: Record old revision names
+        id: old-revisions
+        run: |
+          OLD_API=$(az containerapp show \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.latestRevisionName" \
+            --output tsv)
+          OLD_CLIENT=$(az containerapp show \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.latestRevisionName" \
+            --output tsv)
+          echo "Old API revision:      ${OLD_API}"
+          echo "Old frontend revision: ${OLD_CLIENT}"
+          echo "api=${OLD_API}"       >> "$GITHUB_OUTPUT"
+          echo "client=${OLD_CLIENT}" >> "$GITHUB_OUTPUT"
+
+      # Build a short, ACA-compatible revision suffix from the commit SHA:
+      # lowercase alphanumeric, max 10 chars, must start with a letter.
+      # We use 'r' + the first 7 hex chars of the SHA.
+      - name: Compute revision suffix
+        id: rev-suffix
+        run: |
+          SUFFIX="r$(echo '${{ needs.build-and-push.outputs.image-tag }}' | cut -c1-7 | tr '[:upper:]' '[:lower:]')"
+          echo "suffix=${SUFFIX}" >> "$GITHUB_OUTPUT"
+
+      # Configure the managed-identity ACR pull credential before updating the
+      # image.  When the Bicep deployment ran with the MCR placeholder image
+      # (useAcr=false) it writes registries:[] which clears any existing
+      # credential; this step restores it so the image pull succeeds.
+      - name: Configure ACR pull credential — API
         run: |
           az containerapp registry set \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
@@ -238,76 +287,280 @@ jobs:
             --server "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}" \
             --identity "system" \
             --output none
+
+      - name: Configure ACR pull credential — frontend
+        run: |
+          az containerapp registry set \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}" \
+            --identity "system" \
+            --output none
+
+      # Create new revisions.  Because activeRevisionsMode is 'Multiple' (set
+      # in Bicep), each update creates a revision with 0 % traffic weight so
+      # the old revision continues to serve all live traffic.
+      - name: Create new API revision
+        id: new-api-revision
+        run: |
+          SUFFIX="${{ steps.rev-suffix.outputs.suffix }}"
+          APP="ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}"
           az containerapp update \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --name "${APP}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-api:${{ needs.build-and-push.outputs.image-tag }}" \
+            --revision-suffix "${SUFFIX}" \
             --output none
+          echo "revision=${APP}--${SUFFIX}" >> "$GITHUB_OUTPUT"
 
-      - name: Switch frontend Container App to new image
+      - name: Create new frontend revision
+        id: new-client-revision
         run: |
-          az containerapp registry set \
-            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --server "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}" \
-            --identity "system" \
-            --output none
+          SUFFIX="${{ steps.rev-suffix.outputs.suffix }}"
+          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
           az containerapp update \
-            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --name "${APP}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
+            --revision-suffix "${SUFFIX}" \
             --output none
+          echo "revision=${APP}--${SUFFIX}" >> "$GITHUB_OUTPUT"
 
-      - name: Get deployment outputs
-        id: deploy-outputs
+      # Poll until both new revisions report 'Running'.  Allows up to 120 s
+      # for cold-start / image pull before aborting.
+      - name: Wait for new API revision to be running
         run: |
-          API_URL=$(az deployment group show \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "nova-circle-${{ github.run_id }}" \
-            --query "properties.outputs.apiUrl.value" \
-            --output tsv)
-          echo "api-url=${API_URL}" >> "$GITHUB_OUTPUT"
-          CLIENT_URL=$(az deployment group show \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "nova-circle-${{ github.run_id }}" \
-            --query "properties.outputs.clientUrl.value" \
-            --output tsv)
-          echo "client-url=${CLIENT_URL}" >> "$GITHUB_OUTPUT"
-
-      # Wait for the API Container App to stabilise then assert the health endpoint
-      # returns HTTP 200.  Retries up to 6 times (60 s total) to allow for
-      # cold-start after scale-to-zero.
-      - name: Smoke test — API health check
-        run: |
-          API_URL="${{ steps.deploy-outputs.outputs.api-url }}"
-          echo "Testing ${API_URL}/health ..."
-          for i in $(seq 1 6); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/health" || true)
-            if [ "$STATUS" = "200" ]; then
-              echo "Health check passed (HTTP 200)"
+          REV="${{ steps.new-api-revision.outputs.revision }}"
+          APP="ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          echo "Waiting for revision ${REV} to reach Running state..."
+          for i in $(seq 1 12); do
+            STATE=$(az containerapp revision show \
+              --name "${APP}" --resource-group "${RG}" --revision "${REV}" \
+              --query "properties.runningState" --output tsv 2>/dev/null || echo "Unavailable")
+            echo "  Attempt ${i}/12 — state: ${STATE}"
+            if [[ "${STATE}" == "Running" ]]; then
+              echo "Revision is Running."
               exit 0
             fi
-            echo "Attempt ${i}/6 — HTTP ${STATUS}, retrying in 10s..."
             sleep 10
           done
-          echo "ERROR: Health check failed after 60s"
+          echo "::error::New API revision did not reach Running state within 120 s"
           exit 1
 
-      # Wait for the frontend Container App to stabilise then assert the root path
-      # returns HTTP 200.  Retries up to 6 times (60 s total) to allow for
-      # cold-start after scale-to-zero.
-      - name: Smoke test — frontend health check
+      - name: Wait for new frontend revision to be running
         run: |
-          CLIENT_URL="${{ steps.deploy-outputs.outputs.client-url }}"
-          echo "Testing ${CLIENT_URL}/ ..."
-          for i in $(seq 1 6); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${CLIENT_URL}/" || true)
-            if [ "$STATUS" = "200" ]; then
-              echo "Frontend health check passed (HTTP 200)"
+          REV="${{ steps.new-client-revision.outputs.revision }}"
+          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          echo "Waiting for revision ${REV} to reach Running state..."
+          for i in $(seq 1 12); do
+            STATE=$(az containerapp revision show \
+              --name "${APP}" --resource-group "${RG}" --revision "${REV}" \
+              --query "properties.runningState" --output tsv 2>/dev/null || echo "Unavailable")
+            echo "  Attempt ${i}/12 — state: ${STATE}"
+            if [[ "${STATE}" == "Running" ]]; then
+              echo "Revision is Running."
               exit 0
             fi
-            echo "Attempt ${i}/6 — HTTP ${STATUS}, retrying in 10s..."
             sleep 10
           done
-          echo "ERROR: Frontend health check failed after 60s"
+          echo "::error::New frontend revision did not reach Running state within 120 s"
+          exit 1
+
+      # ── Phase 4: Smoke-test new revisions before shifting traffic ──────────
+      # Each revision in a Multiple-revision Container App has its own
+      # hostname: https://<revision-name>.<env-domain>.
+      # We retrieve the revision-specific FQDN and verify the health endpoint
+      # before any live traffic is redirected to the new revision.
+      - name: Smoke test — new API revision health check
+        run: |
+          APP="ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          REV="${{ steps.new-api-revision.outputs.revision }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          # Derive the revision-specific URL from the Container App's main FQDN.
+          # Main FQDN:     <app-name>.<env-domain>
+          # Revision FQDN: <revision-name>.<env-domain>
+          MAIN_FQDN=$(az containerapp show \
+            --name "${APP}" --resource-group "${RG}" \
+            --query "properties.configuration.ingress.fqdn" --output tsv)
+          ENV_DOMAIN="${MAIN_FQDN#*.}"
+          REV_URL="https://${REV}.${ENV_DOMAIN}"
+          echo "Smoke-testing new API revision at ${REV_URL}/health ..."
+          for i in $(seq 1 6); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${REV_URL}/health" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "New API revision health check passed (HTTP 200)"
+              exit 0
+            fi
+            echo "  Attempt ${i}/6 — HTTP ${STATUS}, retrying in 10 s..."
+            sleep 10
+          done
+          echo "::error::New API revision health check failed after 60 s"
+          exit 1
+
+      # ── Phase 5: Shift 100 % traffic to the new revisions ─────────────────
+      - name: Shift traffic to new API revision
+        run: |
+          az containerapp ingress traffic set \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight "${{ steps.new-api-revision.outputs.revision }}=100" \
+            --output none
+
+      - name: Shift traffic to new frontend revision
+        run: |
+          az containerapp ingress traffic set \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight "${{ steps.new-client-revision.outputs.revision }}=100" \
+            --output none
+
+      # ── Phase 6: E2E gate — Playwright tests ──────────────────────────────
+      # Tests run against the live application (new revisions now serve 100 %
+      # of traffic).  continue-on-error allows the promote/rollback steps below
+      # to always execute regardless of the test outcome.
+      - name: Install client dependencies (E2E)
+        working-directory: client
+        run: npm ci
+
+      # Decode the pre-authenticated Playwright storage state when available.
+      # Preferred for production tenants that enforce MFA or Conditional Access.
+      # When the secret is absent the step is a no-op and global-setup falls
+      # back to the headless username/password path.
+      - name: Restore pre-authenticated Playwright state
+        env:
+          PLAYWRIGHT_AUTH_STATE_B64: ${{ secrets.PLAYWRIGHT_AUTH_STATE_B64 }}
+        working-directory: client
+        run: |
+          if [ -n "$PLAYWRIGHT_AUTH_STATE_B64" ]; then
+            mkdir -p e2e/.auth
+            printf '%s' "$PLAYWRIGHT_AUTH_STATE_B64" | base64 -d > e2e/.auth/injected.json
+            echo "PLAYWRIGHT_AUTH_STATE_FILE=${{ github.workspace }}/client/e2e/.auth/injected.json" >> "$GITHUB_ENV"
+            echo "Pre-authenticated state restored — headless sign-in will be skipped."
+          else
+            echo "PLAYWRIGHT_AUTH_STATE_B64 not set — will attempt headless sign-in."
+          fi
+
+      - name: Install Playwright browsers
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        id: e2e
+        continue-on-error: true
+        working-directory: client
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL }}
+          PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: client/playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload JUnit XML results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-e2e
+          path: client/test-results/e2e.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload screenshots on failure
+        if: steps.e2e.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: client/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # ── Phase 7a: Promote — E2E passed ────────────────────────────────────
+      # Deactivate the old revisions now that the new ones are fully promoted.
+      - name: Promote — deactivate old API revision
+        if: steps.e2e.outcome == 'success'
+        run: |
+          OLD_REV="${{ steps.old-revisions.outputs.api }}"
+          echo "E2E passed — deactivating old API revision: ${OLD_REV}"
+          az containerapp revision deactivate \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision "${OLD_REV}" \
+            --output none \
+            || echo "::warning::Could not deactivate old API revision ${OLD_REV} — it may already be inactive."
+
+      - name: Promote — deactivate old frontend revision
+        if: steps.e2e.outcome == 'success'
+        run: |
+          OLD_REV="${{ steps.old-revisions.outputs.client }}"
+          echo "E2E passed — deactivating old frontend revision: ${OLD_REV}"
+          az containerapp revision deactivate \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision "${OLD_REV}" \
+            --output none \
+            || echo "::warning::Could not deactivate old frontend revision ${OLD_REV} — it may already be inactive."
+
+      # ── Phase 7b: Rollback — E2E failed ───────────────────────────────────
+      # Restore 100 % traffic to the old revisions, then deactivate the new
+      # ones so they stop consuming resources.
+      - name: Rollback — restore old API revision traffic
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          OLD_REV="${{ steps.old-revisions.outputs.api }}"
+          echo "E2E failed — restoring traffic to old API revision: ${OLD_REV}"
+          az containerapp ingress traffic set \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight "${OLD_REV}=100" \
+            --output none
+
+      - name: Rollback — restore old frontend revision traffic
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          OLD_REV="${{ steps.old-revisions.outputs.client }}"
+          echo "E2E failed — restoring traffic to old frontend revision: ${OLD_REV}"
+          az containerapp ingress traffic set \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision-weight "${OLD_REV}=100" \
+            --output none
+
+      - name: Rollback — deactivate new API revision
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          NEW_REV="${{ steps.new-api-revision.outputs.revision }}"
+          echo "Deactivating failed new API revision: ${NEW_REV}"
+          az containerapp revision deactivate \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision "${NEW_REV}" \
+            --output none \
+            || echo "::warning::Could not deactivate new API revision ${NEW_REV} — manual cleanup may be required."
+
+      - name: Rollback — deactivate new frontend revision
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          NEW_REV="${{ steps.new-client-revision.outputs.revision }}"
+          echo "Deactivating failed new frontend revision: ${NEW_REV}"
+          az containerapp revision deactivate \
+            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --revision "${NEW_REV}" \
+            --output none \
+            || echo "::warning::Could not deactivate new frontend revision ${NEW_REV} — manual cleanup may be required."
+
+      - name: Fail — E2E tests did not pass
+        if: steps.e2e.outcome == 'failure'
+        run: |
+          echo "::error::E2E tests failed. Traffic has been restored to the previous revision."
           exit 1

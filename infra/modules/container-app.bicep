@@ -55,6 +55,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     environmentId: containerAppEnvId
     configuration: {
+      // Multiple-revision mode is required for blue/green deployments: new
+      // revisions are created with 0 % traffic weight and traffic is shifted
+      // only after E2E tests pass.  The CD pipeline manages traffic weights
+      // explicitly; this setting must not be changed to 'Single'.
+      activeRevisionsMode: 'Multiple'
       ingress: {
         external: true
         targetPort: 3000
