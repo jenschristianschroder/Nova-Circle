@@ -162,6 +162,19 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     // Wait until we are redirected back to the application (groups page).
     await page.waitForURL(`${baseURL}/groups`, { timeout: 60_000 });
 
+    // Wait for the groups API call to settle (loading indicator disappears).
+    // This gives MSAL time to acquire and cache the access token in localStorage
+    // before we snapshot the storage state — without this wait the snapshot may
+    // be taken before acquireTokenSilent completes and ApiHelper.fromStorageState()
+    // will throw "No MSAL access token found".
+    await page
+      .getByText('Loading groups…')
+      .waitFor({ state: 'hidden', timeout: 30_000 })
+      .catch(() => {
+        // Acceptable: the spinner might never appear (fast response) or the page
+        // might already show the group list / error banner by the time we check.
+      });
+
     fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
     await context.storageState({ path: AUTH_STATE_PATH });
     console.log(`[global-setup] Auth state saved to ${AUTH_STATE_PATH}`);

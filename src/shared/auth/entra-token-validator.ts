@@ -10,7 +10,7 @@ import type { TokenValidatorPort } from './token-validator.port.js';
 export class EntraTokenValidator implements TokenValidatorPort {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
   private readonly issuer: string;
-  private readonly audience: string;
+  private readonly audience: string[];
 
   constructor() {
     const tenantId = process.env['AZURE_TENANT_ID'];
@@ -20,7 +20,13 @@ export class EntraTokenValidator implements TokenValidatorPort {
     if (!clientId) throw new Error('AZURE_CLIENT_ID environment variable is required');
 
     this.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
-    this.audience = clientId;
+
+    // Azure AD v2 access tokens use the Application ID URI as the `aud` claim.
+    // bootstrap.sh sets the Application ID URI to `api://<clientId>`, so tokens
+    // issued by the v2.0 endpoint have `aud: "api://<clientId>"`, not the bare GUID.
+    // Accept both forms so the validator works regardless of how the Application ID
+    // URI is configured in the tenant.
+    this.audience = [`api://${clientId}`, clientId];
 
     const jwksUri = new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`);
     this.jwks = createRemoteJWKSet(jwksUri);

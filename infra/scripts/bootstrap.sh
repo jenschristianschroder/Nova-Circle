@@ -818,6 +818,79 @@ setup_api_app() {
     warn "Grant ownership manually: az ad app owner add --id ${API_APP_ID} --owner-object-id <CD_SP_OBJECT_ID>"
   fi
 
+  # Expose the user_impersonation OAuth2 permission scope on the API app registration.
+  # This allows the MSAL-based SPA to request access tokens for the API using
+  # scope 'api://<clientId>/user_impersonation'.  Without this scope the token
+  # acquisition silently fails and every API call returns a JS error on the client.
+  #
+  # The Graph PATCH for oauth2PermissionScopes must include ALL existing scopes or
+  # they are removed, so we merge the new scope with the existing list.
+  step "Ensuring user_impersonation OAuth2 scope is exposed on the API app registration..."
+  local current_scopes_json
+  current_scopes_json=$(az rest \
+    --method GET \
+    --uri "https://graph.microsoft.com/v1.0/applications/${API_APP_OBJECT_ID}" \
+    --query "api.oauth2PermissionScopes" \
+    --output json 2>/dev/null || echo "[]")
+
+  local has_user_impersonation
+  has_user_impersonation=$(echo "${current_scopes_json}" | \
+    jq -r '[.[] | select(.value == "user_impersonation" and .isEnabled == true)] | length' \
+    2>/dev/null || echo "0")
+
+  if [[ "${has_user_impersonation}" == "0" ]]; then
+    # Generate a stable UUID for the scope.  Use /proc/sys/kernel/random/uuid on
+    # Linux, uuidgen on macOS, or python3 as a universal fallback.
+    local scope_id
+    scope_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null \
+      || uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' \
+      || python3 -c "import uuid; print(uuid.uuid4())")
+
+    local updated_scopes
+    updated_scopes=$(echo "${current_scopes_json}" | jq \
+      --arg id "${scope_id}" \
+      '. + [{
+        "id": $id,
+        "value": "user_impersonation",
+        "type": "User",
+        "isEnabled": true,
+        "adminConsentDisplayName": "Access Nova Circle API on your behalf",
+        "adminConsentDescription": "Allows the application to access the Nova Circle API on your behalf.",
+        "userConsentDisplayName": "Access Nova Circle API on your behalf",
+        "userConsentDescription": "Allows this application to access the Nova Circle API on your behalf."
+      }]')
+
+    local patch_body
+    patch_body=$(jq -n --argjson scopes "${updated_scopes}" '{"api":{"oauth2PermissionScopes":$scopes}}')
+
+    if az rest \
+      --method PATCH \
+      --uri "https://graph.microsoft.com/v1.0/applications/${API_APP_OBJECT_ID}" \
+      --headers "Content-Type=application/json" \
+      --body "${patch_body}" \
+      --output none 2>/dev/null; then
+      step "Exposed user_impersonation scope on ${API_APP_ID}."
+    else
+      warn "Could not expose user_impersonation scope automatically."
+      warn "Add it manually: Azure Portal → App registrations → ${API_APP_ID} → Expose an API → Add a scope → user_impersonation"
+    fi
+  else
+    step "user_impersonation scope is already exposed and enabled."
+  fi
+
+  # Grant admin consent for the user_impersonation scope so E2E test users are
+  # not prompted for consent during headless sign-in.  This is a best-effort
+  # step; failure is non-fatal and a warning is printed instead.
+  local api_sp_id
+  api_sp_id=$(az ad sp show --id "${API_APP_ID}" --query id -o tsv 2>/dev/null || echo "")
+  if [[ -n "${api_sp_id}" ]]; then
+    step "Granting admin consent for user_impersonation scope (best-effort)..."
+    az ad app permission admin-consent \
+      --id "${API_APP_ID}" \
+      --output none 2>/dev/null \
+      || warn "Admin consent could not be granted automatically — a tenant admin may need to consent manually."
+  fi
+
   step "API app registration ready: ${API_APP_ID}"
 }
 
