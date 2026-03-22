@@ -452,9 +452,19 @@ jobs:
           # rather than defaulting to an empty list, to avoid overwriting existing
           # redirect URIs with only the revision URL.
           CURRENT=""
+          SPA_ERR_FILE="${RUNNER_TEMP}/spa_show_err_$$.txt"
           if ! CURRENT=$(az ad app show --id "${CLIENT_ID}" \
-            --query "spa.redirectUris" --output json 2>/dev/null); then
-            echo "::error::Failed to retrieve SPA redirect URIs for app ${CLIENT_ID}; cannot update SPA redirect URIs."
+            --query "spa.redirectUris" --output json 2>"${SPA_ERR_FILE}"); then
+            # Log raw Azure CLI stderr with plain echo so multi-line output is
+            # preserved without risking annotation parsing issues.
+            echo "Azure CLI stderr while retrieving SPA redirect URIs:"
+            cat "${SPA_ERR_FILE}" || true
+            # Sanitize before embedding in the workflow command: flatten newlines
+            # and escape '%' to prevent breaking GitHub Actions annotation parsing.
+            SANITIZED_ERR=$(tr '\r\n' ' ' < "${SPA_ERR_FILE}" 2>/dev/null || echo "unable to read error details")
+            SANITIZED_ERR=${SANITIZED_ERR//'%'/'%25'}
+            echo "::error::Failed to retrieve SPA redirect URIs for app ${CLIENT_ID}: ${SANITIZED_ERR}"
+            echo "::error::Ensure the CD service principal is an owner of the app registration and the CD app has Application.ReadWrite.OwnedBy Graph permission granted with admin consent. Re-run bootstrap.sh to fix."
             exit 1
           fi
           # Build updated JSON array (deduped) for the Graph PATCH body.
@@ -462,8 +472,11 @@ jobs:
             jq --arg url "${REV_URL}" '(. // []) + [$url] | unique')
           # az ad app update does not support --spa-redirect-uris; use the
           # Microsoft Graph REST API directly via az rest instead.
-          OBJ_ID=$(az ad app show --id "${CLIENT_ID}" --query id --output tsv 2>/dev/null)
+          OBJ_ID_ERR_FILE="${RUNNER_TEMP}/spa_objid_err_$$.txt"
+          OBJ_ID=$(az ad app show --id "${CLIENT_ID}" --query id --output tsv 2>"${OBJ_ID_ERR_FILE}")
           if [[ -z "${OBJ_ID}" ]]; then
+            echo "Azure CLI stderr while retrieving object ID:"
+            cat "${OBJ_ID_ERR_FILE}" || true
             echo "::error::Failed to retrieve object ID for app ${CLIENT_ID}; cannot update SPA redirect URIs."
             exit 1
           fi
@@ -553,8 +566,11 @@ jobs:
           CLEANUP_ERROR=0
 
           CURRENT=$(az ad app show --id "${CLIENT_ID}" \
-            --query "spa.redirectUris" --output json 2>/dev/null)
+            --query "spa.redirectUris" --output json 2>"${RUNNER_TEMP}/spa_cleanup_err_$$.txt")
           if [[ $? -ne 0 || -z "${CURRENT}" ]]; then
+            # Log raw stderr separately so multi-line output is preserved.
+            echo "Azure CLI stderr while querying SPA redirect URIs for cleanup:"
+            cat "${RUNNER_TEMP}/spa_cleanup_err_$$.txt" || true
             echo "::warning::Failed to query SPA redirect URIs for app ${CLIENT_ID}; skipping cleanup of ${REV_URL}."
             CLEANUP_ERROR=1
           fi
@@ -582,8 +598,10 @@ jobs:
             if [[ "${REMAINING_COUNT}" -gt 0 ]]; then
               # az ad app update does not support --spa-redirect-uris; use the
               # Microsoft Graph REST API directly via az rest instead.
-              OBJ_ID=$(az ad app show --id "${CLIENT_ID}" --query id --output tsv 2>/dev/null)
+              OBJ_ID=$(az ad app show --id "${CLIENT_ID}" --query id --output tsv 2>"${RUNNER_TEMP}/spa_cleanup_objid_err_$$.txt")
               if [[ -z "${OBJ_ID}" ]]; then
+                echo "Azure CLI stderr while resolving object ID for cleanup:"
+                cat "${RUNNER_TEMP}/spa_cleanup_objid_err_$$.txt" || true
                 echo "::warning::Failed to resolve object ID for app ${CLIENT_ID}; skipping cleanup of ${REV_URL}."
                 CLEANUP_ERROR=1
               else
