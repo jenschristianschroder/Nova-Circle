@@ -743,6 +743,27 @@ setup_api_app() {
     fi
   fi
 
+  # Grant the CD service principal ownership of the API app registration so the
+  # CD workflow can add/remove SPA redirect URIs around Playwright E2E tests.
+  # App owners can call `az ad app update` without directory-level admin roles.
+  if [[ -n "${CD_SP_ID:-}" ]]; then
+    step "Granting CD service principal ownership of API app registration..."
+    local cd_owner_add_output=""
+    if cd_owner_add_output=$(az ad app owner add \
+      --id "${API_APP_ID}" \
+      --owner-object-id "${CD_SP_ID}" \
+      --output none 2>&1); then
+      step "CD service principal (${CD_SP_ID}) is now an owner of ${API_APP_ID}."
+    else
+      warn "Could not grant CD service principal ownership of API app registration."
+      warn "Azure CLI output: ${cd_owner_add_output}"
+      warn "Grant ownership manually: az ad app owner add --id ${API_APP_ID} --owner-object-id ${CD_SP_ID}"
+    fi
+  else
+    warn "CD_SP_ID not set — skipping CD ownership grant for API app registration."
+    warn "Grant ownership manually: az ad app owner add --id ${API_APP_ID} --owner-object-id <CD_SP_OBJECT_ID>"
+  fi
+
   step "API app registration ready: ${API_APP_ID}"
 }
 
