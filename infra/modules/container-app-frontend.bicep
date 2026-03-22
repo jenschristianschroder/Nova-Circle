@@ -25,6 +25,9 @@ param azureClientId string = ''
 @description('Azure Tenant ID injected into the SPA at runtime for MSAL authentication')
 param azureTenantId string = ''
 
+@description('Backend API base URL (e.g. https://ca-nova-circle-dev.xxx.azurecontainerapps.io). When set, nginx reverse-proxies /api requests to this URL so the browser sees same-origin traffic and no CORS headers are required.')
+param apiBaseUrl string = ''
+
 var appName = 'ca-nova-circle-client-${environmentName}'
 
 // Only configure ACR pull when the image is actually from the provisioned registry.
@@ -81,6 +84,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           // Inject Azure credentials so entrypoint.sh can write env-config.js
           // at container startup. These are public OAuth identifiers (not
           // secrets) so Key Vault indirection is not required.
+          // API_BASE_URL is the backend FQDN used by nginx to proxy /api
+          // requests server-side (same-origin from the browser's perspective).
           env: [
             {
               name: 'VITE_AZURE_CLIENT_ID'
@@ -89,6 +94,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'VITE_AZURE_TENANT_ID'
               value: azureTenantId
+            }
+            {
+              name: 'API_BASE_URL'
+              value: apiBaseUrl
             }
           ]
           probes: [

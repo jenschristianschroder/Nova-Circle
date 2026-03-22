@@ -27,44 +27,18 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Runtime environment injection:
-# entrypoint.sh runs before nginx starts (via /docker-entrypoint.d/) and
-# writes env-config.js from container environment variables so the React SPA
-# can read VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID at runtime without
-# requiring the image to be rebuilt per environment.
+# entrypoint.sh runs before nginx starts (via /docker-entrypoint.d/) and:
+#  1. Writes env-config.js from VITE_AZURE_CLIENT_ID / VITE_AZURE_TENANT_ID so
+#     the React SPA can read Azure credentials without rebuilding per environment.
+#  2. Writes /etc/nginx/conf.d/default.conf at container startup, adding a
+#     reverse-proxy location for /api when API_BASE_URL is set. This forwards
+#     browser API calls to the backend container server-side (same-origin, no CORS).
 COPY entrypoint.sh /docker-entrypoint.d/40-env-config.sh
 RUN chmod +x /docker-entrypoint.d/40-env-config.sh
 
-# SPA config: all unknown paths fall back to index.html for client-side routing.
-# Static assets built by Vite include content hashes, so they are cached
-# aggressively; HTML and runtime-generated config are never cached to pick up
-# new deployments and environment changes immediately.
-RUN printf 'server {\n\
-    listen 80;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-\n\
-    # SPA fallback\n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-\n\
-    # Never cache the runtime-generated env config — it changes per environment\n\
-    # and per deployment (written by /docker-entrypoint.d/40-env-config.sh).\n\
-    location = /env-config.js {\n\
-        add_header Cache-Control "no-store";\n\
-    }\n\
-\n\
-    # Cache hashed assets for 1 year\n\
-    location ~* \\.(js|css|woff2?|png|jpg|jpeg|gif|svg|ico)$ {\n\
-        expires 1y;\n\
-        add_header Cache-Control "public, immutable";\n\
-    }\n\
-\n\
-    # Never cache the HTML entry point\n\
-    location = /index.html {\n\
-        add_header Cache-Control "no-store";\n\
-    }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# Remove the default nginx config so there is no stale config before the
+# entrypoint script writes the runtime-generated one on first startup.
+RUN rm -f /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
