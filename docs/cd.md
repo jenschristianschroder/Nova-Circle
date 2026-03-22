@@ -283,6 +283,39 @@ az role assignment create \
 > Use least-privilege roles. The Container App itself pulls images using its own
 > system-assigned managed identity (`AcrPull`) — assigned automatically by Bicep.
 
+**4. Grant the Microsoft Graph `Application.ReadWrite.OwnedBy` permission to the CD app:**
+
+This permission allows the CD workflow to read and update app registrations it owns
+(used to add/remove SPA redirect URIs around Playwright E2E tests). Without it
+`az ad app show` will fail with a 403 Forbidden error even when the CD SP is an owner
+of the API app registration.
+
+```bash
+# Microsoft Graph well-known app ID and Application.ReadWrite.OwnedBy role ID
+GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
+APP_READ_WRITE_OWNED_BY="18a4783c-866b-4cc7-a460-3d5e5662c884"
+
+az ad app permission add \
+  --id "$OBJECT_ID" \
+  --api "$GRAPH_APP_ID" \
+  --api-permissions "${APP_READ_WRITE_OWNED_BY}=Role"
+
+# Admin consent is required for application-level (non-delegated) permissions.
+az ad app permission admin-consent --id "$OBJECT_ID"
+```
+
+> Requires Global Administrator or Application Administrator in Entra ID.
+> `bootstrap.sh` runs this automatically.
+
+**5. Add CD service principal as owner of the API app registration:**
+
+```bash
+API_APP_ID="<value of API_AZURE_CLIENT_ID GitHub variable>"
+az ad app owner add --id "$API_APP_ID" --owner-object-id "$SP_ID"
+```
+
+> `bootstrap.sh` does this automatically in `setup_api_app()`.
+
 ---
 
 ## GitHub configuration

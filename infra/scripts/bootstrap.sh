@@ -605,6 +605,50 @@ setup_oidc_app() {
     warn "Add them manually after the GitHub repo is known (see docs/cd.md)."
   fi
 
+  # Grant the CD app registration the Application.ReadWrite.OwnedBy Microsoft
+  # Graph application permission so the CD workflow can read and update the SPA
+  # redirect URIs on app registrations it owns (used to register revision-specific
+  # URLs before Playwright E2E tests and remove them afterwards).
+  #
+  # Microsoft Graph app ID and Application.ReadWrite.OwnedBy role ID are stable
+  # well-known values defined by Microsoft — they never change across tenants.
+  # Source: https://learn.microsoft.com/en-us/graph/permissions-reference
+  local GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
+  local APP_READ_WRITE_OWNED_BY_ROLE_ID="18a4783c-866b-4cc7-a460-3d5e5662c884"
+
+  step "Granting Application.ReadWrite.OwnedBy Graph permission to CD app..."
+  local perm_add_err=""
+  if perm_add_err=$(az ad app permission add \
+    --id "${CD_APP_OBJECT_ID}" \
+    --api "${GRAPH_APP_ID}" \
+    --api-permissions "${APP_READ_WRITE_OWNED_BY_ROLE_ID}=Role" \
+    --output none 2>&1); then
+    step "Application.ReadWrite.OwnedBy added to ${CD_APP_ID}."
+  else
+    # Already-granted returns a non-fatal "already exists" error; treat it as success.
+    if echo "${perm_add_err}" | grep -qi "already"; then
+      step "Application.ReadWrite.OwnedBy already present on ${CD_APP_ID}."
+    else
+      warn "Could not add Application.ReadWrite.OwnedBy to CD app registration."
+      warn "Azure CLI output: ${perm_add_err}"
+      warn "Add manually: az ad app permission add --id ${CD_APP_OBJECT_ID} --api ${GRAPH_APP_ID} --api-permissions ${APP_READ_WRITE_OWNED_BY_ROLE_ID}=Role"
+    fi
+  fi
+
+  # Admin consent is required for application-level (non-delegated) Graph permissions.
+  # Without it the permission appears in the portal but the token will not include it.
+  local consent_err=""
+  if consent_err=$(az ad app permission admin-consent \
+    --id "${CD_APP_OBJECT_ID}" \
+    --output none 2>&1); then
+    step "Admin consent granted for CD app Graph permissions."
+  else
+    warn "Could not grant admin consent for CD app Graph permissions."
+    warn "Azure CLI output: ${consent_err}"
+    warn "Grant manually: az ad app permission admin-consent --id ${CD_APP_OBJECT_ID}"
+    warn "Or via Azure Portal: Entra ID → App Registrations → ${CD_APP_ID} → API permissions → Grant admin consent."
+  fi
+
   step "CD service principal ready: ${CD_APP_ID}"
 }
 
