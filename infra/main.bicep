@@ -59,6 +59,9 @@ param frontendAzureClientId string = ''
 @description('Azure Tenant ID for the frontend SPA MSAL config (injected at container runtime)')
 param frontendAzureTenantId string = ''
 
+@description('Backend API base URL injected into the frontend container so nginx can reverse-proxy /api requests (e.g. "https://ca-nova-circle-dev.xxx.swedencentral.azurecontainerapps.io"). Resolved automatically by the CD pipeline; set manually after first deploy if using the infra scripts directly.')
+param frontendApiBaseUrl string = ''
+
 // ── Modules ───────────────────────────────────────────────────────────────
 
 // 1. Observability: Log Analytics Workspace + Application Insights
@@ -129,6 +132,7 @@ module containerAppFrontendMod 'modules/container-app-frontend.bicep' = {
     registryLoginServer: containerRegistryMod.outputs.loginServer
     azureClientId: frontendAzureClientId
     azureTenantId: frontendAzureTenantId
+    apiBaseUrl: frontendApiBaseUrl
   }
 }
 

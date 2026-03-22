@@ -177,6 +177,28 @@ jobs:
           # Bicep compile time (before --parameters CLI overrides take effect).
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
+          # Resolve the backend API base URL before Bicep runs so it can be
+          # injected into the frontend container as API_BASE_URL.  nginx uses
+          # this to reverse-proxy /api requests server-side (same-origin for the
+          # browser, so no CORS headers are required).
+          #
+          # The backend Container App FQDN is stable across deployments, so
+          # querying it before the Bicep run is safe.  On the very first deploy
+          # (before the app exists) this returns an empty string and the proxy
+          # is not configured — re-run CD after the first deploy to enable it.
+          API_BACKEND_FQDN=$(az containerapp show \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv 2>/dev/null || echo "")
+          if [ -n "${API_BACKEND_FQDN}" ]; then
+            FRONTEND_API_BASE_URL="https://${API_BACKEND_FQDN}"
+            echo "Resolved API base URL: ${FRONTEND_API_BASE_URL}"
+          else
+            FRONTEND_API_BASE_URL=""
+            echo "::warning::API Container App not found — frontend /api proxy will not be configured on this deployment. Re-run CD after the first deploy to enable it."
+          fi
+
           POSTGRES_FQDN=$(az deployment group create \
             --name "nova-circle-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -191,6 +213,7 @@ jobs:
               corsOrigin="${{ vars.CORS_ORIGIN }}" \
               frontendAzureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
               frontendAzureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
+              frontendApiBaseUrl="${FRONTEND_API_BASE_URL}" \
             --query "properties.outputs.postgresFqdn.value" \
             --output tsv)
           echo "postgres_fqdn=${POSTGRES_FQDN}" >> "$GITHUB_ENV"
