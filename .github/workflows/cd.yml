@@ -177,28 +177,6 @@ jobs:
           # Bicep compile time (before --parameters CLI overrides take effect).
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
-          # Resolve the backend API base URL before Bicep runs so it can be
-          # injected into the frontend container as API_BASE_URL.  nginx uses
-          # this to reverse-proxy /api requests server-side (same-origin for the
-          # browser, so no CORS headers are required).
-          #
-          # The backend Container App FQDN is stable across deployments, so
-          # querying it before the Bicep run is safe.  On the very first deploy
-          # (before the app exists) this returns an empty string and the proxy
-          # is not configured — re-run CD after the first deploy to enable it.
-          API_BACKEND_FQDN=$(az containerapp show \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.configuration.ingress.fqdn" \
-            --output tsv 2>/dev/null || echo "")
-          if [ -n "${API_BACKEND_FQDN}" ]; then
-            FRONTEND_API_BASE_URL="https://${API_BACKEND_FQDN}"
-            echo "Resolved API base URL: ${FRONTEND_API_BASE_URL}"
-          else
-            FRONTEND_API_BASE_URL=""
-            echo "::warning::API Container App not found — frontend /api proxy will not be configured on this deployment. Re-run CD after the first deploy to enable it."
-          fi
-
           POSTGRES_FQDN=$(az deployment group create \
             --name "nova-circle-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -213,10 +191,25 @@ jobs:
               corsOrigin="${{ vars.CORS_ORIGIN }}" \
               frontendAzureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
               frontendAzureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
-              frontendApiBaseUrl="${FRONTEND_API_BASE_URL}" \
             --query "properties.outputs.postgresFqdn.value" \
             --output tsv)
           echo "postgres_fqdn=${POSTGRES_FQDN}" >> "$GITHUB_ENV"
+
+          # Resolve the backend API FQDN AFTER Bicep has provisioned the Container
+          # App — guaranteed to exist on every deploy, including the first.
+          # nginx uses API_BASE_URL to reverse-proxy /api server-side (same-origin
+          # for the browser; no CORS headers required).
+          API_BACKEND_FQDN=$(az containerapp show \
+            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv 2>/dev/null || echo "")
+          if [ -n "${API_BACKEND_FQDN}" ]; then
+            echo "Resolved API backend FQDN: ${API_BACKEND_FQDN}"
+          else
+            echo "::warning::Could not resolve API Container App FQDN — frontend /api proxy will not be configured."
+          fi
+          echo "api_backend_fqdn=${API_BACKEND_FQDN}" >> "$GITHUB_ENV"
 
       # ── Phase 2: Run DB migrations ─────────────────────────────────────────
       # Run Knex migrations directly from the workflow runner.
@@ -357,12 +350,22 @@ jobs:
         run: |
           SUFFIX="${{ steps.rev-suffix.outputs.suffix }}"
           APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
-          az containerapp update \
-            --name "${APP}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
-            --revision-suffix "${SUFFIX}" \
-            --output none
+          if [ -n "${api_backend_fqdn}" ]; then
+            az containerapp update \
+              --name "${APP}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
+              --revision-suffix "${SUFFIX}" \
+              --set-env-vars "API_BASE_URL=https://${api_backend_fqdn}" \
+              --output none
+          else
+            az containerapp update \
+              --name "${APP}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
+              --revision-suffix "${SUFFIX}" \
+              --output none
+          fi
           echo "revision=${APP}--${SUFFIX}" >> "$GITHUB_OUTPUT"
 
       # Poll until both new revisions report 'Running'.  Allows up to 120 s

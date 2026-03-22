@@ -45,14 +45,28 @@ echo "env-config: wrote VITE_AZURE_CLIENT_ID and VITE_AZURE_TENANT_ID to ${JS_DE
 
 NGINX_CONF=/etc/nginx/conf.d/default.conf
 
-# Sanitise API_BASE_URL: extract and validate the hostname only.
-# Expected format: https://<hostname>  (no trailing slash, no path).
-# Only [a-zA-Z0-9.-] are valid hostname characters; anything else is stripped
-# to prevent accidental injection into the generated nginx config file.
-BACKEND_FQDN=$(printf '%s' "${API_BASE_URL:-}" \
-  | sed 's|^https\?://||' \
-  | sed 's|/.*||' \
-  | sed 's/[^a-zA-Z0-9.-]//g')
+# Sanitise and validate API_BASE_URL: extract the hostname only.
+# Expected format: https://<hostname>  (no trailing slash, no path, no port, no query).
+# Only [a-zA-Z0-9.-] are allowed in the hostname.  If the value does not match
+# this strict format (e.g. contains a port like http://host:8080) the /api proxy
+# is NOT configured to avoid silently generating a bad proxy target.
+RAW_API_BASE_URL="${API_BASE_URL:-}"
+
+# Trim whitespace.
+if [ -n "${RAW_API_BASE_URL}" ]; then
+  RAW_API_BASE_URL=$(printf '%s' "${RAW_API_BASE_URL}" | tr -d ' \t\r\n')
+fi
+
+BACKEND_FQDN=""
+if [ -n "${RAW_API_BASE_URL}" ]; then
+  # Require strict format: http(s):// followed by a bare hostname (no port/path/query).
+  if printf '%s\n' "${RAW_API_BASE_URL}" | grep -Eq '^https?://[a-zA-Z0-9.-]+$'; then
+    BACKEND_FQDN=$(printf '%s' "${RAW_API_BASE_URL}" | sed 's|^https\?://||')
+  else
+    echo "env-config: WARNING: API_BASE_URL '${API_BASE_URL}' is invalid. Expected format: https://<hostname> (no port, path, or query). /api proxy will NOT be configured." >&2
+    BACKEND_FQDN=""
+  fi
+fi
 
 if [ -n "${BACKEND_FQDN}" ]; then
   # Write nginx config WITH the /api reverse-proxy location.
