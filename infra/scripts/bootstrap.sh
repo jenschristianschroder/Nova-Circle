@@ -683,7 +683,10 @@ setup_api_app() {
   # can use GET /applications/{objectId} directly.  That endpoint works with
   # Application.ReadWrite.OwnedBy, whereas GET /applications?$filter=appId eq '...'
   # requires the broader Application.Read.All permission.
-  API_APP_OBJECT_ID=$(az ad app show --id "${API_APP_ID}" --query id -o tsv)
+  API_APP_OBJECT_ID=$(az ad app show --id "${API_APP_ID}" --query id -o tsv 2>/dev/null || echo "")
+  if [[ -z "${API_APP_OBJECT_ID}" || "${API_APP_OBJECT_ID}" == "None" ]]; then
+    die "Failed to resolve object ID for API app registration '${app_display_name}'. Ensure you have sufficient permissions and that the Azure AD app exists, then re-run this script."
+  fi
 
   # Set requestedAccessTokenVersion=2 (v2 tokens — best practice and required by
   # some tenants before a friendly identifier URI can be set).
@@ -938,12 +941,16 @@ run_migrations() {
     die "POSTGRES_ADMIN_PASSWORD is not set — cannot construct migration connection string."
   fi
   local encoded_pw
-  # URL-encode the password using a portable pure-bash approach so this step
-  # works on Linux, macOS, and Windows Git Bash without requiring Python.
+  # URL-encode the password byte-by-byte so this step works on Linux, macOS,
+  # and Windows Git Bash without requiring Python.  LC_ALL=C is set for the
+  # duration of the loop to ensure byte-wise (not character-wise) iteration,
+  # which is required for RFC 3986-correct percent-encoding of non-ASCII
+  # passwords in multi-byte (e.g. UTF-8) locales.
   # Only RFC 3986 unreserved characters (letters, digits, ~, _, ., -) are left
   # unencoded; everything else is percent-encoded.
   encoded_pw=""
-  local _i _c _hex
+  local _i _c _hex _saved_lc_all="${LC_ALL:-}"
+  LC_ALL=C
   for (( _i = 0; _i < ${#POSTGRES_ADMIN_PASSWORD}; _i++ )); do
     _c="${POSTGRES_ADMIN_PASSWORD:${_i}:1}"
     case "${_c}" in
@@ -951,6 +958,7 @@ run_migrations() {
       *) printf -v _hex '%02X' "'${_c}"; encoded_pw+="%${_hex}" ;;
     esac
   done
+  LC_ALL="${_saved_lc_all}"
   DATABASE_URL="postgresql://${pg_admin_user}:${encoded_pw}@${pg_fqdn}:5432/${pg_db}?sslmode=require"
 
   # Detect current IP address for the temporary firewall rule
@@ -1055,7 +1063,11 @@ configure_github() {
   gh variable set AZURE_REGISTRY_LOGIN_SERVER --repo "${repo}" --body "${REGISTRY_LOGIN_SERVER:-}"
   gh variable set API_AZURE_TENANT_ID         --repo "${repo}" --body "${TENANT_ID}"
   gh variable set API_AZURE_CLIENT_ID         --repo "${repo}" --body "${API_APP_ID:-}"
-  gh variable set API_AZURE_OBJECT_ID         --repo "${repo}" --body "${API_APP_OBJECT_ID:-}"
+  if [[ -n "${API_APP_OBJECT_ID:-}" && "${API_APP_OBJECT_ID}" != "None" ]]; then
+    gh variable set API_AZURE_OBJECT_ID       --repo "${repo}" --body "${API_APP_OBJECT_ID}"
+  else
+    warn "API_APP_OBJECT_ID is not set — skipping API_AZURE_OBJECT_ID variable. The CD workflow will fail to manage SPA redirect URIs until this is populated. Re-run bootstrap.sh to fix."
+  fi
   if [[ -n "${CORS_ORIGIN:-}" ]]; then
     gh variable set CORS_ORIGIN               --repo "${repo}" --body "${CORS_ORIGIN}"
   else
