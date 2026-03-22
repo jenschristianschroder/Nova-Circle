@@ -99,14 +99,16 @@ jobs:
   #
   #   1. Deploy Bicep with the CURRENT image (no new revision yet).
   #   2. Run DB migrations against the updated schema.
-  #   3. Create a NEW revision of each Container App (0 % traffic initially).
+  #   3. Create a NEW API revision (0 % traffic), wait for it to start.
   #   4. Smoke-test the new API revision via its revision-specific URL.
   #   4.5 Run direct API tests against the new API revision URL.
-  #   5. Run Playwright E2E tests against the new frontend revision's
+  #   5. Create a NEW frontend revision with API_BASE_URL pointing to the new
+  #      API revision URL — ensuring E2E tests exercise the new code end-to-end.
+  #   6. Run Playwright E2E tests against the new frontend revision's
   #      revision-specific URL — old revisions continue to serve 100 % of
   #      live traffic throughout so users are never exposed to the candidate.
-  #   6a. Both gates pass → shift 100 % traffic to new revisions, deactivate old.
-  #   6b. Either gate fails → deactivate the new revisions (no traffic restore
+  #   7a. Both gates pass → shift 100 % traffic to new revisions, deactivate old.
+  #   7b. Either gate fails → deactivate the new revisions (no traffic restore
   #       needed — live traffic was never moved) and fail the job.
   #
   # Protected by the `production` GitHub environment (requires a reviewer).
@@ -195,22 +197,6 @@ jobs:
             --query "properties.outputs.postgresFqdn.value" \
             --output tsv)
           echo "postgres_fqdn=${POSTGRES_FQDN}" >> "$GITHUB_ENV"
-
-          # Resolve the backend API FQDN AFTER Bicep has provisioned the Container
-          # App — guaranteed to exist on every deploy, including the first.
-          # nginx uses API_BASE_URL to reverse-proxy /api server-side (same-origin
-          # for the browser; no CORS headers required).
-          API_BACKEND_FQDN=$(az containerapp show \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query "properties.configuration.ingress.fqdn" \
-            --output tsv 2>/dev/null || echo "")
-          if [ -n "${API_BACKEND_FQDN}" ]; then
-            echo "Resolved API backend FQDN: ${API_BACKEND_FQDN}"
-          else
-            echo "::warning::Could not resolve API Container App FQDN — frontend /api proxy will not be configured."
-          fi
-          echo "api_backend_fqdn=${API_BACKEND_FQDN}" >> "$GITHUB_ENV"
 
       # ── Phase 2: Run DB migrations ─────────────────────────────────────────
       # Run Knex migrations directly from the workflow runner.
@@ -330,9 +316,10 @@ jobs:
             --identity "system" \
             --output none
 
-      # Create new revisions.  Because activeRevisionsMode is 'Multiple' (set
-      # in Bicep), each update creates a revision with 0 % traffic weight so
-      # the old revision continues to serve all live traffic.
+      # Create the new API revision first.  Because activeRevisionsMode is
+      # 'Multiple' (set in Bicep), each update creates a revision with 0 %
+      # traffic weight so the old revision continues to serve all live traffic.
+      # The frontend revision is created later, after the new API URL is known.
       - name: Create new API revision
         id: new-api-revision
         run: |
@@ -346,31 +333,8 @@ jobs:
             --output none
           echo "revision=${APP}--${SUFFIX}" >> "$GITHUB_OUTPUT"
 
-      - name: Create new frontend revision
-        id: new-client-revision
-        run: |
-          SUFFIX="${{ steps.rev-suffix.outputs.suffix }}"
-          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
-          if [ -n "${api_backend_fqdn}" ]; then
-            az containerapp update \
-              --name "${APP}" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
-              --revision-suffix "${SUFFIX}" \
-              --set-env-vars "API_BASE_URL=https://${api_backend_fqdn}" \
-              --output none
-          else
-            az containerapp update \
-              --name "${APP}" \
-              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
-              --revision-suffix "${SUFFIX}" \
-              --output none
-          fi
-          echo "revision=${APP}--${SUFFIX}" >> "$GITHUB_OUTPUT"
-
-      # Poll until both new revisions report 'Running'.  Allows up to 120 s
-      # for cold-start / image pull before aborting.
+      # Poll until the new API revision reports 'Running' before deriving its
+      # URL and creating the frontend revision that must proxy to it.
       - name: Wait for new API revision to be running
         run: |
           REV="${{ steps.new-api-revision.outputs.revision }}"
@@ -391,26 +355,6 @@ jobs:
           echo "::error::New API revision did not reach Running state within 120 s"
           exit 1
 
-      - name: Wait for new frontend revision to be running
-        run: |
-          REV="${{ steps.new-client-revision.outputs.revision }}"
-          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
-          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          echo "Waiting for revision ${REV} to reach Running state..."
-          for i in $(seq 1 12); do
-            STATE=$(az containerapp revision show \
-              --name "${APP}" --resource-group "${RG}" --revision "${REV}" \
-              --query "properties.runningState" --output tsv 2>/dev/null || echo "Unavailable")
-            echo "  Attempt ${i}/12 — state: ${STATE}"
-            if [[ "${STATE}" == "Running" ]]; then
-              echo "Revision is Running."
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::New frontend revision did not reach Running state within 120 s"
-          exit 1
-
       # ── Phase 4: Smoke-test new revisions before shifting traffic ──────────
       # Each revision in a Multiple-revision Container App has its own
       # hostname: https://<revision-name>.<env-domain>.
@@ -418,8 +362,11 @@ jobs:
       # before any live traffic is redirected to the new revision.
 
       # Derive the new API revision's revision-specific URL once so that the
-      # smoke-test, remote API tests, and any future steps can all reference
-      # it via steps.new-api-rev-url.outputs.url without repeating az calls.
+      # smoke-test, remote API tests, and the new frontend revision can all
+      # reference it via steps.new-api-rev-url.outputs.url without repeating
+      # az calls.  This step runs before creating the frontend revision so that
+      # API_BASE_URL in the frontend points to the new backend revision — giving
+      # E2E tests a genuine end-to-end view of the new code.
       - name: Derive new API revision URL
         id: new-api-rev-url
         run: |
@@ -473,6 +420,54 @@ jobs:
           path: test-results/remote-api.xml
           retention-days: 14
           if-no-files-found: ignore
+
+      # Create the new frontend revision AFTER the new API revision URL is
+      # known so that API_BASE_URL points to the new backend revision.
+      # This ensures the E2E gate tests the new frontend against the new
+      # backend end-to-end, not against the old (production) revision.
+      - name: Create new frontend revision
+        id: new-client-revision
+        run: |
+          SUFFIX="${{ steps.rev-suffix.outputs.suffix }}"
+          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          NEW_API_URL="${{ steps.new-api-rev-url.outputs.url }}"
+          if [ -n "${NEW_API_URL}" ]; then
+            az containerapp update \
+              --name "${APP}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
+              --revision-suffix "${SUFFIX}" \
+              --set-env-vars "API_BASE_URL=${NEW_API_URL}" \
+              --output none
+          else
+            az containerapp update \
+              --name "${APP}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --image "${{ vars.AZURE_REGISTRY_LOGIN_SERVER }}/nova-circle-client:${{ needs.build-and-push.outputs.image-tag }}" \
+              --revision-suffix "${SUFFIX}" \
+              --output none
+          fi
+          echo "revision=${APP}--${SUFFIX}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for new frontend revision to be running
+        run: |
+          REV="${{ steps.new-client-revision.outputs.revision }}"
+          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          echo "Waiting for revision ${REV} to reach Running state..."
+          for i in $(seq 1 12); do
+            STATE=$(az containerapp revision show \
+              --name "${APP}" --resource-group "${RG}" --revision "${REV}" \
+              --query "properties.runningState" --output tsv 2>/dev/null || echo "Unavailable")
+            echo "  Attempt ${i}/12 — state: ${STATE}"
+            if [[ "${STATE}" == "Running" ]]; then
+              echo "Revision is Running."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::New frontend revision did not reach Running state within 120 s"
+          exit 1
 
       # Derive the new frontend revision's revision-specific URL so Playwright
       # can target it directly while the old revision still carries all traffic.

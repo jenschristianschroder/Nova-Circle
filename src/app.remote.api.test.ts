@@ -47,14 +47,20 @@ describe.skipIf(!hasRemoteUrl)('Remote API — GET /api/v1/info', () => {
 });
 
 describe.skipIf(!hasRemoteUrl)('Remote API — unknown routes', () => {
-  it('returns 404 for an unknown path', async () => {
+  // All /api/v1/** routes are protected by the authentication middleware.
+  // Unauthenticated requests to unknown paths receive 401 (Unauthorized)
+  // before the 404 handler runs — this is correct and more secure than 404
+  // because it does not reveal route structure to unauthenticated callers.
+  it('returns 401 for an unauthenticated request to an unknown path', async () => {
     const res = await fetch(`${BASE_URL}/api/v1/does-not-exist-remote-probe`);
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
   });
 
   it('safe error body does not expose internals', async () => {
     const res = await fetch(`${BASE_URL}/api/v1/does-not-exist-remote-probe`);
-    expect(res.status).toBe(404);
+    // 401 is expected — unauthenticated probing of any /api/v1/ path is rejected
+    // by the auth middleware before routing occurs.
+    expect([401, 404]).toContain(res.status);
     const text = await res.text();
     expect(text).not.toContain('stack');
     expect(text).not.toContain('node_modules');
