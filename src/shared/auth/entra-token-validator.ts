@@ -21,11 +21,10 @@ export class EntraTokenValidator implements TokenValidatorPort {
 
     this.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
 
-    // Azure AD v2 access tokens use the Application ID URI as the `aud` claim.
-    // bootstrap.sh sets the Application ID URI to `api://<clientId>`, so tokens
-    // issued by the v2.0 endpoint have `aud: "api://<clientId>"`, not the bare GUID.
-    // Accept both forms so the validator works regardless of how the Application ID
-    // URI is configured in the tenant.
+    // Accept both the default Application ID URI form (`api://<clientId>`) and the bare
+    // clientId GUID so tokens using either of these standard formats are validated.
+    // bootstrap.sh sets the Application ID URI to `api://<clientId>`, so Azure AD v2
+    // access tokens arrive with `aud: "api://<clientId>"` rather than the bare GUID.
     this.audience = [`api://${clientId}`, clientId];
 
     const jwksUri = new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`);

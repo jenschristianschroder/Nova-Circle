@@ -442,6 +442,10 @@ check_prerequisites() {
       || die "npm is not installed. Use --skip-migrations to skip."
     step "npm: $(npm --version)"
   fi
+
+  command -v jq >/dev/null 2>&1 \
+    || die "'jq' is required to merge oauth2PermissionScopes. Install it from https://stedolan.github.io/jq/ and re-run bootstrap.sh."
+  step "jq: $(jq --version)"
 }
 
 # ── Step 2: Collect parameters ─────────────────────────────────────────────────
@@ -881,15 +885,11 @@ setup_api_app() {
   # Grant admin consent for the user_impersonation scope so E2E test users are
   # not prompted for consent during headless sign-in.  This is a best-effort
   # step; failure is non-fatal and a warning is printed instead.
-  local api_sp_id
-  api_sp_id=$(az ad sp show --id "${API_APP_ID}" --query id -o tsv 2>/dev/null || echo "")
-  if [[ -n "${api_sp_id}" ]]; then
-    step "Granting admin consent for user_impersonation scope (best-effort)..."
-    az ad app permission admin-consent \
-      --id "${API_APP_ID}" \
-      --output none 2>/dev/null \
-      || warn "Admin consent could not be granted automatically — a tenant admin may need to consent manually."
-  fi
+  step "Granting admin consent for user_impersonation scope (best-effort)..."
+  az ad app permission admin-consent \
+    --id "${API_APP_ID}" \
+    --output none 2>/dev/null \
+    || warn "Admin consent could not be granted automatically — a tenant admin may need to consent manually."
 
   step "API app registration ready: ${API_APP_ID}"
 }

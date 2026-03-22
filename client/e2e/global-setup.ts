@@ -167,13 +167,19 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     // before we snapshot the storage state — without this wait the snapshot may
     // be taken before acquireTokenSilent completes and ApiHelper.fromStorageState()
     // will throw "No MSAL access token found".
-    await page
-      .getByText('Loading groups…')
-      .waitFor({ state: 'hidden', timeout: 30_000 })
-      .catch(() => {
-        // Acceptable: the spinner might never appear (fast response) or the page
-        // might already show the group list / error banner by the time we check.
-      });
+    //
+    // Only suppress "strict mode violation" / element-not-found errors — these
+    // mean the spinner was never rendered (fast response or already done) and are
+    // safe to ignore.  Real timeout errors (page stuck loading) are re-thrown so
+    // CI surfaces the failure rather than saving a storageState without a token.
+    try {
+      await page.getByText('Loading groups…').waitFor({ state: 'hidden', timeout: 30_000 });
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'TimeoutError') {
+        throw err;
+      }
+      // Element was never present — spinner didn't render before we checked.
+    }
 
     fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
     await context.storageState({ path: AUTH_STATE_PATH });
