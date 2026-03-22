@@ -95,18 +95,19 @@ jobs:
 
   # ────────────────────────────────────────────────────────────────────────────
   # Deploy infrastructure, run migrations, then perform a blue/green revision
-  # swap gated by Playwright E2E tests:
+  # swap gated by remote API tests and Playwright E2E tests:
   #
   #   1. Deploy Bicep with the CURRENT image (no new revision yet).
   #   2. Run DB migrations against the updated schema.
   #   3. Create a NEW revision of each Container App (0 % traffic initially).
   #   4. Smoke-test the new API revision via its revision-specific URL.
+  #   4.5 Run direct API tests against the new API revision URL.
   #   5. Run Playwright E2E tests against the new frontend revision's
   #      revision-specific URL — old revisions continue to serve 100 % of
   #      live traffic throughout so users are never exposed to the candidate.
-  #   6a. E2E pass  → shift 100 % traffic to new revisions, deactivate old.
-  #   6b. E2E fail  → deactivate the new revisions (no traffic restore needed
-  #       — live traffic was never moved) and fail the job.
+  #   6a. Both gates pass → shift 100 % traffic to new revisions, deactivate old.
+  #   6b. Either gate fails → deactivate the new revisions (no traffic restore
+  #       needed — live traffic was never moved) and fail the job.
   #
   # Protected by the `production` GitHub environment (requires a reviewer).
   #
@@ -415,12 +416,16 @@ jobs:
       # hostname: https://<revision-name>.<env-domain>.
       # We retrieve the revision-specific FQDN and verify the health endpoint
       # before any live traffic is redirected to the new revision.
-      - name: Smoke test — new API revision health check
+
+      # Derive the new API revision's revision-specific URL once so that the
+      # smoke-test, remote API tests, and any future steps can all reference
+      # it via steps.new-api-rev-url.outputs.url without repeating az calls.
+      - name: Derive new API revision URL
+        id: new-api-rev-url
         run: |
           APP="ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}"
           REV="${{ steps.new-api-revision.outputs.revision }}"
           RG="${{ vars.AZURE_RESOURCE_GROUP }}"
-          # Derive the revision-specific URL from the Container App's main FQDN.
           # Main FQDN:     <app-name>.<env-domain>
           # Revision FQDN: <revision-name>.<env-domain>
           MAIN_FQDN=$(az containerapp show \
@@ -428,6 +433,12 @@ jobs:
             --query "properties.configuration.ingress.fqdn" --output tsv)
           ENV_DOMAIN="${MAIN_FQDN#*.}"
           REV_URL="https://${REV}.${ENV_DOMAIN}"
+          echo "New API revision URL: ${REV_URL}"
+          echo "url=${REV_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test — new API revision health check
+        run: |
+          REV_URL="${{ steps.new-api-rev-url.outputs.url }}"
           echo "Smoke-testing new API revision at ${REV_URL}/health ..."
           for i in $(seq 1 6); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${REV_URL}/health" || true)
@@ -440,6 +451,28 @@ jobs:
           done
           echo "::error::New API revision health check failed after 60 s"
           exit 1
+
+      # ── Phase 4.5: Remote API tests against new API revision ───────────────
+      # Run direct HTTP API tests against the new revision's revision-specific
+      # URL while 100 % of live traffic still goes to the old revision.
+      # Uses the same REMOTE_API_BASE_URL pattern as Playwright uses
+      # PLAYWRIGHT_BASE_URL — tests call the deployed API via real fetch requests.
+      # continue-on-error allows the promote/rollback steps to always execute.
+      - name: Run remote API tests against new revision
+        id: remote-api
+        continue-on-error: true
+        env:
+          REMOTE_API_BASE_URL: ${{ steps.new-api-rev-url.outputs.url }}
+        run: npm run test:remote-api -- --reporter=verbose --reporter=junit --outputFile.junit=./test-results/remote-api.xml
+
+      - name: Upload remote API test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-remote-api
+          path: test-results/remote-api.xml
+          retention-days: 14
+          if-no-files-found: ignore
 
       # Derive the new frontend revision's revision-specific URL so Playwright
       # can target it directly while the old revision still carries all traffic.
@@ -654,13 +687,14 @@ jobs:
           # Always exit 0 so this cleanup step never blocks promote/rollback.
           exit 0
 
-      # ── Phase 6a: Promote — E2E passed ────────────────────────────────────
+      # ── Phase 6a: Promote — E2E and remote API tests passed ───────────────
       # Shift 100 % live traffic to the new revisions, then deactivate the old
-      # ones.  Traffic is only moved after the E2E gate passes.
+      # ones.  Traffic is only moved after both the remote API gate and the E2E
+      # gate pass.
       - name: Promote — shift traffic to new API revision
-        if: steps.e2e.outcome == 'success'
+        if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |
-          echo "E2E passed — shifting 100 % traffic to new API revision: ${{ steps.new-api-revision.outputs.revision }}"
+          echo "All gates passed — shifting 100 % traffic to new API revision: ${{ steps.new-api-revision.outputs.revision }}"
           az containerapp ingress traffic set \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -668,9 +702,9 @@ jobs:
             --output none
 
       - name: Promote — shift traffic to new frontend revision
-        if: steps.e2e.outcome == 'success'
+        if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |
-          echo "E2E passed — shifting 100 % traffic to new frontend revision: ${{ steps.new-client-revision.outputs.revision }}"
+          echo "All gates passed — shifting 100 % traffic to new frontend revision: ${{ steps.new-client-revision.outputs.revision }}"
           az containerapp ingress traffic set \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -678,7 +712,7 @@ jobs:
             --output none
 
       - name: Promote — deactivate old API revision
-        if: steps.e2e.outcome == 'success'
+        if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |
           OLD_REV="${{ steps.old-revisions.outputs.api }}"
           echo "Deactivating old API revision: ${OLD_REV}"
@@ -690,7 +724,7 @@ jobs:
             || echo "::warning::Could not deactivate old API revision ${OLD_REV} — it may already be inactive."
 
       - name: Promote — deactivate old frontend revision
-        if: steps.e2e.outcome == 'success'
+        if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |
           OLD_REV="${{ steps.old-revisions.outputs.client }}"
           echo "Deactivating old frontend revision: ${OLD_REV}"
@@ -701,15 +735,15 @@ jobs:
             --output none \
             || echo "::warning::Could not deactivate old frontend revision ${OLD_REV} — it may already be inactive."
 
-      # ── Phase 6b: Rollback — E2E failed ───────────────────────────────────
+      # ── Phase 6b: Rollback — E2E or remote API tests failed ───────────────
       # Because live traffic never moved to the new revisions, no traffic
       # restore is required.  Simply deactivate the new revisions so they stop
       # consuming resources, then fail the job.
       - name: Rollback — deactivate new API revision
-        if: steps.e2e.outcome == 'failure'
+        if: steps.e2e.outcome == 'failure' || steps.remote-api.outcome == 'failure'
         run: |
           NEW_REV="${{ steps.new-api-revision.outputs.revision }}"
-          echo "E2E failed — deactivating new API revision: ${NEW_REV}"
+          echo "Gate failed — deactivating new API revision: ${NEW_REV}"
           az containerapp revision deactivate \
             --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -718,10 +752,10 @@ jobs:
             || echo "::warning::Could not deactivate new API revision ${NEW_REV} — manual cleanup may be required."
 
       - name: Rollback — deactivate new frontend revision
-        if: steps.e2e.outcome == 'failure'
+        if: steps.e2e.outcome == 'failure' || steps.remote-api.outcome == 'failure'
         run: |
           NEW_REV="${{ steps.new-client-revision.outputs.revision }}"
-          echo "E2E failed — deactivating new frontend revision: ${NEW_REV}"
+          echo "Gate failed — deactivating new frontend revision: ${NEW_REV}"
           az containerapp revision deactivate \
             --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -729,8 +763,8 @@ jobs:
             --output none \
             || echo "::warning::Could not deactivate new frontend revision ${NEW_REV} — manual cleanup may be required."
 
-      - name: Fail — E2E tests did not pass
-        if: steps.e2e.outcome == 'failure'
+      - name: Fail — deployment gates did not pass
+        if: steps.e2e.outcome == 'failure' || steps.remote-api.outcome == 'failure'
         run: |
-          echo "::error::E2E tests failed. New revisions have been deactivated; old revisions continue to serve all traffic."
+          echo "::error::Deployment gates failed (E2E: ${{ steps.e2e.outcome }}, remote-API: ${{ steps.remote-api.outcome }}). New revisions have been deactivated; old revisions continue to serve all traffic."
           exit 1

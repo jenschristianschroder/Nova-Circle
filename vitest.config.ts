@@ -41,6 +41,14 @@ export default defineConfig({
           },
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'remote-api',
+          include: ['src/**/*.remote.api.test.ts'],
+          environment: 'node',
+        },
+      },
     ],
   },
 });
