@@ -37,6 +37,7 @@ describe.skipIf(!hasRemoteUrl)('Remote API — GET /api/v1/info', () => {
 
   it('response body does not contain stack traces or internal error strings', async () => {
     const res = await fetch(`${BASE_URL}/api/v1/info`);
+    expect(res.status).toBe(200);
     const text = await res.text();
     // Validates that the success response is clean — not checking error paths.
     // Error-path information-disclosure is covered by the unknown-routes suite.
@@ -53,6 +54,7 @@ describe.skipIf(!hasRemoteUrl)('Remote API — unknown routes', () => {
 
   it('safe error body does not expose internals', async () => {
     const res = await fetch(`${BASE_URL}/api/v1/does-not-exist-remote-probe`);
+    expect(res.status).toBe(404);
     const text = await res.text();
     expect(text).not.toContain('stack');
     expect(text).not.toContain('node_modules');
