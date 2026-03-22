@@ -179,12 +179,14 @@ describe('EntraTokenValidator', () => {
       await validator.validate('my.token');
 
       expect(mockedJwtVerify).toHaveBeenCalledTimes(1);
+      // Azure AD v2 access tokens have aud = "api://<clientId>" (the Application ID URI).
+      // The validator accepts both formats for compatibility.
       expect(mockedJwtVerify).toHaveBeenCalledWith(
         'my.token',
         'mocked-jwks',
         expect.objectContaining({
           issuer: 'https://login.microsoftonline.com/test-tenant-id/v2.0',
-          audience: 'test-client-id',
+          audience: ['api://test-client-id', 'test-client-id'],
         }),
       );
     });
