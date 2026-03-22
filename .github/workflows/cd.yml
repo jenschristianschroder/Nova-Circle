@@ -451,12 +451,20 @@ jobs:
           # Read the current SPA redirect URI list and append the revision URL.
           CURRENT=$(az ad app show --id "${CLIENT_ID}" \
             --query "spa.redirectUris" --output json 2>/dev/null || echo "[]")
-          # Build updated list as a bash array (redirect URIs are valid URLs and
-          # never contain spaces, so newline-split word expansion is safe).
-          mapfile -t UPDATED < <(echo "${CURRENT}" | \
-            jq -r --arg url "${REV_URL}" '(. // []) + [$url] | unique | .[]')
-          az ad app update --id "${CLIENT_ID}" \
-            --spa-redirect-uris "${UPDATED[@]}" \
+          # Build updated JSON array (deduped) for the Graph PATCH body.
+          UPDATED_JSON=$(echo "${CURRENT}" | \
+            jq --arg url "${REV_URL}" '(. // []) + [$url] | unique')
+          # az ad app update does not support --spa-redirect-uris; use the
+          # Microsoft Graph REST API directly via az rest instead.
+          OBJ_ID=$(az ad app show --id "${CLIENT_ID}" --query id --output tsv 2>/dev/null)
+          if [[ -z "${OBJ_ID}" ]]; then
+            echo "::error::Failed to retrieve object ID for app ${CLIENT_ID}; cannot update SPA redirect URIs."
+            exit 1
+          fi
+          az rest --method PATCH \
+            --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+            --body "$(jq -n --argjson uris "${UPDATED_JSON}" '{"spa":{"redirectUris":$uris}}')" \
+            --headers 'Content-Type=application/json' \
             --output none
           echo "Added ${REV_URL} to SPA redirect URIs."
 
@@ -546,10 +554,10 @@ jobs:
           fi
 
           if [[ ${CLEANUP_ERROR} -eq 0 ]]; then
-            # Build the remaining list, excluding the revision URL.
+            # Build the remaining list as a JSON array, excluding the revision URL.
             # Capture jq output separately so its exit code is checkable.
-            REMAINING_RAW=$(echo "${CURRENT}" | \
-              jq -r --arg url "${REV_URL}" '(. // []) | [.[] | select(. != $url)] | .[]')
+            REMAINING_JSON=$(echo "${CURRENT}" | \
+              jq --arg url "${REV_URL}" '(. // []) | [.[] | select(. != $url)]')
             if [[ $? -ne 0 ]]; then
               echo "::warning::Failed to compute remaining SPA redirect URIs for app ${CLIENT_ID}; skipping cleanup of ${REV_URL}."
               CLEANUP_ERROR=1
@@ -557,11 +565,22 @@ jobs:
           fi
 
           if [[ ${CLEANUP_ERROR} -eq 0 ]]; then
-            if [[ -n "${REMAINING_RAW}" ]]; then
-              # Convert newline-separated output into an array for az CLI.
-              mapfile -t REMAINING <<< "${REMAINING_RAW}"
-              az ad app update --id "${CLIENT_ID}" \
-                --spa-redirect-uris "${REMAINING[@]}" \
+            REMAINING_COUNT=$(echo "${REMAINING_JSON}" | jq 'length' 2>/dev/null)
+            if [[ $? -ne 0 || -z "${REMAINING_COUNT}" ]]; then
+              echo "::warning::Failed to count remaining SPA redirect URIs for app ${CLIENT_ID}; skipping cleanup of ${REV_URL}."
+              CLEANUP_ERROR=1
+            fi
+          fi
+
+          if [[ ${CLEANUP_ERROR} -eq 0 ]]; then
+            if [[ "${REMAINING_COUNT}" -gt 0 ]]; then
+              # az ad app update does not support --spa-redirect-uris; use the
+              # Microsoft Graph REST API directly via az rest instead.
+              OBJ_ID=$(az ad app show --id "${CLIENT_ID}" --query id --output tsv 2>/dev/null)
+              az rest --method PATCH \
+                --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+                --body "$(jq -n --argjson uris "${REMAINING_JSON}" '{"spa":{"redirectUris":$uris}}')" \
+                --headers 'Content-Type=application/json' \
                 --output none \
                 || echo "::warning::Could not remove ${REV_URL} from SPA redirect URIs on app ${CLIENT_ID} — remove manually."
               echo "Removed ${REV_URL} from SPA redirect URIs."
