@@ -191,8 +191,13 @@ OAuth2 scopes still need to be added manually for client apps. Go to Azure Porta
 > E2E tests, the CD workflow registers the new revision's revision-specific origin
 > as a temporary SPA redirect URI. After tests complete (pass or fail) it removes it.
 > This works because `bootstrap.sh` grants the CD service principal ownership of the
-> API app registration. If you see `AADSTS50011` in E2E test logs, verify the CD
-> service principal is an app owner: `az ad app owner list --id <API_AZURE_CLIENT_ID>`.
+> API app registration **and** the CD principal's app registration has the Microsoft
+> Graph application permission `Application.ReadWrite.OwnedBy` granted with admin
+> consent (app owners can call `az ad app update` for apps they own without broader
+> directory roles). If you see `AADSTS50011` in E2E test logs, verify the CD service
+> principal is an app owner: `az ad app owner list --id <API_AZURE_CLIENT_ID>`, and
+> if `az ad app update` fails with insufficient privileges, ensure the CD principal's
+> app registration includes `Application.ReadWrite.OwnedBy` with admin consent.
 
 ---
 
