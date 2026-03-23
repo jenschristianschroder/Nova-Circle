@@ -627,12 +627,34 @@ setup_oidc_app() {
   # create and update oauth2PermissionGrants — this is required to pre-consent
   # the user_impersonation scope for all users on every deploy (self-healing).
   #
-  # Microsoft Graph app ID and role IDs are stable well-known values defined by
-  # Microsoft — they never change across tenants.
+  # The Microsoft Graph app ID is a stable well-known value defined by Microsoft
+  # and is the same across all tenants.  The appRole IDs are resolved dynamically
+  # from the Graph service principal to avoid hardcoding GUIDs that are easy to
+  # mistype.  The script fails with a clear error if a required role cannot be
+  # found.
   # Source: https://learn.microsoft.com/en-us/graph/permissions-reference
   local GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
-  local APP_READ_WRITE_OWNED_BY_ROLE_ID="18a4783c-866b-4cc7-a460-3d5e5662c884"
-  local DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID="41ce6ca6-6826-4807-84f1-1c82854f7ee5"
+
+  step "Resolving Microsoft Graph app role IDs from service principal..."
+  local APP_READ_WRITE_OWNED_BY_ROLE_ID
+  APP_READ_WRITE_OWNED_BY_ROLE_ID=$(az ad sp show \
+    --id "${GRAPH_APP_ID}" \
+    --query "appRoles[?value=='Application.ReadWrite.OwnedBy'].id | [0]" \
+    -o tsv 2>/dev/null || echo "")
+  if [[ -z "${APP_READ_WRITE_OWNED_BY_ROLE_ID}" || "${APP_READ_WRITE_OWNED_BY_ROLE_ID}" == "None" ]]; then
+    die "Could not resolve appRole ID for 'Application.ReadWrite.OwnedBy' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant."
+  fi
+  step "Resolved Application.ReadWrite.OwnedBy role ID: ${APP_READ_WRITE_OWNED_BY_ROLE_ID}"
+
+  local DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID
+  DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID=$(az ad sp show \
+    --id "${GRAPH_APP_ID}" \
+    --query "appRoles[?value=='DelegatedPermissionGrant.ReadWrite.All'].id | [0]" \
+    -o tsv 2>/dev/null || echo "")
+  if [[ -z "${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}" || "${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}" == "None" ]]; then
+    die "Could not resolve appRole ID for 'DelegatedPermissionGrant.ReadWrite.All' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant."
+  fi
+  step "Resolved DelegatedPermissionGrant.ReadWrite.All role ID: ${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}"
 
   step "Granting Application.ReadWrite.OwnedBy Graph permission to CD app..."
   local perm_add_err=""
