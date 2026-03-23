@@ -1040,9 +1040,13 @@ print(json.dumps(d))'
 # update with ContainerAppRegistryInUse if any active revision still references
 # the old ACR.  Deactivating stale revisions beforehand removes that block.
 #
-# Safety: one active revision is intentionally preserved per app so the app
-# remains reachable if the subsequent Bicep deployment fails.  Only revisions
-# beyond that first one are deactivated.
+# Safety: when there are 2+ active revisions and a live-traffic revision can
+# be identified (ingress weight > 0), that revision is preserved so the app
+# stays reachable if the subsequent Bicep deployment fails.  In all other
+# cases (single revision, or no live-traffic revision found) all active
+# revisions are deactivated — brief downtime is accepted because Bicep
+# immediately creates a new revision, and leaving any ACR-referencing revision
+# active would cause ContainerAppRegistryInUse regardless.
 #
 # Guard: deactivation is skipped entirely for an app when its registry list is
 # already empty — no mutation needed, no disruption risk.
@@ -1095,8 +1099,7 @@ deactivate_container_app_revisions() {
       continue
     fi
 
-    # Build an array so we can preserve the first revision and avoid taking
-    # the app fully offline if the Bicep deployment fails afterward.
+    # Build an array to iterate revisions and apply the preservation logic below.
     local -a revisions_array=()
     while IFS= read -r rev; do
       [[ -z "${rev}" ]] && continue
@@ -1107,12 +1110,34 @@ deactivate_container_app_revisions() {
       continue
     fi
 
-    local protected_revision="${revisions_array[0]}"
-    step "Deactivating active revisions of '${app}' to allow registry update, preserving '${protected_revision}' to keep the app online..."
+    # Identify the revision currently serving live traffic (weight > 0) so we
+    # preserve the right one and avoid unexpected downtime.  Using the ingress
+    # traffic config (same approach as cd.yml) is correct even when traffic was
+    # previously pinned to an older revision after a rollback.
+    local live_revision
+    live_revision=$(az containerapp show \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${app}" \
+      --query 'properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]' \
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
+
+    # Preserve the live-traffic revision only when there are 2+ active
+    # revisions AND we can identify which one is serving traffic.  With a
+    # single active revision, or when no live-traffic revision is found, all
+    # revisions are deactivated — brief downtime is accepted because Bicep
+    # brings the app back online immediately with the new revision, and leaving
+    # any ACR-referencing revision active would cause ContainerAppRegistryInUse.
+    local protected_revision=""
+    if (( ${#revisions_array[@]} > 1 )) && [[ -n "${live_revision}" ]]; then
+      protected_revision="${live_revision}"
+      step "Deactivating active revisions of '${app}' to allow registry update, preserving '${protected_revision}' (live traffic) to keep the app online..."
+    else
+      step "Deactivating active revisions of '${app}' to allow registry update (brief downtime expected)..."
+    fi
 
     local current_revision
     for current_revision in "${revisions_array[@]}"; do
-      if [[ "${current_revision}" == "${protected_revision}" ]]; then
+      if [[ -n "${protected_revision}" && "${current_revision}" == "${protected_revision}" ]]; then
         step "Preserved active revision (not deactivated): ${current_revision}"
         continue
       fi
