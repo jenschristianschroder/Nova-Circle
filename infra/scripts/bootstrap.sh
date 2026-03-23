@@ -1248,7 +1248,7 @@ deploy_infrastructure() {
         --name "${api_app_name}" \
         --resource-group "${RESOURCE_GROUP}" \
         --set-env-vars "CORS_ORIGIN=${CORS_ORIGIN}" \
-        --output none 2>/dev/null \
+        --output none \
         || warn "Could not update CORS_ORIGIN on API container. Set it manually or re-run bootstrap."
     fi
   fi
