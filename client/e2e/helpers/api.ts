@@ -27,6 +27,17 @@ const __dirname = path.dirname(__filename);
 /** Default path to the auth state written by global-setup.ts. */
 const DEFAULT_AUTH_STATE_PATH = path.join(__dirname, '..', '.auth', 'user.json');
 
+/**
+ * Path to the raw Bearer token file written by global-setup.ts.
+ *
+ * global-setup captures the Bearer token from the first authenticated API
+ * request and saves it here as a plain text file.  This lets ApiHelper read
+ * the token without depending on MSAL's encrypted localStorage format, which
+ * changed in msal-browser v5 and may be unreadable across Playwright browser
+ * context boundaries.
+ */
+const BEARER_TOKEN_FILE_PATH = path.join(__dirname, '..', '.auth', 'bearer_token.txt');
+
 // ── Domain types (mirrors backend DTOs) ─────────────────────────────────────
 
 /** Minimal shape of a Playwright storage state file. */
@@ -95,6 +106,26 @@ export class ApiHelper {
     const resolvedBaseUrl =
       baseUrl ?? process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:5173';
 
+    // ── Fast path: read the raw Bearer token written by global-setup ──────────
+    // global-setup captures the Bearer token from the first authenticated API
+    // request and saves it to bearer_token.txt.  This avoids having to parse
+    // MSAL's encrypted localStorage format (msal-browser v5 encrypts all tokens
+    // with a session-cookie-derived key that may be absent in the storage state).
+    const bearerTokenFilePath =
+      storageStatePath
+        ? path.join(path.dirname(storageStatePath), 'bearer_token.txt')
+        : BEARER_TOKEN_FILE_PATH;
+
+    if (fs.existsSync(bearerTokenFilePath)) {
+      const fileToken = fs.readFileSync(bearerTokenFilePath, 'utf-8').trim();
+      if (fileToken) {
+        return new ApiHelper(resolvedBaseUrl, fileToken);
+      }
+    }
+
+    // ── Fallback: search MSAL localStorage entries ────────────────────────────
+    // Handles plain (unencrypted) MSAL cache entries injected by global-setup
+    // as well as older msal-browser versions that did not encrypt the cache.
     const raw = fs.readFileSync(statePath, 'utf-8');
     const state: StorageState = JSON.parse(raw) as StorageState;
 
@@ -129,10 +160,13 @@ export class ApiHelper {
 
     if (!bearerToken) {
       throw new Error(
-        `No MSAL access token found in Playwright storage state at "${statePath}". ` +
-          'Ensure that the E2E auth global setup has run successfully and that the ' +
-          'storage state includes a valid MSAL access token entry. ' +
-          'Re-run the setup or check PLAYWRIGHT_AUTH_STATE_FILE / ' +
+        `No MSAL access token found in Playwright storage state at "${statePath}" ` +
+          `and no Bearer token file at "${bearerTokenFilePath}". ` +
+          'Ensure that global-setup has run successfully and that the API call on the ' +
+          'groups page succeeded (no "Failed to load groups" error). ' +
+          'Common causes: missing user_impersonation OAuth2 scope on the API app ' +
+          'registration, missing admin consent, or a broken database connection. ' +
+          'Re-run bootstrap.sh or check PLAYWRIGHT_AUTH_STATE_FILE / ' +
           'PLAYWRIGHT_TEST_USER_EMAIL / PLAYWRIGHT_TEST_USER_PASSWORD.',
       );
     }
