@@ -881,8 +881,22 @@ setup_api_app() {
       || uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' \
       || "${PYTHON_CMD}" -c "import uuid; print(uuid.uuid4())")
 
+    local _py_build_scope
+    _py_build_scope='import sys, json, os
+d = json.load(sys.stdin)
+d.append({
+    "id": os.environ["SCOPE_ID"],
+    "value": "user_impersonation",
+    "type": "User",
+    "isEnabled": True,
+    "adminConsentDisplayName": "Access Nova Circle API on your behalf",
+    "adminConsentDescription": "Allows the application to access the Nova Circle API on your behalf.",
+    "userConsentDisplayName": "Access Nova Circle API on your behalf",
+    "userConsentDescription": "Allows this application to access the Nova Circle API on your behalf.",
+})
+print(json.dumps(d))'
     local updated_scopes
-    updated_scopes=$(SCOPE_ID="${scope_id}" "${PYTHON_CMD}" -c "import sys,json,os; d=json.load(sys.stdin); d.append({'id':os.environ['SCOPE_ID'],'value':'user_impersonation','type':'User','isEnabled':True,'adminConsentDisplayName':'Access Nova Circle API on your behalf','adminConsentDescription':'Allows the application to access the Nova Circle API on your behalf.','userConsentDisplayName':'Access Nova Circle API on your behalf','userConsentDescription':'Allows this application to access the Nova Circle API on your behalf.'}); print(json.dumps(d))" <<< "${current_scopes_json}")
+    updated_scopes=$(SCOPE_ID="${scope_id}" "${PYTHON_CMD}" -c "${_py_build_scope}" <<< "${current_scopes_json}")
 
     local patch_body
     patch_body=$(printf '{"api":{"oauth2PermissionScopes":%s}}' "${updated_scopes}")
