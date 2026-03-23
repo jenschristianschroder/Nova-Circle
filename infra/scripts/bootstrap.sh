@@ -1202,28 +1202,30 @@ deploy_infrastructure() {
 
   if [[ "${WHAT_IF}" == "false" ]]; then
     # Capture deployment outputs for use in subsequent steps
+    # Strip Windows-style carriage returns (tr -d '\r') — az CLI -o tsv output
+    # may include trailing \r when run in Git Bash / WSL on Windows.
     REGISTRY_LOGIN_SERVER=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.registryLoginServer.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
 
     local api_url pg_fqdn
     api_url=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.apiUrl.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
     CLIENT_URL=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.clientUrl.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
     pg_fqdn=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.postgresFqdn.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
 
     step "ACR:         ${REGISTRY_LOGIN_SERVER}"
     step "API URL:     ${api_url}"
