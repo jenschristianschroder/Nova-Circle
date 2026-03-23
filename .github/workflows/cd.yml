@@ -491,6 +491,103 @@ jobs:
       # Users are never exposed to the candidate revision during the gate.
       # continue-on-error allows the promote/rollback steps to always execute.
 
+      # Ensure the API app registration has the correct Application ID URI
+      # (api://<clientId>) and user_impersonation OAuth2 scope exposed.
+      # Without these Azure AD cannot issue access tokens with the expected
+      # audience, so every authenticated API call returns 401.
+      # This step is idempotent and runs on every deploy so a misconfigured
+      # tenant does not block the pipeline indefinitely.
+      # Admin consent is attempted best-effort; failure is non-fatal.
+      - name: Ensure Azure AD API app registration is configured
+        run: |
+          CLIENT_ID="${{ vars.API_AZURE_CLIENT_ID }}"
+          OBJ_ID="${{ vars.API_AZURE_OBJECT_ID }}"
+          if [[ -z "${OBJ_ID}" || -z "${CLIENT_ID}" ]]; then
+            echo "::warning::API_AZURE_OBJECT_ID or API_AZURE_CLIENT_ID not set — skipping Azure AD app registration check. Re-run bootstrap.sh."
+            exit 0
+          fi
+
+          # ── 1. Ensure Application ID URI (api://<clientId>) is set ───────────
+          EXPECTED_URI="api://${CLIENT_ID}"
+          CURRENT_URIS=$(az rest --method GET \
+            --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+            --query "identifierUris" --output json 2>/dev/null || echo "[]")
+          HAS_URI=$(echo "${CURRENT_URIS}" | \
+            jq --arg uri "${EXPECTED_URI}" '[.[] | select(. == $uri)] | length' 2>/dev/null || echo "0")
+          if [[ "${HAS_URI}" == "0" ]]; then
+            UPDATED_URIS=$(echo "${CURRENT_URIS}" | \
+              jq --arg uri "${EXPECTED_URI}" '(. // []) + [$uri] | unique')
+            az rest --method PATCH \
+              --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+              --body "$(jq -n --argjson uris "${UPDATED_URIS}" '{"identifierUris":$uris}')" \
+              --headers 'Content-Type=application/json' \
+              --output none \
+              && echo "Set Application ID URI to ${EXPECTED_URI}." \
+              || echo "::warning::Could not set Application ID URI — check CD service principal permissions."
+          else
+            echo "Application ID URI ${EXPECTED_URI} is already set."
+          fi
+
+          # ── 2. Ensure user_impersonation scope is exposed and enabled ───────────
+          CURRENT_SCOPES=$(az rest --method GET \
+            --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+            --query "api.oauth2PermissionScopes" --output json 2>/dev/null || echo "[]")
+          # Check for any existing scope with value=="user_impersonation", enabled or disabled.
+          EXISTING_SCOPE=$(echo "${CURRENT_SCOPES}" | \
+            jq '[.[] | select(.value == "user_impersonation")] | first // empty' 2>/dev/null)
+          if [[ -z "${EXISTING_SCOPE}" ]]; then
+            # No scope found — add a new one.
+            # GitHub Actions always runs on Ubuntu where /proc/sys/kernel/random/uuid
+            # is available; python3 is a reliable fallback for any other environment.
+            SCOPE_ID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null \
+              || python3 -c "import uuid; print(uuid.uuid4())")
+            UPDATED_SCOPES=$(echo "${CURRENT_SCOPES}" | jq \
+              --arg id "${SCOPE_ID}" \
+              '(. // []) + [{
+                "id": $id,
+                "value": "user_impersonation",
+                "type": "User",
+                "adminConsentDisplayName": "Access Nova-Circle API",
+                "adminConsentDescription": "Allows the app to access Nova-Circle API on behalf of the signed-in user.",
+                "userConsentDisplayName": "Access Nova-Circle API",
+                "userConsentDescription": "Allows this app to access Nova-Circle API on your behalf.",
+                "isEnabled": true
+              }]')
+            PATCH_BODY=$(jq -n --argjson scopes "${UPDATED_SCOPES}" '{"api":{"oauth2PermissionScopes":$scopes}}')
+            az rest --method PATCH \
+              --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+              --body "${PATCH_BODY}" \
+              --headers 'Content-Type=application/json' \
+              --output none \
+              && echo "Exposed user_impersonation scope." \
+              || echo "::warning::Could not expose user_impersonation scope — check CD service principal permissions."
+          else
+            IS_ENABLED=$(echo "${EXISTING_SCOPE}" | jq '.isEnabled' 2>/dev/null || echo "false")
+            if [[ "${IS_ENABLED}" != "true" ]]; then
+              # Scope exists but is disabled — re-enable it in-place by patching the
+              # existing entry (keeping the same id to avoid Graph uniqueness rejection).
+              UPDATED_SCOPES=$(echo "${CURRENT_SCOPES}" | jq \
+                'map(if .value == "user_impersonation" then .isEnabled = true else . end)')
+              PATCH_BODY=$(jq -n --argjson scopes "${UPDATED_SCOPES}" '{"api":{"oauth2PermissionScopes":$scopes}}')
+              az rest --method PATCH \
+                --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+                --body "${PATCH_BODY}" \
+                --headers 'Content-Type=application/json' \
+                --output none \
+                && echo "Re-enabled user_impersonation scope." \
+                || echo "::warning::Could not re-enable user_impersonation scope — check CD service principal permissions."
+            else
+              echo "user_impersonation scope is already exposed and enabled."
+            fi
+          fi
+
+          # ── 3. Grant admin consent (best-effort) ─────────────────────────────
+          az ad app permission admin-consent \
+            --id "${CLIENT_ID}" \
+            --output none 2>/dev/null \
+            && echo "Admin consent granted." \
+            || echo "::warning::Admin consent could not be granted automatically — a tenant admin may need to consent manually via the Azure Portal."
+
       # MSAL uses window.location.origin as redirectUri, so the revision-specific
       # origin must be registered as an Azure AD SPA redirect URI before sign-in
       # will succeed.  We add it here and remove it again after tests complete
