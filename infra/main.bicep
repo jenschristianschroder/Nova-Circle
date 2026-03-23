@@ -62,10 +62,6 @@ param frontendAzureTenantId string = ''
 @description('Backend API base URL injected into the frontend container so nginx can reverse-proxy /api requests (e.g. "https://ca-nova-circle-dev.xxx.swedencentral.azurecontainerapps.io"). Resolved automatically by the CD pipeline; set manually after first deploy if using the infra scripts directly.')
 param frontendApiBaseUrl string = ''
 
-@description('Full database connection URL with a URL-encoded password (e.g. "postgresql://ncadmin:p%40ss@host:5432/nova_circle?sslmode=require"). When provided this value is used directly and overrides the URL constructed from postgresAdminUser/postgresAdminPassword. Always supply this from the CD pipeline so passwords with special characters are handled correctly.')
-@secure()
-param databaseUrl string = ''
-
 // ── Modules ───────────────────────────────────────────────────────────────
 
 // 1. Observability: Log Analytics Workspace + Application Insights
@@ -118,7 +114,7 @@ module containerAppMod 'modules/container-app.bicep' = {
     containerImage: containerImage
     registryLoginServer: containerRegistryMod.outputs.loginServer
     appInsightsConnectionString: appInsightsMod.outputs.connectionString
-    databaseUrl: empty(databaseUrl) ? 'postgresql://${postgresAdminUser}:${postgresAdminPassword}@${postgresMod.outputs.fqdn}:5432/${postgresMod.outputs.databaseName}?sslmode=require' : databaseUrl
+    databaseUrl: 'postgresql://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${postgresMod.outputs.fqdn}:5432/${postgresMod.outputs.databaseName}?sslmode=require'
     azureTenantId: azureTenantId
     azureClientId: azureClientId
     corsOrigin: corsOrigin
