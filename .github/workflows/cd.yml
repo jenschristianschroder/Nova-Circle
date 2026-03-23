@@ -528,18 +528,19 @@ jobs:
             echo "Application ID URI ${EXPECTED_URI} is already set."
           fi
 
-          # ── 2. Ensure user_impersonation scope is exposed ────────────────────
+          # ── 2. Ensure user_impersonation scope is exposed and enabled ───────────
           CURRENT_SCOPES=$(az rest --method GET \
             --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
             --query "api.oauth2PermissionScopes" --output json 2>/dev/null || echo "[]")
-          HAS_SCOPE=$(echo "${CURRENT_SCOPES}" | \
-            jq '[.[] | select(.value == "user_impersonation" and .isEnabled == true)] | length' \
-            2>/dev/null || echo "0")
-          if [[ "${HAS_SCOPE}" == "0" ]]; then
+          # Check for any existing scope with value=="user_impersonation", enabled or disabled.
+          EXISTING_SCOPE=$(echo "${CURRENT_SCOPES}" | \
+            jq '[.[] | select(.value == "user_impersonation")] | first // empty' 2>/dev/null)
+          if [[ -z "${EXISTING_SCOPE}" ]]; then
+            # No scope found — add a new one.
             # GitHub Actions always runs on Ubuntu where /proc/sys/kernel/random/uuid
-          # is available; python3 is a reliable fallback for any other environment.
-          SCOPE_ID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null \
-            || python3 -c "import uuid; print(uuid.uuid4())")
+            # is available; python3 is a reliable fallback for any other environment.
+            SCOPE_ID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null \
+              || python3 -c "import uuid; print(uuid.uuid4())")
             UPDATED_SCOPES=$(echo "${CURRENT_SCOPES}" | jq \
               --arg id "${SCOPE_ID}" \
               '(. // []) + [{
@@ -561,7 +562,23 @@ jobs:
               && echo "Exposed user_impersonation scope." \
               || echo "::warning::Could not expose user_impersonation scope — check CD service principal permissions."
           else
-            echo "user_impersonation scope is already exposed."
+            IS_ENABLED=$(echo "${EXISTING_SCOPE}" | jq '.isEnabled' 2>/dev/null || echo "false")
+            if [[ "${IS_ENABLED}" != "true" ]]; then
+              # Scope exists but is disabled — re-enable it in-place by patching the
+              # existing entry (keeping the same id to avoid Graph uniqueness rejection).
+              UPDATED_SCOPES=$(echo "${CURRENT_SCOPES}" | jq \
+                'map(if .value == "user_impersonation" then .isEnabled = true else . end)')
+              PATCH_BODY=$(jq -n --argjson scopes "${UPDATED_SCOPES}" '{"api":{"oauth2PermissionScopes":$scopes}}')
+              az rest --method PATCH \
+                --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+                --body "${PATCH_BODY}" \
+                --headers 'Content-Type=application/json' \
+                --output none \
+                && echo "Re-enabled user_impersonation scope." \
+                || echo "::warning::Could not re-enable user_impersonation scope — check CD service principal permissions."
+            else
+              echo "user_impersonation scope is already exposed and enabled."
+            fi
           fi
 
           # ── 3. Grant admin consent (best-effort) ─────────────────────────────

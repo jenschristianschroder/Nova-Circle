@@ -60,8 +60,9 @@ async function injectMsalCacheEntry(
       if (parts.length < 2) return;
 
       // Decode the JWT payload (base64url → JSON).
-      const paddedPart = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payloadJson = atob(paddedPart + '=='.slice((paddedPart.length + 3) & 3));
+      const base64UrlPayload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const paddingLength = (4 - (base64UrlPayload.length % 4)) % 4;
+      const payloadJson = atob(base64UrlPayload + '='.repeat(paddingLength));
       const payload = JSON.parse(payloadJson) as Record<string, unknown>;
 
       const oid = payload['oid'] as string | undefined;
@@ -157,6 +158,56 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     fs.mkdirSync(path.dirname(AUTH_STATE_PATH), { recursive: true });
     fs.copyFileSync(injectedStatePath, AUTH_STATE_PATH);
     console.log(`[global-setup] Using injected auth state from ${injectedStatePath}`);
+
+    // Even when using a pre-authenticated state, navigate to /groups to capture
+    // the Bearer token from the first API request.  This writes bearer_token.txt
+    // so ApiHelper.fromStorageState() works, and injects a plain MSAL cache
+    // entry so the smoke test's acquireTokenSilent() uses the fast path rather
+    // than the 10-second iframe silent-auth fallback.
+    const rawBaseURL =
+      process.env['PLAYWRIGHT_BASE_URL'] ?? _config.use?.baseURL ?? 'http://localhost:3000';
+    const baseURL = rawBaseURL.replace(/\/+$/, '');
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const context = await browser.newContext({ storageState: AUTH_STATE_PATH });
+      const page = await context.newPage();
+
+      let capturedBearerToken = '';
+      page.on('request', (req: Request) => {
+        const authHeader = req.headers()['authorization'];
+        if (
+          !capturedBearerToken &&
+          typeof authHeader === 'string' &&
+          authHeader.startsWith('Bearer ') &&
+          req.url().includes('/api/v1/')
+        ) {
+          capturedBearerToken = authHeader.slice(7);
+        }
+      });
+
+      await page.goto(`${baseURL}/groups`);
+      // Wait for the groups API call to settle.
+      try {
+        await page.getByText('Loading groups…').waitFor({ state: 'hidden', timeout: 30_000 });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'TimeoutError') throw err;
+      }
+
+      if (capturedBearerToken) {
+        await injectMsalCacheEntry(page, capturedBearerToken);
+        await context.storageState({ path: AUTH_STATE_PATH });
+        fs.writeFileSync(BEARER_TOKEN_PATH, capturedBearerToken, 'utf-8');
+        console.log(`[global-setup] Bearer token saved to ${BEARER_TOKEN_PATH}`);
+      } else {
+        console.warn(
+          '[global-setup] No Bearer token captured from injected-state path. ' +
+            'ApiHelper-based tests may be skipped.',
+        );
+      }
+    } finally {
+      await browser.close();
+    }
     return;
   }
 
