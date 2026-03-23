@@ -615,11 +615,16 @@ setup_oidc_app() {
   # redirect URIs on app registrations it owns (used to register revision-specific
   # URLs before Playwright E2E tests and remove them afterwards).
   #
-  # Microsoft Graph app ID and Application.ReadWrite.OwnedBy role ID are stable
-  # well-known values defined by Microsoft — they never change across tenants.
+  # Also grant DelegatedPermissionGrant.ReadWrite.All so the CD workflow can
+  # create and update oauth2PermissionGrants — this is required to pre-consent
+  # the user_impersonation scope for all users on every deploy (self-healing).
+  #
+  # Microsoft Graph app ID and role IDs are stable well-known values defined by
+  # Microsoft — they never change across tenants.
   # Source: https://learn.microsoft.com/en-us/graph/permissions-reference
   local GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
   local APP_READ_WRITE_OWNED_BY_ROLE_ID="18a4783c-866b-4cc7-a460-3d5e5662c884"
+  local DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID="41ce6ca6-6826-4807-84f1-1c82854f7af5"
 
   step "Granting Application.ReadWrite.OwnedBy Graph permission to CD app..."
   local perm_add_err=""
@@ -637,6 +642,24 @@ setup_oidc_app() {
       warn "Could not add Application.ReadWrite.OwnedBy to CD app registration."
       warn "Azure CLI output: ${perm_add_err}"
       warn "Add manually: az ad app permission add --id ${CD_APP_OBJECT_ID} --api ${GRAPH_APP_ID} --api-permissions ${APP_READ_WRITE_OWNED_BY_ROLE_ID}=Role"
+    fi
+  fi
+
+  step "Granting DelegatedPermissionGrant.ReadWrite.All Graph permission to CD app..."
+  local dpg_add_err=""
+  if dpg_add_err=$(az ad app permission add \
+    --id "${CD_APP_OBJECT_ID}" \
+    --api "${GRAPH_APP_ID}" \
+    --api-permissions "${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}=Role" \
+    --output none 2>&1); then
+    step "DelegatedPermissionGrant.ReadWrite.All added to ${CD_APP_ID}."
+  else
+    if echo "${dpg_add_err}" | grep -qi "already"; then
+      step "DelegatedPermissionGrant.ReadWrite.All already present on ${CD_APP_ID}."
+    else
+      warn "Could not add DelegatedPermissionGrant.ReadWrite.All to CD app registration."
+      warn "Azure CLI output: ${dpg_add_err}"
+      warn "Add manually: az ad app permission add --id ${CD_APP_OBJECT_ID} --api ${GRAPH_APP_ID} --api-permissions ${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}=Role"
     fi
   fi
 
@@ -883,13 +906,68 @@ setup_api_app() {
   fi
 
   # Grant admin consent for the user_impersonation scope so E2E test users are
-  # not prompted for consent during headless sign-in.  This is a best-effort
-  # step; failure is non-fatal and a warning is printed instead.
-  step "Granting admin consent for user_impersonation scope (best-effort)..."
-  az ad app permission admin-consent \
-    --id "${API_APP_ID}" \
-    --output none 2>/dev/null \
-    || warn "Admin consent could not be granted automatically — a tenant admin may need to consent manually."
+  # not prompted for consent during headless sign-in.
+  #
+  # The correct way to pre-consent a delegated OAuth2 scope for all users is via
+  # the oauth2PermissionGrants Graph API (POST /oauth2PermissionGrants with
+  # consentType=AllPrincipals).  The legacy `az ad app permission admin-consent`
+  # command only consents permissions listed in requiredResourceAccess, which
+  # does not include the self-referencing user_impersonation scope exposed here.
+  step "Granting admin consent for user_impersonation scope via oauth2PermissionGrants (best-effort)..."
+  local api_sp_id=""
+  api_sp_id=$(az ad sp show --id "${API_APP_ID}" --query id -o tsv 2>/dev/null || echo "")
+  if [[ -z "${api_sp_id}" || "${api_sp_id}" == "None" ]]; then
+    step "Service principal for API app not found — creating it..."
+    api_sp_id=$(az ad sp create --id "${API_APP_ID}" --query id -o tsv 2>/dev/null || echo "")
+  fi
+
+  if [[ -n "${api_sp_id}" && "${api_sp_id}" != "None" ]]; then
+    # Retrieve any existing AllPrincipals grant for this SP (clientId == resourceId).
+    local all_grants existing_grant grant_id current_scope
+    all_grants=$(az rest --method GET \
+      --uri "https://graph.microsoft.com/v1.0/servicePrincipals/${api_sp_id}/oauth2PermissionGrants" \
+      --output json 2>/dev/null || echo '{"value":[]}')
+    existing_grant=$(echo "${all_grants}" | \
+      jq --arg sp "${api_sp_id}" \
+        '[.value[] | select(.resourceId==$sp and .consentType=="AllPrincipals")] | first // empty' \
+      2>/dev/null || echo "")
+
+    if [[ -z "${existing_grant}" ]]; then
+      # No AllPrincipals grant yet — create one.
+      if az rest --method POST \
+        --uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants" \
+        --headers 'Content-Type=application/json' \
+        --body "{\"clientId\":\"${api_sp_id}\",\"consentType\":\"AllPrincipals\",\"resourceId\":\"${api_sp_id}\",\"scope\":\"user_impersonation\"}" \
+        --output none 2>/dev/null; then
+        step "Admin consent (AllPrincipals) granted for user_impersonation scope."
+      else
+        warn "Could not create oauth2PermissionGrant — a tenant admin may need to grant consent manually."
+        warn "Azure Portal: Entra ID → Enterprise applications → ${API_APP_ID} → Permissions → Grant admin consent"
+      fi
+    else
+      current_scope=$(echo "${existing_grant}" | jq -r '.scope // ""' 2>/dev/null || echo "")
+      grant_id=$(echo "${existing_grant}" | jq -r '.id // ""' 2>/dev/null || echo "")
+      if [[ "${current_scope}" != *"user_impersonation"* && -n "${grant_id}" ]]; then
+        # Grant exists but is missing user_impersonation — add it.
+        local new_scope
+        new_scope=$(printf '%s user_impersonation' "${current_scope}" | tr -s ' ' | sed 's/^ //;s/ $//')
+        if az rest --method PATCH \
+          --uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${grant_id}" \
+          --headers 'Content-Type=application/json' \
+          --body "{\"scope\":\"${new_scope}\"}" \
+          --output none 2>/dev/null; then
+          step "Updated oauth2PermissionGrant to include user_impersonation scope."
+        else
+          warn "Could not update oauth2PermissionGrant — check tenant permissions."
+        fi
+      else
+        step "Admin consent for user_impersonation scope already granted."
+      fi
+    fi
+  else
+    warn "Could not determine API service principal ID — admin consent for user_impersonation may need to be granted manually."
+    warn "Azure Portal: Entra ID → Enterprise applications → ${API_APP_ID} → Permissions → Grant admin consent"
+  fi
 
   step "API app registration ready: ${API_APP_ID}"
 }
