@@ -632,7 +632,7 @@ setup_oidc_app() {
   # Source: https://learn.microsoft.com/en-us/graph/permissions-reference
   local GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
   local APP_READ_WRITE_OWNED_BY_ROLE_ID="18a4783c-866b-4cc7-a460-3d5e5662c884"
-  local DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID="41ce6ca6-6826-4807-84f1-1c82854f7af5"
+  local DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID="41ce6ca6-6826-4807-84f1-1c82854f7ee5"
 
   step "Granting Application.ReadWrite.OwnedBy Graph permission to CD app..."
   local perm_add_err=""
