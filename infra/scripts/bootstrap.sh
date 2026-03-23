@@ -980,11 +980,109 @@ print(json.dumps(d))'
   step "API app registration ready: ${API_APP_ID}"
 }
 
+# ── Pre-deployment: deactivate stale Container App revisions ──────────────────
+# When re-running bootstrap with the MCR placeholder image, Bicep sets
+# registries:[] on the Container Apps (useAcr=false).  Azure rejects that
+# update with ContainerAppRegistryInUse if any active revision still references
+# the old ACR.  Deactivating stale revisions beforehand removes that block.
+#
+# Safety: one active revision is intentionally preserved per app so the app
+# remains reachable if the subsequent Bicep deployment fails.  Only revisions
+# beyond that first one are deactivated.
+#
+# Guard: deactivation is skipped entirely for an app when its registry list is
+# already empty — no mutation needed, no disruption risk.
+deactivate_container_app_revisions() {
+  local -a app_names=(
+    "ca-nova-circle-${ENVIRONMENT}"
+    "ca-nova-circle-client-${ENVIRONMENT}"
+  )
+
+  for app in "${app_names[@]}"; do
+    # Skip if the Container App does not exist yet (first deploy).
+    if ! az containerapp show \
+        --resource-group "${RESOURCE_GROUP}" \
+        --name "${app}" \
+        --output none 2>/dev/null; then
+      continue
+    fi
+
+    # Pre-check: skip deactivation when the app's registry list is already
+    # empty.  Bicep only triggers ContainerAppRegistryInUse when it needs to
+    # remove a registry entry from the configuration; if there is nothing to
+    # remove, deactivating revisions is unnecessary and risks availability.
+    local current_registries
+    current_registries=$(az containerapp show \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${app}" \
+      --query "properties.configuration.registries" \
+      -o tsv 2>/dev/null || echo "")
+
+    if [[ -z "${current_registries}" ]]; then
+      step "Registry list already empty for '${app}'; skipping revision deactivation."
+      continue
+    fi
+
+    local revisions
+    if ! revisions=$(az containerapp revision list \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${app}" \
+      --query "[?properties.active].name" \
+      -o tsv 2>/dev/null); then
+      warn "Failed to list active revisions for '${app}'. Skipping revision deactivation; subsequent deploy may fail with ContainerAppRegistryInUse."
+      continue
+    fi
+
+    if [[ -z "${revisions}" ]]; then
+      continue
+    fi
+
+    # Build an array so we can preserve the first revision and avoid taking
+    # the app fully offline if the Bicep deployment fails afterward.
+    local -a revisions_array=()
+    while IFS= read -r rev; do
+      [[ -z "${rev}" ]] && continue
+      revisions_array+=("${rev}")
+    done <<< "${revisions}"
+
+    if (( ${#revisions_array[@]} == 0 )); then
+      continue
+    fi
+
+    local protected_revision="${revisions_array[0]}"
+    step "Deactivating active revisions of '${app}' to allow registry update, preserving '${protected_revision}' to keep the app online..."
+
+    local current_revision
+    for current_revision in "${revisions_array[@]}"; do
+      if [[ "${current_revision}" == "${protected_revision}" ]]; then
+        step "Preserved active revision (not deactivated): ${current_revision}"
+        continue
+      fi
+
+      az containerapp revision deactivate \
+        --resource-group "${RESOURCE_GROUP}" \
+        --name "${app}" \
+        --revision "${current_revision}" \
+        --output none
+      step "Deactivated: ${current_revision}"
+    done
+  done
+}
+
 # ── Step 6: Deploy Bicep infrastructure ────────────────────────────────────────
 deploy_infrastructure() {
   local mode_label=""
   [[ "${WHAT_IF}" == "true" ]] && mode_label=" (what-if — no changes applied)"
   info "Deploying Bicep infrastructure${mode_label}..."
+
+  # Deactivate stale Container App revisions that still reference the old ACR.
+  # This prevents the ContainerAppRegistryInUse error when Bicep updates the
+  # registry list (e.g. switching from the old ACR to [] for placeholder images
+  # on a re-run).  Deactivation is skipped in what-if mode and guarded per app
+  # — see deactivate_container_app_revisions() for details.
+  if [[ "${WHAT_IF}" == "false" ]]; then
+    deactivate_container_app_revisions
+  fi
 
   local deployment_name="nova-circle-${ENVIRONMENT}"
   local optional_params=()
