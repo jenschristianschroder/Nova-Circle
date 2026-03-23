@@ -279,6 +279,21 @@ async function globalSetup(_config: FullConfig): Promise<void> {
     }
   });
 
+  // Capture API response status to surface infrastructure issues.
+  // Common failures: 401 (token invalid), 500 (DB unreachable), HTML response
+  // (nginx proxy not configured — API_BASE_URL missing on frontend).
+  page.on('response', (resp) => {
+    if (resp.url().includes('/api/v1/')) {
+      const ct = resp.headers()['content-type'] ?? '';
+      if (resp.status() >= 400 || !ct.includes('application/json')) {
+        console.log(
+          `[global-setup] API response: ${resp.status()} ${resp.url()} ` +
+            `(content-type: ${ct || 'missing'})`,
+        );
+      }
+    }
+  });
+
   try {
     console.log(`[global-setup] Starting test user sign-in against ${baseURL}`);
 
@@ -386,10 +401,12 @@ async function globalSetup(_config: FullConfig): Promise<void> {
       throw new Error(
         '[global-setup] The groups API call failed after sign-in ("Failed to load groups" ' +
           'is visible). Check:\n' +
+          '  • Nginx proxy: is API_BASE_URL set on the frontend container? (empty = /api proxy not configured)\n' +
           '  • Azure AD: is the user_impersonation scope exposed on the API app registration?\n' +
           '  • Azure AD: has admin consent been granted for the scope?\n' +
           '  • API container: is DATABASE_URL set and is the database reachable?\n' +
-          'Run bootstrap.sh to fix Azure AD configuration.',
+          '  • CORS: is CORS_ORIGIN set on the API container to the frontend URL?\n' +
+          'Run bootstrap.sh to fix Azure AD and infrastructure configuration.',
       );
     }
 

@@ -1229,6 +1229,28 @@ deploy_infrastructure() {
     step "API URL:     ${api_url}"
     step "Client URL:  ${CLIENT_URL}"
     step "PostgreSQL:  ${pg_fqdn}"
+
+    # ── Auto-resolve CORS_ORIGIN after first deploy ──────────────────────────
+    # On first deploy CORS_ORIGIN is empty because the frontend URL is not
+    # known until Bicep has created the Container App.  Now that we have the
+    # client URL, update the API container's CORS_ORIGIN env var so the backend
+    # accepts requests from the frontend.  This is a belt-and-suspenders
+    # measure — nginx reverse-proxies /api requests so browsers see same-origin
+    # traffic, but an explicit CORS whitelist avoids surprises if the proxy is
+    # misconfigured or the frontend is accessed via a different URL.
+    if [[ -z "${CORS_ORIGIN:-}" && -n "${CLIENT_URL:-}" ]]; then
+      CORS_ORIGIN="${CLIENT_URL}"
+      step "CORS_ORIGIN auto-resolved from deployment output: ${CORS_ORIGIN}"
+
+      local api_app_name="ca-nova-circle-${ENVIRONMENT}"
+      step "Updating CORS_ORIGIN on API container (${api_app_name})..."
+      az containerapp update \
+        --name "${api_app_name}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --set-env-vars "CORS_ORIGIN=${CORS_ORIGIN}" \
+        --output none 2>/dev/null \
+        || warn "Could not update CORS_ORIGIN on API container. Set it manually or re-run bootstrap."
+    fi
   fi
 }
 

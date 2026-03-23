@@ -59,7 +59,7 @@ param frontendAzureClientId string = ''
 @description('Azure Tenant ID for the frontend SPA MSAL config (injected at container runtime)')
 param frontendAzureTenantId string = ''
 
-@description('Backend API base URL injected into the frontend container so nginx can reverse-proxy /api requests (e.g. "https://ca-nova-circle-dev.xxx.swedencentral.azurecontainerapps.io"). Resolved automatically by the CD pipeline; set manually after first deploy if using the infra scripts directly.')
+@description('Backend API base URL injected into the frontend container so nginx can reverse-proxy /api requests (e.g. "https://ca-nova-circle-dev.xxx.swedencentral.azurecontainerapps.io"). When empty (default) the URL is derived automatically from the API Container App deployed in this template.')
 param frontendApiBaseUrl string = ''
 
 // ── Modules ───────────────────────────────────────────────────────────────
@@ -122,6 +122,11 @@ module containerAppMod 'modules/container-app.bicep' = {
 }
 
 // 6. Container App: serves the Nova-Circle React SPA (nginx, port 80)
+//    apiBaseUrl is resolved automatically from the API Container App's FQDN
+//    unless an explicit override is provided via frontendApiBaseUrl.  This
+//    ensures the nginx /api reverse-proxy is always configured — even on first
+//    deploy when no external URL has been supplied.
+var resolvedApiBaseUrl = !empty(frontendApiBaseUrl) ? frontendApiBaseUrl : 'https://${containerAppMod.outputs.fqdn}'
 module containerAppFrontendMod 'modules/container-app-frontend.bicep' = {
   name: 'container-app-frontend'
   params: {
@@ -132,7 +137,7 @@ module containerAppFrontendMod 'modules/container-app-frontend.bicep' = {
     registryLoginServer: containerRegistryMod.outputs.loginServer
     azureClientId: frontendAzureClientId
     azureTenantId: frontendAzureTenantId
-    apiBaseUrl: frontendApiBaseUrl
+    apiBaseUrl: resolvedApiBaseUrl
   }
 }
 
