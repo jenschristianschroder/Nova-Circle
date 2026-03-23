@@ -163,6 +163,7 @@ done
 # ── Global state (populated during execution) ──────────────────────────────────
 SUBSCRIPTION_ID=""
 TENANT_ID=""
+PYTHON_CMD=""
 CD_APP_ID=""
 CD_APP_OBJECT_ID=""
 CD_SP_ID=""
@@ -443,9 +444,16 @@ check_prerequisites() {
     step "npm: $(npm --version)"
   fi
 
-  command -v python3 >/dev/null 2>&1 \
-    || die "'python3' is required to merge oauth2PermissionScopes. Install Python 3 from https://www.python.org/ and re-run bootstrap.sh."
-  step "python3: $(python3 --version)"
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_CMD="python3"
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_CMD="python"
+  elif command -v py >/dev/null 2>&1; then
+    PYTHON_CMD="py"
+  else
+    die "'python3' (or 'python'/'py') is required to merge oauth2PermissionScopes. Install Python 3 from https://www.python.org/ and re-run bootstrap.sh."
+  fi
+  step "python: $(${PYTHON_CMD} --version 2>&1)"
 }
 
 # ── Step 2: Collect parameters ─────────────────────────────────────────────────
@@ -862,7 +870,7 @@ setup_api_app() {
 
   local has_user_impersonation
   has_user_impersonation=$(echo "${current_scopes_json}" | \
-    python3 -c "import sys,json; data=json.load(sys.stdin); print(len([x for x in data if x.get('value')=='user_impersonation' and x.get('isEnabled')==True]))" \
+    "${PYTHON_CMD}" -c "import sys,json; data=json.load(sys.stdin); print(len([x for x in data if x.get('value')=='user_impersonation' and x.get('isEnabled')==True]))" \
     2>/dev/null || echo "0")
 
   if [[ "${has_user_impersonation}" == "0" ]]; then
@@ -871,24 +879,10 @@ setup_api_app() {
     local scope_id
     scope_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null \
       || uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' \
-      || python3 -c "import uuid; print(uuid.uuid4())")
+      || "${PYTHON_CMD}" -c "import uuid; print(uuid.uuid4())")
 
     local updated_scopes
-    updated_scopes=$(SCOPE_ID="${scope_id}" python3 -c "
-import sys, json, os
-data = json.load(sys.stdin)
-data.append({
-    'id': os.environ['SCOPE_ID'],
-    'value': 'user_impersonation',
-    'type': 'User',
-    'isEnabled': True,
-    'adminConsentDisplayName': 'Access Nova Circle API on your behalf',
-    'adminConsentDescription': 'Allows the application to access the Nova Circle API on your behalf.',
-    'userConsentDisplayName': 'Access Nova Circle API on your behalf',
-    'userConsentDescription': 'Allows this application to access the Nova Circle API on your behalf.'
-})
-print(json.dumps(data))
-" <<< "${current_scopes_json}")
+    updated_scopes=$(SCOPE_ID="${scope_id}" "${PYTHON_CMD}" -c "import sys,json,os; d=json.load(sys.stdin); d.append({'id':os.environ['SCOPE_ID'],'value':'user_impersonation','type':'User','isEnabled':True,'adminConsentDisplayName':'Access Nova Circle API on your behalf','adminConsentDescription':'Allows the application to access the Nova Circle API on your behalf.','userConsentDisplayName':'Access Nova Circle API on your behalf','userConsentDescription':'Allows this application to access the Nova Circle API on your behalf.'}); print(json.dumps(d))" <<< "${current_scopes_json}")
 
     local patch_body
     patch_body=$(printf '{"api":{"oauth2PermissionScopes":%s}}' "${updated_scopes}")
@@ -930,14 +924,7 @@ print(json.dumps(data))
     all_grants=$(az rest --method GET \
       --uri "https://graph.microsoft.com/v1.0/servicePrincipals/${api_sp_id}/oauth2PermissionGrants" \
       --output json 2>/dev/null || echo '{"value":[]}')
-    existing_grant=$(SP_ID="${api_sp_id}" python3 -c "
-import sys, json, os
-data = json.load(sys.stdin)
-sp = os.environ['SP_ID']
-matches = [x for x in data.get('value', []) if x.get('resourceId')==sp and x.get('clientId')==sp and x.get('consentType')=='AllPrincipals']
-if matches:
-    print(json.dumps(matches[0]))
-" <<< "${all_grants}" 2>/dev/null || echo "")
+    existing_grant=$(SP_ID="${api_sp_id}" "${PYTHON_CMD}" -c "import sys,json,os; data=json.load(sys.stdin); sp=os.environ.get('SP_ID'); matches=[x for x in data.get('value',[]) if x.get('resourceId')==sp and x.get('clientId')==sp and x.get('consentType')=='AllPrincipals']; matches and print(json.dumps(matches[0]))" <<< "${all_grants}" 2>/dev/null || echo "")
 
     if [[ -z "${existing_grant}" ]]; then
       # No AllPrincipals grant yet — create one.
@@ -952,8 +939,8 @@ if matches:
         warn "Azure Portal: Entra ID → Enterprise applications → ${API_APP_ID} → Permissions → Grant admin consent"
       fi
     else
-      current_scope=$(python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('scope',''))" <<< "${existing_grant}" 2>/dev/null || echo "")
-      grant_id=$(python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" <<< "${existing_grant}" 2>/dev/null || echo "")
+      current_scope=$(${PYTHON_CMD} -c "import sys,json; d=json.load(sys.stdin); print(d.get('scope',''))" <<< "${existing_grant}" 2>/dev/null || echo "")
+      grant_id=$(${PYTHON_CMD} -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" <<< "${existing_grant}" 2>/dev/null || echo "")
       if [[ "${current_scope}" != *"user_impersonation"* && -n "${grant_id}" ]]; then
         # Grant exists but is missing user_impersonation — add it.
         local new_scope
