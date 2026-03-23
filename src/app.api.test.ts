@@ -26,7 +26,10 @@ describe('GET /health', () => {
   });
 
   it('returns 503 when the database is unreachable', async () => {
-    const db = { raw: vi.fn().mockRejectedValue(new Error('connection refused')) } as Pick<Knex, 'raw'> as Knex;
+    const db = { raw: vi.fn().mockRejectedValue(new Error('connection refused')) } as Pick<
+      Knex,
+      'raw'
+    > as Knex;
     const app = createApp({ db });
     const response = await request(app).get('/health');
     expect(response.status).toBe(503);
