@@ -637,22 +637,40 @@ setup_oidc_app() {
 
   step "Resolving Microsoft Graph app role IDs from service principal..."
   local APP_READ_WRITE_OWNED_BY_ROLE_ID
+  local app_rw_err_file
+  app_rw_err_file="$(mktemp)"
   APP_READ_WRITE_OWNED_BY_ROLE_ID=$(az ad sp show \
     --id "${GRAPH_APP_ID}" \
     --query "appRoles[?value=='Application.ReadWrite.OwnedBy'].id | [0]" \
-    -o tsv 2>/dev/null || echo "")
+    -o tsv 2>"${app_rw_err_file}" || echo "")
+  local app_rw_err
+  app_rw_err="$(<"${app_rw_err_file}")"
+  rm -f "${app_rw_err_file}"
   if [[ -z "${APP_READ_WRITE_OWNED_BY_ROLE_ID}" || "${APP_READ_WRITE_OWNED_BY_ROLE_ID}" == "None" ]]; then
-    die "Could not resolve appRole ID for 'Application.ReadWrite.OwnedBy' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant."
+    if [[ -n "${app_rw_err}" ]]; then
+      die "Could not resolve appRole ID for 'Application.ReadWrite.OwnedBy' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant. Azure CLI error: ${app_rw_err}"
+    else
+      die "Could not resolve appRole ID for 'Application.ReadWrite.OwnedBy' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant."
+    fi
   fi
   step "Resolved Application.ReadWrite.OwnedBy role ID: ${APP_READ_WRITE_OWNED_BY_ROLE_ID}"
 
   local DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID
+  local delegated_perm_rw_err_file
+  delegated_perm_rw_err_file="$(mktemp)"
   DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID=$(az ad sp show \
     --id "${GRAPH_APP_ID}" \
     --query "appRoles[?value=='DelegatedPermissionGrant.ReadWrite.All'].id | [0]" \
-    -o tsv 2>/dev/null || echo "")
+    -o tsv 2>"${delegated_perm_rw_err_file}" || echo "")
+  local delegated_perm_rw_err
+  delegated_perm_rw_err="$(<"${delegated_perm_rw_err_file}")"
+  rm -f "${delegated_perm_rw_err_file}"
   if [[ -z "${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}" || "${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}" == "None" ]]; then
-    die "Could not resolve appRole ID for 'DelegatedPermissionGrant.ReadWrite.All' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant."
+    if [[ -n "${delegated_perm_rw_err}" ]]; then
+      die "Could not resolve appRole ID for 'DelegatedPermissionGrant.ReadWrite.All' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant. Azure CLI error: ${delegated_perm_rw_err}"
+    else
+      die "Could not resolve appRole ID for 'DelegatedPermissionGrant.ReadWrite.All' from the Microsoft Graph service principal. Ensure you are logged in to the correct tenant."
+    fi
   fi
   step "Resolved DelegatedPermissionGrant.ReadWrite.All role ID: ${DELEGATED_PERM_GRANT_RW_ALL_ROLE_ID}"
 
