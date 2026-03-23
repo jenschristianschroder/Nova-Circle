@@ -1040,9 +1040,11 @@ print(json.dumps(d))'
 # update with ContainerAppRegistryInUse if any active revision still references
 # the old ACR.  Deactivating stale revisions beforehand removes that block.
 #
-# Safety: one active revision is intentionally preserved per app so the app
-# remains reachable if the subsequent Bicep deployment fails.  Only revisions
-# beyond that first one are deactivated.
+# Safety: when there are 2+ active revisions, the first is preserved so the
+# app stays reachable if the subsequent Bicep deployment fails.  When only one
+# active revision exists it must be deactivated (brief downtime accepted)
+# because preserving it would leave it referencing the old ACR and cause Bicep
+# to fail with ContainerAppRegistryInUse regardless.
 #
 # Guard: deactivation is skipped entirely for an app when its registry list is
 # already empty — no mutation needed, no disruption risk.
@@ -1095,8 +1097,7 @@ deactivate_container_app_revisions() {
       continue
     fi
 
-    # Build an array so we can preserve the first revision and avoid taking
-    # the app fully offline if the Bicep deployment fails afterward.
+    # Build an array to iterate revisions and apply the preservation logic below.
     local -a revisions_array=()
     while IFS= read -r rev; do
       [[ -z "${rev}" ]] && continue
@@ -1107,12 +1108,23 @@ deactivate_container_app_revisions() {
       continue
     fi
 
-    local protected_revision="${revisions_array[0]}"
-    step "Deactivating active revisions of '${app}' to allow registry update, preserving '${protected_revision}' to keep the app online..."
+    # Preserve one revision only when there are 2+ active revisions so the app
+    # stays reachable if the subsequent Bicep deployment fails.  When there is
+    # only one active revision it must be deactivated to unblock the registry
+    # update — preserving it would cause Bicep to fail with
+    # ContainerAppRegistryInUse because that revision still references the old
+    # ACR.  Brief downtime is accepted in this single-revision case.
+    local protected_revision=""
+    if (( ${#revisions_array[@]} > 1 )); then
+      protected_revision="${revisions_array[0]}"
+      step "Deactivating active revisions of '${app}' to allow registry update, preserving '${protected_revision}' to keep the app online..."
+    else
+      step "Deactivating active revisions of '${app}' to allow registry update (single revision — brief downtime expected)..."
+    fi
 
     local current_revision
     for current_revision in "${revisions_array[@]}"; do
-      if [[ "${current_revision}" == "${protected_revision}" ]]; then
+      if [[ -n "${protected_revision}" && "${current_revision}" == "${protected_revision}" ]]; then
         step "Preserved active revision (not deactivated): ${current_revision}"
         continue
       fi
