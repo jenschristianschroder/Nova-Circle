@@ -114,7 +114,7 @@ module containerAppMod 'modules/container-app.bicep' = {
     containerImage: containerImage
     registryLoginServer: containerRegistryMod.outputs.loginServer
     appInsightsConnectionString: appInsightsMod.outputs.connectionString
-    databaseUrl: 'postgresql://${postgresAdminUser}:${postgresAdminPassword}@${postgresMod.outputs.fqdn}:5432/${postgresMod.outputs.databaseName}?sslmode=require'
+    databaseUrl: 'postgresql://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${postgresMod.outputs.fqdn}:5432/${postgresMod.outputs.databaseName}?sslmode=require'
     azureTenantId: azureTenantId
     azureClientId: azureClientId
     corsOrigin: corsOrigin
