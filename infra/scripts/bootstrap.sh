@@ -929,7 +929,7 @@ setup_api_app() {
       --output json 2>/dev/null || echo '{"value":[]}')
     existing_grant=$(echo "${all_grants}" | \
       jq --arg sp "${api_sp_id}" \
-        '[.value[] | select(.resourceId==$sp and .consentType=="AllPrincipals")] | first // empty' \
+        '[.value[] | select(.resourceId==$sp and .clientId==$sp and .consentType=="AllPrincipals")] | first // empty' \
       2>/dev/null || echo "")
 
     if [[ -z "${existing_grant}" ]]; then

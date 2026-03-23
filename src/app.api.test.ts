@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { Knex } from 'knex';
 import request from 'supertest';
 import { createApp } from './app.js';
 
@@ -17,7 +18,7 @@ describe('GET /health', () => {
   });
 
   it('returns 200 when the database is reachable', async () => {
-    const db = { raw: vi.fn().mockResolvedValue(undefined) } as never;
+    const db = { raw: vi.fn().mockResolvedValue(undefined) } as Pick<Knex, 'raw'> as Knex;
     const app = createApp({ db });
     const response = await request(app).get('/health');
     expect(response.status).toBe(200);
@@ -25,7 +26,7 @@ describe('GET /health', () => {
   });
 
   it('returns 503 when the database is unreachable', async () => {
-    const db = { raw: vi.fn().mockRejectedValue(new Error('connection refused')) } as never;
+    const db = { raw: vi.fn().mockRejectedValue(new Error('connection refused')) } as Pick<Knex, 'raw'> as Knex;
     const app = createApp({ db });
     const response = await request(app).get('/health');
     expect(response.status).toBe(503);
