@@ -796,10 +796,11 @@ setup_api_app() {
     step "Registering SPA platform redirect URIs..."
 
     # Read existing SPA redirect URIs from the app registration.
+    # Strip \r to handle Windows-style line endings from az CLI output.
     local existing_spa_raw
     existing_spa_raw=$(az ad app show \
       --id "${API_APP_ID}" \
-      --query "spa.redirectUris" -o tsv 2>/dev/null || echo "")
+      --query "spa.redirectUris" -o tsv 2>/dev/null | tr -d '\r' || echo "")
 
     # Merge existing + desired, deduplicating by exact URI match.
     local -a merged_spa_uris=()
@@ -815,10 +816,23 @@ setup_api_app() {
       [[ "${already_present}" == "false" ]] && merged_spa_uris+=("${uri}")
     done
 
+    # az ad app update does not support --spa-redirect-uris on all az CLI versions;
+    # use the Microsoft Graph REST API directly via az rest instead (same approach
+    # as the CD workflow — see .github/workflows/cd.yml "Add revision URL to Azure
+    # AD SPA redirect URIs").
+    local spa_uris_json
+    spa_uris_json=$(${PYTHON_CMD} -c "
+import sys, json
+uris = sys.argv[1:]
+print(json.dumps({'spa': {'redirectUris': uris}}))" \
+      "${merged_spa_uris[@]}")
+
     local spa_update_err=""
-    if ! spa_update_err=$(az ad app update \
-      --id "${API_APP_ID}" \
-      --spa-redirect-uris "${merged_spa_uris[@]}" \
+    if ! spa_update_err=$(az rest \
+      --method PATCH \
+      --uri "https://graph.microsoft.com/v1.0/applications/${API_APP_OBJECT_ID}" \
+      --body "${spa_uris_json}" \
+      --headers 'Content-Type=application/json' \
       --output none 2>&1); then
       local auth_blade_url="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Authentication/appId/${API_APP_ID}/isMSAApp~/false"
       warn "Could not register SPA redirect URIs — add them manually in Azure Portal → Authentication:"
@@ -1024,11 +1038,15 @@ deactivate_container_app_revisions() {
     fi
 
     local revisions
+    # Pipe through tr -d '\r' to strip Windows-style carriage returns from az CLI
+    # TSV output.  Without this, revision names on Windows contain a trailing \r
+    # that makes az containerapp revision deactivate fail with "Bad Request -
+    # Invalid URL" and corrupts the step messages printed to the terminal.
     if ! revisions=$(az containerapp revision list \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${app}" \
       --query "[?properties.active].name" \
-      -o tsv 2>/dev/null); then
+      -o tsv 2>/dev/null | tr -d '\r'); then
       warn "Failed to list active revisions for '${app}'. Skipping revision deactivation; subsequent deploy may fail with ContainerAppRegistryInUse."
       continue
     fi
