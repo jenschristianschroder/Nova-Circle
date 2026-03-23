@@ -980,11 +980,63 @@ print(json.dumps(d))'
   step "API app registration ready: ${API_APP_ID}"
 }
 
+# ── Pre-deployment: deactivate stale Container App revisions ──────────────────
+# When re-running bootstrap with the MCR placeholder image, Bicep sets
+# registries:[] on the Container Apps (useAcr=false).  Azure rejects that
+# update with ContainerAppRegistryInUse if any active revision still references
+# the old ACR.  Deactivating all active revisions beforehand removes that block.
+deactivate_container_app_revisions() {
+  local -a app_names=(
+    "ca-nova-circle-${ENVIRONMENT}"
+    "ca-nova-circle-client-${ENVIRONMENT}"
+  )
+
+  for app in "${app_names[@]}"; do
+    # Skip if the Container App does not exist yet (first deploy).
+    if ! az containerapp show \
+        --resource-group "${RESOURCE_GROUP}" \
+        --name "${app}" \
+        --output none 2>/dev/null; then
+      continue
+    fi
+
+    local revisions
+    revisions=$(az containerapp revision list \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "${app}" \
+      --query "[?properties.active].name" \
+      -o tsv 2>/dev/null || echo "")
+
+    if [[ -z "${revisions}" ]]; then
+      continue
+    fi
+
+    step "Deactivating active revisions of '${app}' to allow registry update..."
+    while IFS= read -r rev; do
+      [[ -z "${rev}" ]] && continue
+      az containerapp revision deactivate \
+        --resource-group "${RESOURCE_GROUP}" \
+        --name "${app}" \
+        --revision "${rev}" \
+        --output none
+      step "Deactivated: ${rev}"
+    done <<< "${revisions}"
+  done
+}
+
 # ── Step 6: Deploy Bicep infrastructure ────────────────────────────────────────
 deploy_infrastructure() {
   local mode_label=""
   [[ "${WHAT_IF}" == "true" ]] && mode_label=" (what-if — no changes applied)"
   info "Deploying Bicep infrastructure${mode_label}..."
+
+  # Deactivate any active Container App revisions that still reference the old
+  # ACR.  This prevents the ContainerAppRegistryInUse error when Bicep updates
+  # the registry list (e.g. switching from the old ACR to [] for placeholder
+  # images on a re-run).
+  if [[ "${WHAT_IF}" == "false" ]]; then
+    deactivate_container_app_revisions
+  fi
 
   local deployment_name="nova-circle-${ENVIRONMENT}"
   local optional_params=()
