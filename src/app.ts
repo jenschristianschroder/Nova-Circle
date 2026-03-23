@@ -110,12 +110,38 @@ export function createApp(deps?: AppDependencies): express.Application {
         message: { error: 'Too many requests, please try again later.', code: 'RATE_LIMITED' },
       }),
     );
+    // Apply a generous rate limit to the health endpoint: the DB probe added
+    // there now means an unauthenticated caller could stress the database by
+    // hammering /health.  60 req/min per IP is well above any legitimate load-
+    // balancer frequency while blocking deliberate flood attempts.
+    app.use(
+      '/health',
+      rateLimit({
+        windowMs: 60 * 1000,
+        max: 60,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: 'Too many requests', code: 'RATE_LIMITED' },
+      }),
+    );
   }
 
   app.use(express.json({ limit: '1mb' }));
 
   // Health endpoint – used by CI smoke tests and load balancers.
-  app.get('/health', (_req: Request, res: Response) => {
+  // When a database connection is configured it is probed with SELECT 1 so that
+  // connectivity problems are caught by the smoke test rather than silently
+  // falling through to the authenticated API routes.
+  app.get('/health', async (_req: Request, res: Response) => {
+    if (deps?.db) {
+      try {
+        await deps.db.raw('SELECT 1');
+      } catch (err) {
+        logger.error('Database health check failed', err);
+        res.status(503).json({ status: 'error', message: 'Database unavailable' });
+        return;
+      }
+    }
     res.json({ status: 'ok' });
   });
 

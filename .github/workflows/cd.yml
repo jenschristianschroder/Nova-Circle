@@ -581,12 +581,51 @@ jobs:
             fi
           fi
 
-          # ── 3. Grant admin consent (best-effort) ─────────────────────────────
-          az ad app permission admin-consent \
-            --id "${CLIENT_ID}" \
-            --output none 2>/dev/null \
-            && echo "Admin consent granted." \
-            || echo "::warning::Admin consent could not be granted automatically — a tenant admin may need to consent manually via the Azure Portal."
+          # ── 3. Grant admin consent via oauth2PermissionGrants ─────────────────
+          # `az ad app permission admin-consent` only consents permissions that
+          # are listed in requiredResourceAccess.  The self-referencing
+          # user_impersonation scope is NOT in requiredResourceAccess, so that
+          # command has no effect here.  The correct approach is to create or
+          # update an oauth2PermissionGrant with consentType=AllPrincipals.
+          # This requires DelegatedPermissionGrant.ReadWrite.All on the CD SP,
+          # which bootstrap.sh grants when setting up the CD app registration.
+          SP_ID=$(az ad sp show --id "${CLIENT_ID}" --query id --output tsv 2>/dev/null || echo "")
+          if [[ -n "${SP_ID}" ]]; then
+            ALL_GRANTS=$(az rest --method GET \
+              --uri "https://graph.microsoft.com/v1.0/servicePrincipals/${SP_ID}/oauth2PermissionGrants" \
+              --output json 2>/dev/null || echo '{"value":[]}')
+            EXISTING_GRANT=$(echo "${ALL_GRANTS}" | \
+              jq --arg sp "${SP_ID}" \
+                '[.value[] | select(.resourceId==$sp and .clientId==$sp and .consentType=="AllPrincipals")] | first // empty' \
+              2>/dev/null || echo "")
+            GRANT_SCOPE=$(echo "${EXISTING_GRANT}" | jq -r '.scope // ""' 2>/dev/null || echo "")
+            GRANT_ID=$(echo "${EXISTING_GRANT}" | jq -r '.id // ""' 2>/dev/null || echo "")
+
+            if [[ -z "${GRANT_ID}" ]]; then
+              # No AllPrincipals grant exists — create one.
+              az rest --method POST \
+                --uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants" \
+                --headers 'Content-Type=application/json' \
+                --body "{\"clientId\":\"${SP_ID}\",\"consentType\":\"AllPrincipals\",\"resourceId\":\"${SP_ID}\",\"scope\":\"user_impersonation\"}" \
+                --output none \
+                && echo "Admin consent (AllPrincipals) granted via oauth2PermissionGrant." \
+                || echo "::warning::Could not create oauth2PermissionGrant. Run bootstrap.sh to grant DelegatedPermissionGrant.ReadWrite.All to the CD service principal, then re-run this pipeline."
+            elif [[ "${GRANT_SCOPE}" != *"user_impersonation"* ]]; then
+              # Grant exists but is missing user_impersonation — update it.
+              NEW_SCOPE=$(printf '%s user_impersonation' "${GRANT_SCOPE}" | tr -s ' ' | sed 's/^ //;s/ $//')
+              az rest --method PATCH \
+                --uri "https://graph.microsoft.com/v1.0/oauth2PermissionGrants/${GRANT_ID}" \
+                --headers 'Content-Type=application/json' \
+                --body "{\"scope\":\"${NEW_SCOPE}\"}" \
+                --output none \
+                && echo "Updated oauth2PermissionGrant to include user_impersonation." \
+                || echo "::warning::Could not update oauth2PermissionGrant — check CD service principal permissions."
+            else
+              echo "Admin consent for user_impersonation already granted (AllPrincipals)."
+            fi
+          else
+            echo "::warning::Could not determine service principal ID for app ${CLIENT_ID} — admin consent check skipped."
+          fi
 
       # MSAL uses window.location.origin as redirectUri, so the revision-specific
       # origin must be registered as an Azure AD SPA redirect URI before sign-in

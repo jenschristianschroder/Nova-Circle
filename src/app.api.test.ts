@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import type { Knex } from 'knex';
 import request from 'supertest';
 import { createApp } from './app.js';
 
@@ -9,12 +10,30 @@ import { createApp } from './app.js';
  * without starting a network listener.
  */
 describe('GET /health', () => {
-  const app = createApp();
-
-  it('returns 200 with status ok', async () => {
+  it('returns 200 with status ok when no database is configured', async () => {
+    const app = createApp();
     const response = await request(app).get('/health');
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });
+  });
+
+  it('returns 200 when the database is reachable', async () => {
+    const db = { raw: vi.fn().mockResolvedValue(undefined) } as Pick<Knex, 'raw'> as Knex;
+    const app = createApp({ db });
+    const response = await request(app).get('/health');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'ok' });
+  });
+
+  it('returns 503 when the database is unreachable', async () => {
+    const db = { raw: vi.fn().mockRejectedValue(new Error('connection refused')) } as Pick<
+      Knex,
+      'raw'
+    > as Knex;
+    const app = createApp({ db });
+    const response = await request(app).get('/health');
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ status: 'error' });
   });
 });
 
