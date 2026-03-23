@@ -180,6 +180,19 @@ jobs:
           # Bicep compile time (before --parameters CLI overrides take effect).
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
+          # URL-encode the password so special characters (e.g. @, /, #, ?)
+          # don't break the database connection URL stored in the Container App
+          # secret.  The encoding matches what the migration step already does.
+          # Read from env (not sys.argv) so the secret never appears on the
+          # process command line.
+          ENCODED_PW=$(python3 -c \
+            "import urllib.parse, os; print(urllib.parse.quote(os.environ['POSTGRES_ADMIN_PASSWORD'], safe=''))")
+          echo "::add-mask::${ENCODED_PW}"
+          # The Postgres server name is deterministic: see `var serverName` in
+          # infra/modules/postgres.bicep.  Update here if that variable changes.
+          POSTGRES_HOST="psql-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}.postgres.database.azure.com"
+          ENCODED_DATABASE_URL="postgresql://ncadmin:${ENCODED_PW}@${POSTGRES_HOST}:5432/nova_circle?sslmode=require"
+          echo "::add-mask::${ENCODED_DATABASE_URL}"
           POSTGRES_FQDN=$(az deployment group create \
             --name "nova-circle-${{ github.run_id }}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -189,6 +202,7 @@ jobs:
               containerImage="${{ steps.current-image.outputs.image }}" \
               frontendContainerImage="${{ steps.current-frontend-image.outputs.image }}" \
               postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
+              databaseUrl="${ENCODED_DATABASE_URL}" \
               azureTenantId="${{ vars.API_AZURE_TENANT_ID }}" \
               azureClientId="${{ vars.API_AZURE_CLIENT_ID }}" \
               corsOrigin="${{ vars.CORS_ORIGIN }}" \
