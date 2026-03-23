@@ -444,11 +444,11 @@ check_prerequisites() {
     step "npm: $(npm --version)"
   fi
 
-  if command -v python3 >/dev/null 2>&1; then
+  if python3 -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
     PYTHON_CMD="python3"
-  elif command -v python >/dev/null 2>&1; then
+  elif python -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
     PYTHON_CMD="python"
-  elif command -v py >/dev/null 2>&1; then
+  elif py -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
     PYTHON_CMD="py"
   else
     die "'python3' (or 'python'/'py') is required to merge oauth2PermissionScopes. Install Python 3 from https://www.python.org/ and re-run bootstrap.sh."
