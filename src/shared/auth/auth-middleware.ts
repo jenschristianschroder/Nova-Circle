@@ -88,14 +88,12 @@ export function createAuthMiddleware(validator?: TokenValidatorPort): RequestHan
         next();
         return;
       } catch (err: unknown) {
-        // ── TEMPORARY DEBUG LOGGING (remove after root cause is found) ──────
         const tokenClaims = decodeTokenClaimsForDiagnostics(authHeader.slice(7));
-        logger.warn('[auth-debug] Token validation failed', {
+        logger.warn('Token validation failed', {
           error: err instanceof Error ? err.message : String(err),
           tokenClaims,
           path: req.path,
         });
-        // ── END TEMPORARY DEBUG LOGGING ─────────────────────────────────────
         res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
         return;
       }
