@@ -73,9 +73,16 @@ const db = databaseUrl
 
 // Surface pool-level errors so dead-connection or capacity issues are visible
 // in Application Insights / container logs instead of silently causing 500s.
+// These errors are typically transient (e.g. PostgreSQL closes an idle TCP
+// socket) and the pool recovers automatically by creating new connections.
+// Persistent or frequent errors here indicate a database connectivity problem
+// that needs investigation (wrong credentials, firewall rules, DB down).
 if (db) {
-  const pool = (db.client as { pool?: { on?: (event: string, cb: (err: unknown) => void) => void } })
-    .pool;
+  // Knex's pg client exposes its tarn.Pool via `client.pool`.  The type is
+  // not part of the public Knex API, so we narrow defensively rather than
+  // relying on an internal interface.
+  type PoolLike = { on?: (event: string, cb: (err: unknown) => void) => void };
+  const pool = (db.client as Record<string, unknown>).pool as PoolLike | undefined;
   if (pool?.on) {
     pool.on('error', (err: unknown) => {
       logger.error('Database connection pool error', err);
