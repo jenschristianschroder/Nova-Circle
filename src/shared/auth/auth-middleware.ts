@@ -1,5 +1,39 @@
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import type { TokenValidatorPort } from './token-validator.port.js';
+import { logger } from '../logger/logger.js';
+
+/**
+ * Decode a JWT payload without verifying the signature.
+ * Used ONLY for diagnostic logging when token validation fails.
+ * Returns a partial record of safe-to-log claims, or undefined on parse error.
+ */
+function decodeTokenClaimsForDiagnostics(token: string): Record<string, unknown> | undefined {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2 || !parts[1]) return undefined;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const json = Buffer.from(padded, 'base64').toString('utf-8');
+    const payload: Record<string, unknown> = JSON.parse(json) as Record<string, unknown>;
+    // Return only non-sensitive claims useful for debugging audience / issuer mismatches.
+    return {
+      aud: payload['aud'],
+      iss: payload['iss'],
+      scp: payload['scp'],
+      roles: payload['roles'],
+      azp: payload['azp'],
+      appid: payload['appid'],
+      exp: payload['exp'],
+      nbf: payload['nbf'],
+      iat: payload['iat'],
+      tid: payload['tid'],
+      ver: payload['ver'],
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Creates Express middleware that resolves caller identity and attaches it to
@@ -53,7 +87,15 @@ export function createAuthMiddleware(validator?: TokenValidatorPort): RequestHan
         req.identity = await validator.validate(token);
         next();
         return;
-      } catch {
+      } catch (err: unknown) {
+        // ── TEMPORARY DEBUG LOGGING (remove after root cause is found) ──────
+        const tokenClaims = decodeTokenClaimsForDiagnostics(authHeader.slice(7));
+        logger.warn('[auth-debug] Token validation failed', {
+          error: err instanceof Error ? err.message : String(err),
+          tokenClaims,
+          path: req.path,
+        });
+        // ── END TEMPORARY DEBUG LOGGING ─────────────────────────────────────
         res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
         return;
       }
