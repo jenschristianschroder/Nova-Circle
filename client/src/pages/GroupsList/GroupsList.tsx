@@ -157,7 +157,7 @@ export function GroupsList() {
           </p>
           {isAuthError && (
             <div className={styles.formActions}>
-              <Button variant="primary" size="md" onClick={() => void login()}>
+              <Button variant="primary" size="md" onClick={() => { login().catch(() => { /* redirect navigates away */ }); }}>
                 Sign in again
               </Button>
             </div>

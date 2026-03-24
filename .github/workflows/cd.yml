@@ -912,9 +912,17 @@ jobs:
           echo "Main client origin: ${MAIN_ORIGIN}"
 
           # Read the current SPA redirect URIs.
+          SPA_READ_ERR="${RUNNER_TEMP}/spa_promote_err_$$.txt"
           CURRENT=$(az rest --method GET \
             --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
-            --query spa.redirectUris --output json 2>/dev/null || echo "[]")
+            --query spa.redirectUris --output json 2>"${SPA_READ_ERR}" || true)
+
+          if [ -z "${CURRENT}" ] || [ "${CURRENT}" = "null" ]; then
+            echo "Azure CLI stderr while reading SPA redirect URIs:"
+            cat "${SPA_READ_ERR}" 2>/dev/null || true
+            echo "::warning::Could not read SPA redirect URIs — skipping main FQDN registration."
+            exit 0
+          fi
 
           # Check if the main origin is already registered.
           if echo "${CURRENT}" | jq -e --arg url "${MAIN_ORIGIN}" 'index($url) != null' > /dev/null 2>&1; then
