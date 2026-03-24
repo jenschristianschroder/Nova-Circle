@@ -15,7 +15,8 @@ function decodeTokenClaimsForDiagnostics(
     if (parts.length < 2 || !parts[1]) return undefined;
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const json = Buffer.from(base64, 'base64').toString('utf-8');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const json = Buffer.from(padded, 'base64').toString('utf-8');
     const payload: Record<string, unknown> = JSON.parse(json) as Record<string, unknown>;
     // Return only non-sensitive claims useful for debugging audience / issuer mismatches.
     return {
