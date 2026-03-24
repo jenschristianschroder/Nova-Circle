@@ -1,6 +1,6 @@
 import knex from 'knex';
 import { createApp } from './app.js';
-import { resolveDbSsl } from './infrastructure/database-ssl.js';
+import { buildDatabaseConfig, subscribeToPoolErrors } from './infrastructure/database-config.js';
 import { EntraTokenValidator } from './shared/auth/entra-token-validator.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { logger, setTelemetryClient } from './shared/logger/logger.js';
@@ -38,56 +38,15 @@ if (isProduction && !databaseUrl) {
 }
 
 // Determine the SSL configuration for the database connection.
-// See src/infrastructure/database-ssl.ts for the full rationale.
-const db = databaseUrl
-  ? knex({
-      client: 'pg',
-      connection: {
-        connectionString: databaseUrl,
-        ssl: resolveDbSsl(databaseUrl, isProduction),
-        // TCP keepalive: detects server-side closed connections (e.g. Azure
-        // PostgreSQL idle timeout) before Knex tries to use a dead socket.
-        keepAlive: true,
-        keepAliveInitialDelayMillis: 10_000,
-        // Hard cap on establishing a new TCP connection. Prevents hanging
-        // indefinitely when the database is unreachable after a cold start.
-        connectionTimeoutMillis: 5_000,
-      },
-      pool: {
-        min: 2,
-        max: 10,
-        // Time Knex waits to acquire a connection from the pool before
-        // throwing.  Default (60 s) is too long for user-facing requests.
-        acquireTimeoutMillis: 15_000,
-        // Time a connection can sit idle in the pool before being destroyed.
-        // Azure PostgreSQL Flexible Server can close idle connections after a
-        // few minutes; keeping our timeout shorter avoids using dead sockets.
-        idleTimeoutMillis: 30_000,
-        // How often the pool checks for idle connections to destroy.
-        reapIntervalMillis: 1_000,
-        // How often to retry connection creation when it fails.
-        createRetryIntervalMillis: 200,
-      },
-    })
-  : undefined;
+// See src/infrastructure/database-config.ts for the full rationale.
+const db = databaseUrl ? knex(buildDatabaseConfig(databaseUrl, isProduction)) : undefined;
 
 // Surface pool-level errors so dead-connection or capacity issues are visible
 // in Application Insights / container logs instead of silently causing 500s.
-// These errors are typically transient (e.g. PostgreSQL closes an idle TCP
-// socket) and the pool recovers automatically by creating new connections.
-// Persistent or frequent errors here indicate a database connectivity problem
-// that needs investigation (wrong credentials, firewall rules, DB down).
 if (db) {
-  // Knex's pg client exposes its tarn.Pool via `client.pool`.  The type is
-  // not part of the public Knex API, so we narrow defensively rather than
-  // relying on an internal interface.
-  type PoolLike = { on?: (event: string, cb: (err: unknown) => void) => void };
-  const pool = (db.client as Record<string, unknown>).pool as PoolLike | undefined;
-  if (pool?.on) {
-    pool.on('error', (err: unknown) => {
-      logger.error('Database connection pool error', err);
-    });
-  }
+  subscribeToPoolErrors(db, (err) => {
+    logger.error('Database connection pool error', err);
+  });
 }
 
 // Instantiate the Entra token validator when the required env vars are present.
