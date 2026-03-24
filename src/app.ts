@@ -68,7 +68,7 @@ export function createApp(deps?: AppDependencies): express.Application {
   // Log incoming requests with method, path, status, and duration when
   // REQUEST_LOGGING=1. Health-check probes are excluded to keep logs focused
   // on real traffic and to reduce log volume in production.
-  if (process.env['REQUEST_LOGGING'] === '1') {
+  if (process.env['REQUEST_LOGGING'] === '1' || process.env['REQUEST_LOGGING'] === 'true') {
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.path === '/health') {
         next();
