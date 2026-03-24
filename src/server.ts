@@ -45,10 +45,43 @@ const db = databaseUrl
       connection: {
         connectionString: databaseUrl,
         ssl: resolveDbSsl(databaseUrl, isProduction),
+        // TCP keepalive: detects server-side closed connections (e.g. Azure
+        // PostgreSQL idle timeout) before Knex tries to use a dead socket.
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10_000,
+        // Hard cap on establishing a new TCP connection. Prevents hanging
+        // indefinitely when the database is unreachable after a cold start.
+        connectionTimeoutMillis: 5_000,
       },
-      pool: { min: 2, max: 10 },
+      pool: {
+        min: 2,
+        max: 10,
+        // Time Knex waits to acquire a connection from the pool before
+        // throwing.  Default (60 s) is too long for user-facing requests.
+        acquireTimeoutMillis: 15_000,
+        // Time a connection can sit idle in the pool before being destroyed.
+        // Azure PostgreSQL Flexible Server can close idle connections after a
+        // few minutes; keeping our timeout shorter avoids using dead sockets.
+        idleTimeoutMillis: 30_000,
+        // How often the pool checks for idle connections to destroy.
+        reapIntervalMillis: 1_000,
+        // How often to retry connection creation when it fails.
+        createRetryIntervalMillis: 200,
+      },
     })
   : undefined;
+
+// Surface pool-level errors so dead-connection or capacity issues are visible
+// in Application Insights / container logs instead of silently causing 500s.
+if (db) {
+  const pool = (db.client as { pool?: { on?: (event: string, cb: (err: unknown) => void) => void } })
+    .pool;
+  if (pool?.on) {
+    pool.on('error', (err: unknown) => {
+      logger.error('Database connection pool error', err);
+    });
+  }
+}
 
 // Instantiate the Entra token validator when the required env vars are present.
 // In local development without Entra config the server starts without JWT

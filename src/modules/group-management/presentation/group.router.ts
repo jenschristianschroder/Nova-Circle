@@ -49,7 +49,9 @@ export function createGroupRouter(
       const groups = await listMyGroups.execute(identity);
       res.json(groups);
     } catch (err: unknown) {
-      logger.error('Failed to list groups for user', err);
+      logger.error('Failed to list groups for user', err, {
+        userId: identity.userId,
+      });
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
