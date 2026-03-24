@@ -276,20 +276,56 @@ async function globalSetup(_config: FullConfig): Promise<void> {
       req.url().includes('/api/v1/')
     ) {
       capturedBearerToken = authHeader.slice(7);
+
+      // ── TEMPORARY DEBUG LOGGING (remove after root cause is found) ────────
+      // Decode (NOT verify) the JWT payload to log claims visible in CI logs.
+      // These are public OAuth identifiers — not secrets.
+      try {
+        const parts = capturedBearerToken.split('.');
+        if (parts.length >= 2) {
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonStr = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
+          const payload = JSON.parse(jsonStr) as Record<string, unknown>;
+          console.log('[global-setup][auth-debug] Captured Bearer token claims:', {
+            aud: payload['aud'],
+            iss: payload['iss'],
+            scp: payload['scp'],
+            roles: payload['roles'],
+            azp: payload['azp'],
+            appid: payload['appid'],
+            tid: payload['tid'],
+            ver: payload['ver'],
+            exp: payload['exp'],
+            nbf: payload['nbf'],
+          });
+        }
+      } catch {
+        console.log('[global-setup][auth-debug] Could not decode Bearer token JWT payload');
+      }
+      // ── END TEMPORARY DEBUG LOGGING ───────────────────────────────────────
     }
   });
 
   // Capture API response status to surface infrastructure issues.
   // Common failures: 401 (token invalid), 500 (DB unreachable), HTML response
   // (nginx proxy not configured — API_BASE_URL missing on frontend).
-  page.on('response', (resp) => {
+  page.on('response', async (resp) => {
     if (resp.url().includes('/api/v1/')) {
       const ct = resp.headers()['content-type'] ?? '';
       if (resp.status() >= 400 || !ct.includes('application/json')) {
+        // ── TEMPORARY DEBUG LOGGING (remove after root cause is found) ──────
+        let responseBody = '';
+        try {
+          responseBody = await resp.text();
+        } catch {
+          responseBody = '<unable to read body>';
+        }
         console.log(
           `[global-setup] API response: ${resp.status()} ${resp.url()} ` +
-            `(content-type: ${ct || 'missing'})`,
+            `(content-type: ${ct || 'missing'}) body: ${responseBody}`,
         );
+        // ── END TEMPORARY DEBUG LOGGING ─────────────────────────────────────
       }
     }
   });
