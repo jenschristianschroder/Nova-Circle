@@ -883,6 +883,54 @@ jobs:
             --revision-weight "${{ steps.new-client-revision.outputs.revision }}=100" \
             --output none
 
+      # After promotion the main FQDN serves the new frontend revision.
+      # MSAL uses window.location.origin (the main FQDN) as redirectUri, so
+      # this origin must be registered as an Azure AD SPA redirect URI.
+      # bootstrap.sh registers it when --app-redirect-uri is provided, but
+      # this step ensures it is always present — even if bootstrap was run
+      # without the flag or the URI was accidentally removed.
+      - name: Promote — ensure main client FQDN is registered as SPA redirect URI
+        if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
+        run: |
+          APP="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+          OBJ_ID="${{ vars.API_AZURE_OBJECT_ID }}"
+
+          # Derive the main FQDN (not revision-specific) for the frontend Container App.
+          MAIN_FQDN=$(az containerapp show \
+            --name "${APP}" \
+            --resource-group "${RG}" \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv 2>/dev/null | tr -d '\r\n')
+
+          if [ -z "${MAIN_FQDN}" ]; then
+            echo "::warning::Could not determine main FQDN for ${APP} — skipping SPA redirect URI check."
+            exit 0
+          fi
+
+          MAIN_ORIGIN="https://${MAIN_FQDN}"
+          echo "Main client origin: ${MAIN_ORIGIN}"
+
+          # Read the current SPA redirect URIs.
+          CURRENT=$(az rest --method GET \
+            --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+            --query spa.redirectUris --output json 2>/dev/null || echo "[]")
+
+          # Check if the main origin is already registered.
+          if echo "${CURRENT}" | jq -e --arg url "${MAIN_ORIGIN}" 'index($url) != null' > /dev/null 2>&1; then
+            echo "Main client origin ${MAIN_ORIGIN} is already registered as a SPA redirect URI."
+          else
+            echo "Registering ${MAIN_ORIGIN} as a SPA redirect URI..."
+            UPDATED_JSON=$(echo "${CURRENT}" | jq --arg url "${MAIN_ORIGIN}" '(. // []) + [$url] | unique')
+            az rest --method PATCH \
+              --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+              --body "$(jq -n --argjson uris "${UPDATED_JSON}" '{"spa":{"redirectUris":$uris}}')" \
+              --headers 'Content-Type=application/json' \
+              --output none \
+              && echo "Added ${MAIN_ORIGIN} to SPA redirect URIs." \
+              || echo "::warning::Could not register ${MAIN_ORIGIN} as SPA redirect URI — add it manually in Azure Portal → Authentication."
+          fi
+
       - name: Promote — deactivate old API revision
         if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |

@@ -60,6 +60,19 @@ export function useApiClient() {
       }
 
       if (response.status === 204) return undefined as T;
+
+      // Guard against the nginx SPA fallback returning index.html when the
+      // /api reverse-proxy is not configured (API_BASE_URL missing).  The
+      // response is 200 but the body is HTML, not JSON.
+      const contentType = response.headers.get('content-type') ?? '';
+      if (contentType.includes('text/html')) {
+        throw new ApiError(
+          502,
+          'PROXY_NOT_CONFIGURED',
+          'The API proxy is not configured — the server returned HTML instead of JSON. Check API_BASE_URL.',
+        );
+      }
+
       return (await response.json()) as T;
     },
     [getAccessToken],

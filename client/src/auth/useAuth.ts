@@ -40,8 +40,18 @@ export function useAuth(): AuthState {
       return result.accessToken;
     } catch (err) {
       if (err instanceof InteractionRequiredAuthError) {
-        const result = await instance.acquireTokenPopup({ ...silentRequest, account });
-        return result.accessToken;
+        try {
+          const result = await instance.acquireTokenPopup({ ...silentRequest, account });
+          return result.accessToken;
+        } catch (popupErr) {
+          // Popup failed (blocked, interaction_in_progress, etc.).
+          // Fall back to redirect as a last resort.  acquireTokenRedirect
+          // navigates the browser away, so the throw below is unreachable
+          // at runtime but satisfies TypeScript.
+          console.warn('[Auth] Token popup failed, falling back to redirect:', popupErr);
+          await instance.acquireTokenRedirect({ ...silentRequest, account });
+          throw popupErr;
+        }
       }
       throw err;
     }
