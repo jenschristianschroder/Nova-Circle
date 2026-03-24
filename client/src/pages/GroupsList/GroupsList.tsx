@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApiClient } from '../../api/client';
+import { useApiClient, ApiError } from '../../api/client';
 import { listMyGroups, createGroup, type Group } from '../../api/groups';
 import { Button } from '../../components/Button';
 import styles from './GroupsList.module.css';
@@ -29,8 +29,20 @@ export function GroupsList() {
     try {
       const data = await listMyGroups(apiFetch);
       setGroups(data);
-    } catch {
-      setError('Failed to load groups. Please try again.');
+    } catch (err: unknown) {
+      // Surface specific diagnostics so infrastructure issues are easier to
+      // identify.  The generic message is kept as a fallback.
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setError('Failed to load groups: authentication error. Please sign in again.');
+        } else if (err.status === 403) {
+          setError('Failed to load groups: access denied.');
+        } else {
+          setError(`Failed to load groups (${err.status}). Please try again.`);
+        }
+      } else {
+        setError('Failed to load groups. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

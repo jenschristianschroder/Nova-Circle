@@ -1202,33 +1202,57 @@ deploy_infrastructure() {
 
   if [[ "${WHAT_IF}" == "false" ]]; then
     # Capture deployment outputs for use in subsequent steps
+    # Strip Windows-style carriage returns (tr -d '\r') — az CLI -o tsv output
+    # may include trailing \r when run in Git Bash / WSL on Windows.
     REGISTRY_LOGIN_SERVER=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.registryLoginServer.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
 
     local api_url pg_fqdn
     api_url=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.apiUrl.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
     CLIENT_URL=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.clientUrl.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
     pg_fqdn=$(az deployment group show \
       --resource-group "${RESOURCE_GROUP}" \
       --name "${deployment_name}" \
       --query "properties.outputs.postgresFqdn.value" \
-      -o tsv 2>/dev/null || echo "")
+      -o tsv 2>/dev/null | tr -d '\r' || echo "")
 
     step "ACR:         ${REGISTRY_LOGIN_SERVER}"
     step "API URL:     ${api_url}"
     step "Client URL:  ${CLIENT_URL}"
     step "PostgreSQL:  ${pg_fqdn}"
+
+    # ── Auto-resolve CORS_ORIGIN after first deploy ──────────────────────────
+    # On first deploy CORS_ORIGIN is empty because the frontend URL is not
+    # known until Bicep has created the Container App.  Now that we have the
+    # client URL, update the API container's CORS_ORIGIN env var so the backend
+    # accepts requests from the frontend.  This is a belt-and-suspenders
+    # measure — nginx reverse-proxies /api requests so browsers see same-origin
+    # traffic, but an explicit CORS whitelist avoids surprises if the proxy is
+    # misconfigured or the frontend is accessed via a different URL.
+    if [[ -z "${CORS_ORIGIN:-}" && -n "${CLIENT_URL:-}" ]]; then
+      CORS_ORIGIN="${CLIENT_URL}"
+      step "CORS_ORIGIN auto-resolved from deployment output: ${CORS_ORIGIN}"
+
+      local api_app_name="ca-nova-circle-${ENVIRONMENT}"
+      step "Updating CORS_ORIGIN on API container (${api_app_name})..."
+      az containerapp update \
+        --name "${api_app_name}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --set-env-vars "CORS_ORIGIN=${CORS_ORIGIN}" \
+        --output none \
+        || warn "Could not update CORS_ORIGIN on API container. Set it manually or re-run bootstrap."
+    fi
   fi
 }
 
