@@ -54,8 +54,9 @@ Azure AD issues v1 or v2 tokens based on the app registration's
 
 `bootstrap.sh` attempts to set this to `2` (line ~770) but uses `|| true`,
 silently swallowing any failure.  The CD workflow's "Ensure Azure AD API app
-registration is configured" step did **not** set this property, so if the
-bootstrap attempt failed the setting remained at its default (`null` = v1).
+registration is configured" step previously did **not** set this property, so
+if the bootstrap attempt failed the setting remained at its default
+(`null` = v1).  This PR adds the setting to the CD workflow as well.
 
 ## Resolution
 

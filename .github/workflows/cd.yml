@@ -521,7 +521,7 @@ jobs:
               --headers 'Content-Type=application/json' \
               --output none \
               && echo "Set accessTokenAcceptedVersion to 2." \
-              || echo "::warning::Could not set accessTokenAcceptedVersion — check CD service principal permissions."
+              || echo "::warning::Could not set accessTokenAcceptedVersion — ensure the CD service principal has Application.ReadWrite.OwnedBy permission."
           else
             echo "accessTokenAcceptedVersion is already 2."
           fi

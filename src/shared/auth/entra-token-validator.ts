@@ -23,8 +23,9 @@ export class EntraTokenValidator implements TokenValidatorPort {
     // "https://sts.windows.net/{tenantId}/") when the app registration's
     // accessTokenAcceptedVersion is null or 1, and v2 tokens (iss =
     // "https://login.microsoftonline.com/{tenantId}/v2.0") when it is 2.
-    // bootstrap.sh sets requestedAccessTokenVersion=2 but the update may
-    // silently fail; accepting both formats keeps auth resilient.
+    // Both bootstrap.sh and the CD workflow attempt to set
+    // requestedAccessTokenVersion=2, but the update may silently fail;
+    // accepting both formats keeps auth resilient.
     this.issuers = [
       `https://login.microsoftonline.com/${tenantId}/v2.0`,
       `https://sts.windows.net/${tenantId}/`,
