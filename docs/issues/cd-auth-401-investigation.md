@@ -26,6 +26,8 @@ has never passed.
 | 2026-03-24 | — | This PR: fix `EntraTokenValidator` to accept both v1 and v2 issuers, set `accessTokenAcceptedVersion=2` in CD workflow, remove temp debug logging. | Verified by CD run #87 — see next row. |
 | 2026-03-24 | #87 | CD workflow passed — E2E tests, remote API tests, and promotion all succeeded. | **Auth 401 resolved.** |
 | 2026-03-24 | — | Manual browser testing after promotion still shows "Failed to load groups" with HTTP 500 responses from the API. | New issue identified (see below). |
+| 2026-03-24 | #88 | CD run after merging PR #217 (old revision recording fix). Deployment succeeded, old revisions properly deactivated. | Old revision fix verified. 500 issue still present in live site. |
+| 2026-03-24 | — | Deep analysis of 500 root cause: database connection resilience, scale-to-zero cold starts, missing TCP keepalive, no pool error logging. | Fixes applied (see 500 resolution below). |
 
 ## Root Cause
 
@@ -106,6 +108,9 @@ the `[auth-debug]` prefix).
 ---
 
 ## Symptom (follow-on — 500 Internal Server Error)
+
+**Status: 🔧 Fix applied** — database resilience improvements and `minReplicas: 1`
+deployed.  Waiting for next CD run to verify.
 
 CD workflow #87 passes (E2E tests pass against revision-specific URLs) but
 manual browser testing after promotion shows **"Failed to load groups"**.
@@ -205,38 +210,103 @@ Possible causes:
 - **Stale Knex pool** — Node.js pg connection pools can hold stale connections
   that fail on first use after an idle period.
 
+## Resolution (500 Internal Server Error)
+
+### Root cause — database connection resilience + cold-start scaling
+
+The API returned 500 for `POST /api/v1/groups` and `GET /api/v1/groups`
+because database queries threw exceptions in the route handler catch blocks.
+The underlying causes are interconnected:
+
+1. **Scale-to-zero cold start** — `minReplicas: 0` on the API Container App
+   means the container can be completely stopped between requests.  When traffic
+   arrives after an idle period, Azure Container Apps cold-starts a new
+   instance.  Knex begins establishing its minimum pool connections, but the
+   readiness probe (`GET /health` → `SELECT 1`) can pass before the full pool
+   is warmed, allowing user requests to arrive while the pool is still
+   bootstrapping.
+
+2. **No TCP keepalive** — the pg connection config had no `keepAlive` option.
+   When Azure PostgreSQL Flexible Server's server-side idle timeout closes a
+   TCP socket, the Knex pool still holds a reference to the dead connection.
+   The next query on that socket fails with a network error, surfacing as
+   a 500 to the user.
+
+3. **No explicit pool timeouts** — the Knex pool used default tarn settings
+   with no explicit `acquireTimeoutMillis`, `idleTimeoutMillis`, or
+   `createRetryIntervalMillis`.  This meant:
+   - Dead connections could linger in the pool until explicitly used and found broken
+   - Acquisition of a new connection had the default 60 s timeout, too long for
+     user-facing requests
+   - No retry interval was configured for failed connection creation
+
+4. **No pool error visibility** — pool-level errors (e.g. all connections in
+   the pool simultaneously failing) were not logged, making diagnosis
+   impossible from container logs alone.
+
+### Fixes applied
+
+| Fix | File | Description |
+|---|---|---|
+| TCP keepalive | `src/server.ts` | `keepAlive: true`, `keepAliveInitialDelayMillis: 10_000` on the pg connection config.  Detects server-side connection closures before Knex tries to use a dead socket. |
+| Connection timeout | `src/server.ts` | `connectionTimeoutMillis: 5_000` — prevents indefinite hangs during cold start when the database is unreachable. |
+| Pool acquire timeout | `src/server.ts` | `acquireTimeoutMillis: 15_000` — fail fast (15 s) instead of the default 60 s when the pool is exhausted or connections are dead. |
+| Pool idle cleanup | `src/server.ts` | `idleTimeoutMillis: 30_000`, `reapIntervalMillis: 1_000` — proactively destroy idle connections before PostgreSQL can close them server-side. |
+| Pool retry | `src/server.ts` | `createRetryIntervalMillis: 200` — retry failed connection creation after 200 ms instead of giving up immediately. |
+| Pool error logging | `src/server.ts` | Listen for pool `error` events and log them via `logger.error()` so they appear in Application Insights / container logs. |
+| Prevent cold start | `infra/modules/container-app.bicep` | Changed `minReplicas` from `0` to `1` for the API container so at least one replica is always running and the database connection pool stays warm. |
+| Improved error logging | `group.router.ts` | Added `userId` to the error log for `GET /api/v1/groups` failures to aid correlation in Application Insights. |
+
+### Architecture notes
+
+**Frontend API_BASE_URL**: After promotion, the frontend's `API_BASE_URL`
+continues to point to the revision-specific API URL (e.g.
+`https://ca-nova-circle-dev--rd9744ab00.…azurecontainerapps.io`).  This is
+stable and correct — the revision remains active because it has 100 % traffic.
+Updating the env var to the main FQDN would require creating a new frontend
+revision (env vars are immutable per revision in Azure Container Apps), which
+adds unnecessary complexity.  The revision-specific URL is valid until the
+next CD run deactivates the old revision and both frontend and API move to
+new revisions simultaneously.
+
+**CORS**: Because the frontend proxies `/api` requests through nginx
+(server-side), all API calls appear same-origin to the browser.  CORS headers
+are only needed for direct cross-origin calls, which this architecture avoids.
+
 ## Next Steps
 
 ### Immediate (manual)
 
-1. **Check logs for the correct API revision** (`ca-nova-circle-dev--r1bf9dcd00`)
-   in Azure Portal or via:
+1. **Check logs for the correct API revision** after this PR deploys.
+   The new pool error logging and improved route error logging will show
+   the exact database error if 500s recur.
    ```bash
    az containerapp logs show \
      --name ca-nova-circle-dev \
      --resource-group rg-nova-circle-dev \
-     --revision ca-nova-circle-dev--r1bf9dcd00 \
      --follow
    ```
-   Look for error-level log entries around 07:04 UTC.
 
-2. **Retry the manual test** — if the API recovers after a cold-start or
-   connection-pool refresh, subsequent requests may succeed.
+2. **Verify the manual test succeeds** — with `minReplicas: 1` the API should
+   always be warm.  If "Failed to load groups" persists, check Application
+   Insights for the specific error message logged by `group.router.ts`.
 
-3. **Verify the API revision is still active:**
-   ```bash
-   az containerapp revision show \
-     --name ca-nova-circle-dev \
-     --resource-group rg-nova-circle-dev \
-     --revision ca-nova-circle-dev--r1bf9dcd00 \
-     --query "properties.runningState" --output tsv
-   ```
+3. **If errors persist**, provide the API container logs from the correct
+   revision (shown in the `az containerapp logs show` output header).
+   The improved logging will show whether the error is:
+   - A database connection error (pool/keepalive issue)
+   - A query error (schema mismatch, permission issue)
+   - Something else
 
-### Code fixes (this PR)
+### Monitoring
 
-4. **Fix "Record old revision names"** — fall back to `latestReadyRevisionName`
-   when the traffic-based query returns empty.  This ensures old revisions are
-   deactivated after promotion.
+4. **Review Application Insights** for `Database connection pool error` traces.
+   These indicate pool-level connectivity problems that the new event listener
+   captures.
+
+5. **Watch for readiness probe failures** in Azure Portal → Container App →
+   Revisions → Logs.  With `minReplicas: 1`, the readiness probe continuously
+   validates database connectivity.
 
 ## Lessons Learned
 
@@ -250,3 +320,15 @@ Possible causes:
    because the setting can be accidentally cleared or overridden.
 4. **`|| true` in infrastructure scripts can hide critical failures** — the
    bootstrap script's attempt to set the token version was silently failing.
+5. **Scale-to-zero and database connection pools don't mix well** — when a
+   container scales to zero, all pool connections are destroyed.  On cold
+   start, the readiness probe can pass before the pool is fully warmed,
+   admitting user requests that fail.  Use `minReplicas: 1` for API
+   containers that maintain database connections.
+6. **TCP keepalive is essential for cloud database connections** — Azure
+   PostgreSQL Flexible Server (and similar managed databases) close idle
+   connections server-side.  Without TCP keepalive, the client-side pool
+   silently holds dead sockets until a query fails.
+7. **Pool error events must be logged** — pool-level errors in tarn/knex are
+   emitted as events, not thrown.  Without explicit listeners, these errors
+   are invisible in container logs.

@@ -1,6 +1,6 @@
 import knex from 'knex';
 import { createApp } from './app.js';
-import { resolveDbSsl } from './infrastructure/database-ssl.js';
+import { buildDatabaseConfig, subscribeToPoolErrors } from './infrastructure/database-config.js';
 import { EntraTokenValidator } from './shared/auth/entra-token-validator.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { logger, setTelemetryClient } from './shared/logger/logger.js';
@@ -38,17 +38,16 @@ if (isProduction && !databaseUrl) {
 }
 
 // Determine the SSL configuration for the database connection.
-// See src/infrastructure/database-ssl.ts for the full rationale.
-const db = databaseUrl
-  ? knex({
-      client: 'pg',
-      connection: {
-        connectionString: databaseUrl,
-        ssl: resolveDbSsl(databaseUrl, isProduction),
-      },
-      pool: { min: 2, max: 10 },
-    })
-  : undefined;
+// See src/infrastructure/database-config.ts for the full rationale.
+const db = databaseUrl ? knex(buildDatabaseConfig(databaseUrl, isProduction)) : undefined;
+
+// Surface pool-level errors so dead-connection or capacity issues are visible
+// in Application Insights / container logs instead of silently causing 500s.
+if (db) {
+  subscribeToPoolErrors(db, (err) => {
+    logger.error('Database connection pool error', err);
+  });
+}
 
 // Instantiate the Entra token validator when the required env vars are present.
 // In local development without Entra config the server starts without JWT

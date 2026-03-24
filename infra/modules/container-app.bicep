@@ -160,7 +160,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0 // Scale to zero when idle (Consumption tier cost control).
+        // At least 1 replica must always be running so the API can serve
+        // requests without cold-start delays.  Scale-to-zero (minReplicas: 0)
+        // caused intermittent 500 errors because the database connection pool
+        // was not yet established when the first requests arrived after cold
+        // start.  The readiness probe succeeds before the pool is fully
+        // warmed, leaving early user requests to fail.
+        minReplicas: 1
         maxReplicas: 3
       }
     }
