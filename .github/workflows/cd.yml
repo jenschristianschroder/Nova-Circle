@@ -255,24 +255,46 @@ jobs:
             --yes --output none || true
 
       # ── Phase 3: Create new revisions with 0 % traffic ────────────────────
-      # Record the revision currently receiving live traffic (non-zero weight)
-      # so it can be deactivated after a successful E2E gate (promote path).
-      # Using the traffic weight query rather than latestRevisionName ensures
-      # we target the correct revision even when traffic was previously pinned
-      # to an older revision (e.g., after a rollback).
+      # Record the revision currently receiving live traffic so it can be
+      # deactivated after a successful E2E gate (promote path).
+      #
+      # Primary query: look for a traffic entry with weight > 0 that has an
+      # explicit revisionName (set after a prior CD promote).
+      #
+      # Fallback: when Bicep deploys without explicit traffic rules, Azure
+      # Container Apps uses { latestRevision: true } which has no revisionName
+      # property.  In that case the primary query returns empty, so we fall
+      # back to the Container App's latestReadyRevisionName which identifies
+      # the revision that latestRevision: true resolves to.
       - name: Record old revision names
         id: old-revisions
         run: |
+          APP_API="ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          APP_CLIENT="ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}"
+          RG="${{ vars.AZURE_RESOURCE_GROUP }}"
+
           OLD_API=$(az containerapp show \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${APP_API}" --resource-group "${RG}" \
             --query 'properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]' \
             --output tsv)
+          if [ -z "${OLD_API}" ]; then
+            OLD_API=$(az containerapp show \
+              --name "${APP_API}" --resource-group "${RG}" \
+              --query 'properties.latestReadyRevisionName' \
+              --output tsv)
+          fi
+
           OLD_CLIENT=$(az containerapp show \
-            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${APP_CLIENT}" --resource-group "${RG}" \
             --query 'properties.configuration.ingress.traffic[?weight>`0`].revisionName | [0]' \
             --output tsv)
+          if [ -z "${OLD_CLIENT}" ]; then
+            OLD_CLIENT=$(az containerapp show \
+              --name "${APP_CLIENT}" --resource-group "${RG}" \
+              --query 'properties.latestReadyRevisionName' \
+              --output tsv)
+          fi
+
           echo "Old API revision:      ${OLD_API}"
           echo "Old frontend revision: ${OLD_CLIENT}"
           echo "api=${OLD_API}"       >> "$GITHUB_OUTPUT"
@@ -865,25 +887,39 @@ jobs:
         if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |
           OLD_REV="${{ steps.old-revisions.outputs.api }}"
-          echo "Deactivating old API revision: ${OLD_REV}"
-          az containerapp revision deactivate \
-            --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --revision "${OLD_REV}" \
-            --output none \
-            || echo "::warning::Could not deactivate old API revision ${OLD_REV} — it may already be inactive."
+          NEW_REV="${{ steps.new-api-revision.outputs.revision }}"
+          if [ -z "${OLD_REV}" ]; then
+            echo "::warning::Old API revision name is empty — skipping deactivation."
+          elif [ "${OLD_REV}" = "${NEW_REV}" ]; then
+            echo "Old API revision (${OLD_REV}) is the same as the new one — skipping deactivation."
+          else
+            echo "Deactivating old API revision: ${OLD_REV}"
+            az containerapp revision deactivate \
+              --name "ca-nova-circle-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --revision "${OLD_REV}" \
+              --output none \
+              || echo "::warning::Could not deactivate old API revision ${OLD_REV} — it may already be inactive."
+          fi
 
       - name: Promote — deactivate old frontend revision
         if: steps.e2e.outcome == 'success' && steps.remote-api.outcome == 'success'
         run: |
           OLD_REV="${{ steps.old-revisions.outputs.client }}"
-          echo "Deactivating old frontend revision: ${OLD_REV}"
-          az containerapp revision deactivate \
-            --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --revision "${OLD_REV}" \
-            --output none \
-            || echo "::warning::Could not deactivate old frontend revision ${OLD_REV} — it may already be inactive."
+          NEW_REV="${{ steps.new-client-revision.outputs.revision }}"
+          if [ -z "${OLD_REV}" ]; then
+            echo "::warning::Old frontend revision name is empty — skipping deactivation."
+          elif [ "${OLD_REV}" = "${NEW_REV}" ]; then
+            echo "Old frontend revision (${OLD_REV}) is the same as the new one — skipping deactivation."
+          else
+            echo "Deactivating old frontend revision: ${OLD_REV}"
+            az containerapp revision deactivate \
+              --name "ca-nova-circle-client-${{ vars.AZURE_ENVIRONMENT_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --revision "${OLD_REV}" \
+              --output none \
+              || echo "::warning::Could not deactivate old frontend revision ${OLD_REV} — it may already be inactive."
+          fi
 
       # ── Phase 6b: Rollback — E2E or remote API tests failed ───────────────
       # Because live traffic never moved to the new revisions, no traffic
