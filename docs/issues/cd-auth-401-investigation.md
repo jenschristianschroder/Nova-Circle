@@ -1,4 +1,4 @@
-# CD Workflow Auth & API Investigation
+# CD Workflow Auth 401 & API 500 Investigation
 
 Tracking document for the recurring 401 Unauthorized error in the CD workflow
 E2E tests and the subsequent 500 Internal Server Error observed during manual
@@ -111,6 +111,11 @@ CD workflow #87 passes (E2E tests pass against revision-specific URLs) but
 manual browser testing after promotion shows **"Failed to load groups"**.
 
 ### Client container logs (subset)
+
+The logs below are from the user's provided subset.  The `POST` requests are
+from a different user agent (iPhone/Edge) attempting to create a group.  The
+`GET /api/v1/groups` request that triggers "Failed to load groups" likely also
+failed with 500 but is not visible in this subset.
 
 ```
 07:04:14 "GET / HTTP/1.1" 200 832  ← SPA loads fine
