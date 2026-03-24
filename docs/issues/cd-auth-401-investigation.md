@@ -23,7 +23,7 @@ has never passed.
 | 2026-03-23 | #82-#84 | Initial investigation — identified that the catch block in `auth-middleware.ts` silently swallowed `jwtVerify` errors. | Added diagnostic logging to surface the actual failure reason. |
 | 2026-03-24 | #85 | Deployed PR #214 (pre-debug). E2E still fails with 401. No token claims visible in logs because debug logging was not yet merged. | Same 401 error, no new insights. |
 | 2026-03-24 | #86 | Deployed PR #215 with temporary debug logging in `auth-middleware.ts`, `server.ts`, and `global-setup.ts`. | **Root cause identified** (see below). |
-| 2026-03-24 | — | This PR: fix `EntraTokenValidator` to accept both v1 and v2 issuers, set `accessTokenAcceptedVersion=2` in CD workflow, remove temp debug logging. | Pending CI verification. |
+| 2026-03-24 | — | This PR: fix `EntraTokenValidator` to accept both v1 and v2 issuers, set `accessTokenAcceptedVersion=2` in CD workflow, remove temp debug logging. | Verified by CD run #87 — see next row. |
 | 2026-03-24 | #87 | CD workflow passed — E2E tests, remote API tests, and promotion all succeeded. | **Auth 401 resolved.** |
 | 2026-03-24 | — | Manual browser testing after promotion still shows "Failed to load groups" with HTTP 500 responses from the API. | New issue identified (see below). |
 
@@ -183,7 +183,7 @@ A `latestRevision: true` traffic entry does **not** have a `revisionName`
 property, so the query finds no match.
 
 **Result:** `OLD_API=""`, `OLD_CLIENT=""` → deactivation steps run with an
-empty revision name and fail silently.  Old revisions accumulate.
+empty revision name and only emit warnings (non-fatal failure).  Old revisions accumulate.
 
 ### 4. Probable cause of the API 500
 
