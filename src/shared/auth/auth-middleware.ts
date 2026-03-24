@@ -7,9 +7,7 @@ import { logger } from '../logger/logger.js';
  * Used ONLY for diagnostic logging when token validation fails.
  * Returns a partial record of safe-to-log claims, or undefined on parse error.
  */
-function decodeTokenClaimsForDiagnostics(
-  token: string,
-): Record<string, unknown> | undefined {
+function decodeTokenClaimsForDiagnostics(token: string): Record<string, unknown> | undefined {
   try {
     const parts = token.split('.');
     if (parts.length < 2 || !parts[1]) return undefined;
