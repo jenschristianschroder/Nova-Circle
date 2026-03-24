@@ -156,7 +156,15 @@ export function GroupsList() {
           </p>
           {isAuthError && (
             <div className={styles.formActions}>
-              <Button variant="primary" size="md" onClick={() => { login().catch((e) => { console.warn('[Auth] Login redirect failed:', e); }); }}>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  login().catch((e) => {
+                    console.warn('[Auth] Login redirect failed:', e);
+                  });
+                }}
+              >
                 Sign in again
               </Button>
             </div>
