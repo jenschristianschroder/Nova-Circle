@@ -922,8 +922,8 @@ jobs:
           if [ -z "${CURRENT}" ] || [ "${CURRENT}" = "null" ]; then
             echo "Azure CLI stderr while reading SPA redirect URIs:"
             cat "${SPA_READ_ERR}" 2>/dev/null || true
-            echo "::warning::Could not read SPA redirect URIs — skipping main FQDN registration."
-            exit 0
+            echo "::error::Could not read SPA redirect URIs — cannot verify main FQDN is registered."
+            exit 1
           fi
 
           # Check if the main origin is already registered.
@@ -941,7 +941,8 @@ jobs:
               # Re-read the URI list so the cleanup below sees the updated state.
               CURRENT="${UPDATED_JSON}"
             else
-              echo "::warning::Could not register ${MAIN_ORIGIN} as SPA redirect URI — add it manually in Azure Portal → Authentication."
+              echo "::error::Could not register ${MAIN_ORIGIN} as SPA redirect URI. Users will not be able to sign in."
+              exit 1
             fi
           fi
 

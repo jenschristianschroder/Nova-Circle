@@ -48,12 +48,11 @@ export function GroupsList() {
           setError(`Failed to load groups (${err.status}). Please try again.`);
         }
       } else if (err instanceof Error) {
-        // Auth errors (e.g. MSAL token acquisition failures) surface here as
-        // plain Error instances.  Show the message so the user/operator can
-        // diagnose and offer a re-authentication action.
+        // Generic unexpected errors (network issues, parsing errors, etc.)
+        // surface here as plain Error instances. Surface the message to aid
+        // diagnosis, but do not assume this is an authentication failure.
         const msg = err.message || 'Unknown error';
         setError(`Failed to load groups: ${msg}`);
-        setIsAuthError(true);
       } else {
         setError('Failed to load groups. Please try again.');
       }
@@ -151,8 +150,8 @@ export function GroupsList() {
       )}
 
       {error && !isLoading && (
-        <div role="alert">
-          <p className={styles.errorText}>
+        <div>
+          <p className={styles.errorText} role="alert">
             {error}
           </p>
           {isAuthError && (
