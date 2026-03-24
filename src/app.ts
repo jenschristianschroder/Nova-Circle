@@ -64,6 +64,30 @@ export interface AppDependencies {
 export function createApp(deps?: AppDependencies): express.Application {
   const app = express();
 
+  // ── Request logging ──────────────────────────────────────────────────────
+  // Log incoming requests with method, path, status, and duration when
+  // REQUEST_LOGGING=1. Health-check probes are excluded to keep logs focused
+  // on real traffic and to reduce log volume in production.
+  if (process.env['REQUEST_LOGGING'] === '1' || process.env['REQUEST_LOGGING'] === 'true') {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path === '/health') {
+        next();
+        return;
+      }
+      const start = Date.now();
+      res.on('finish', () => {
+        const duration = Date.now() - start;
+        logger.info('request', {
+          method: req.method,
+          path: req.path,
+          status: res.statusCode,
+          durationMs: duration,
+        });
+      });
+      next();
+    });
+  }
+
   // ── Security middleware ────────────────────────────────────────────────────
   // Helmet sets secure HTTP headers (CSP, X-Frame-Options, etc.).
   app.use(helmet());

@@ -28,6 +28,9 @@ has never passed.
 | 2026-03-24 | — | Manual browser testing after promotion still shows "Failed to load groups" with HTTP 500 responses from the API. | New issue identified (see below). |
 | 2026-03-24 | #88 | CD run after merging PR #217 (old revision recording fix). Deployment succeeded, old revisions properly deactivated. | Old revision fix verified. 500 issue still present in live site. |
 | 2026-03-24 | — | Deep analysis of 500 root cause: database connection resilience, scale-to-zero cold starts, missing TCP keepalive, no pool error logging. | Fixes applied (see 500 resolution below). |
+| 2026-03-24 | #89 | CD run deployed all fixes (db resilience, minReplicas: 1). E2E passed. Promotion succeeded. | API 500 resilience fixes deployed. Manual browsing still shows "Failed to load groups". |
+| 2026-03-24 | — | Deep analysis of persistent "Failed to load groups": API receives no requests at all, client-side MSAL token acquisition likely failing before fetch call is made. | See "Symptom (persistent — client-side auth failure)" below. |
+| 2026-03-24 | — | Azure Portal shows SPA redirect URI with commit suffix (revision-specific URL like `--r58fd57000`). The "Remove revision URL" cleanup step had a logging bug (printed "Removed" even on PATCH failure) and no step existed to clean up stale revision-specific URIs. | Fixes applied: cleanup logging bug fixed, "ensure main FQDN" step now also removes stale revision-specific redirect URIs. |
 
 ## Root Cause
 
@@ -332,3 +335,107 @@ are only needed for direct cross-origin calls, which this architecture avoids.
 7. **Pool error events must be logged** — pool-level errors in tarn/knex are
    emitted as events, not thrown.  Without explicit listeners, these errors
    are invisible in container logs.
+
+---
+
+## Symptom (persistent — client-side auth failure)
+
+**Status: 🔧 Fixes applied** — improved client-side error handling, CD workflow
+redirect URI registration, and API request logging.
+
+After CD run #89 deployed all database resilience fixes and `minReplicas: 1`,
+manual browser testing still shows **"Failed to load groups"**. This is a
+**different failure mode** from the previous 500 errors.
+
+### Key evidence from container logs
+
+**Client nginx logs (CD run #89, post-promotion):**
+```
+09:50:09-09:50:28  Repeated GET / 200 832 (referrer: login.microsoftonline.com)
+09:51:14           GET /groups 200 832 (referrer: -)
+```
+
+- Twelve `GET /` requests in 19 seconds, all with `login.microsoftonline.com` referrer
+- One `GET /groups` (user navigates manually)
+- **No `GET /api/v1/groups` request** in the client nginx logs
+
+**API container logs (same time window):**
+```
+09:46:39  Server started on port 3000
+09:46:46  SSL warning
+09:51:44  No logs since last 60 seconds
+09:52:44  No logs since last 60 seconds
+```
+
+- No incoming requests at all (but note: the API had **no request logging
+  middleware**, so successful requests were invisible)
+
+### Analysis
+
+1. **The API call is never made** — `GET /api/v1/groups` does not appear in
+   either the client nginx logs or the API logs.  Since the user sees
+   "Failed to load groups" (the generic error branch in GroupsList), the error
+   occurs **before** the `fetch` call — specifically in `getAccessToken()`.
+
+2. **MSAL token acquisition is failing** — `getAccessToken()` calls
+   `acquireTokenSilent()` which either:
+   - Fails because cached tokens are expired and the refresh token is invalid
+   - Fails because `handleRedirectPromise()` didn't complete correctly
+   - Falls through to `acquireTokenPopup()` which fails (popup blocked)
+
+3. **The repeated `GET /` requests** suggest the MSAL redirect flow is not
+   settling.  Either Azure AD is redirecting back with an error (e.g. redirect
+   URI mismatch) or the user is manually refreshing.
+
+4. **E2E tests pass** because they use the revision-specific URL (which is
+   temporarily added to SPA redirect URIs) and inject pre-authenticated state.
+   Manual browsing uses the **main FQDN**, which may not be registered.
+
+5. **Probable root cause: main FQDN not registered as SPA redirect URI** —
+   `bootstrap.sh` registers it when `--app-redirect-uri` is provided, but if
+   bootstrap was run without this flag or the registration failed silently, the
+   main FQDN is missing.  MSAL uses `window.location.origin` (the main FQDN)
+   as `redirectUri`, so Azure AD rejects the redirect.
+
+### Why E2E tests don't catch this
+
+| Aspect | E2E tests | Manual browsing |
+|--------|-----------|-----------------|
+| Frontend URL | Revision-specific | Main FQDN |
+| SPA redirect URI | Added before tests, removed after | Must be pre-registered |
+| Auth state | Injected or fresh headless sign-in | User's browser with cached MSAL state |
+| Token acquisition | Works (revision URL is registered) | Fails (main FQDN may not be registered) |
+
+### Fixes applied
+
+| Fix | File | Description |
+|---|---|---|
+| Register main FQDN | `.github/workflows/cd.yml` | New step after promotion: queries the main client FQDN and ensures it is registered as a SPA redirect URI.  Prevents the Azure AD redirect URI mismatch. |
+| Redirect fallback | `client/src/auth/useAuth.ts` | When `acquireTokenPopup` fails (popup blocked, etc.), falls back to `acquireTokenRedirect` instead of throwing.  This sends the user through the full auth flow. |
+| Better error display | `client/src/pages/GroupsList/GroupsList.tsx` | Shows the actual error message (not just generic text) and a "Sign in again" button for auth-related errors.  Helps users self-recover. |
+| HTML response detection | `client/src/api/client.ts` | Detects when the API proxy returns HTML instead of JSON (SPA fallback when `API_BASE_URL` is missing) and throws a descriptive error. |
+| Request logging | `src/app.ts` | Added request logging middleware that logs method, path, status, and duration for all non-health requests.  Enables post-hoc diagnosis from container logs. |
+
+### Immediate verification steps
+
+1. **Check SPA redirect URIs** in Azure Portal → App Registrations →
+   Authentication → SPA redirect URIs.  Verify the main client FQDN
+   (`https://ca-nova-circle-client-dev.jollypebble-cb8d1c75.swedencentral.azurecontainerapps.io`)
+   is listed.  If missing, add it manually.
+
+2. **Clear browser localStorage** for the Nova-Circle domain to remove any
+   stale MSAL cache entries, then try signing in again.
+
+3. **After the next CD run**, the new "ensure main client FQDN" step will
+   automatically register the redirect URI.  Check the workflow logs for
+   the confirmation message.
+
+4. **If "Failed to load groups" persists** after the above steps, the improved
+   error display will now show the actual error message (e.g.
+   "Failed to load groups: No signed-in account" or a specific MSAL error),
+   which pinpoints the exact failure.
+
+5. **Check API container logs** — with the new request logging middleware,
+   every incoming request (except /health) is logged.  If `GET /api/v1/groups`
+   appears in the logs, the issue is on the API side.  If it doesn't, the
+   issue is client-side (token acquisition).

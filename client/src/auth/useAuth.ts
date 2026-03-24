@@ -40,8 +40,22 @@ export function useAuth(): AuthState {
       return result.accessToken;
     } catch (err) {
       if (err instanceof InteractionRequiredAuthError) {
-        const result = await instance.acquireTokenPopup({ ...silentRequest, account });
-        return result.accessToken;
+        try {
+          const result = await instance.acquireTokenPopup({ ...silentRequest, account });
+          return result.accessToken;
+        } catch (popupErr) {
+          // Popup failed (blocked, interaction_in_progress, etc.).
+          // Fall back to redirect as a last resort. Once acquireTokenRedirect
+          // is called, the browser will navigate away, so we return a
+          // non-resolving promise to avoid surfacing a spurious error
+          // to callers while the redirect flow is in progress.
+          console.warn('[Auth] Token popup failed, falling back to redirect:', popupErr);
+          await instance.acquireTokenRedirect({ ...silentRequest, account });
+          return new Promise<string>(() => {
+            // Intentionally left empty: execution should not continue
+            // in this context because the browser is redirecting.
+          });
+        }
       }
       throw err;
     }

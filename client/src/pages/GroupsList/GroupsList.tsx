@@ -6,17 +6,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApiClient, ApiError } from '../../api/client';
+import { useAuth } from '../../auth/useAuth';
 import { listMyGroups, createGroup, type Group } from '../../api/groups';
 import { Button } from '../../components/Button';
 import styles from './GroupsList.module.css';
 
 export function GroupsList() {
   const { apiFetch } = useApiClient();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthError, setIsAuthError] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
@@ -26,6 +29,7 @@ export function GroupsList() {
   const loadGroups = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setIsAuthError(false);
     try {
       const data = await listMyGroups(apiFetch);
       setGroups(data);
@@ -35,11 +39,20 @@ export function GroupsList() {
       if (err instanceof ApiError) {
         if (err.status === 401) {
           setError('Failed to load groups: authentication error. Please sign in again.');
+          setIsAuthError(true);
         } else if (err.status === 403) {
           setError('Failed to load groups: access denied.');
+        } else if (err.code === 'PROXY_NOT_CONFIGURED') {
+          setError('Failed to load groups: API proxy not configured. Contact support.');
         } else {
           setError(`Failed to load groups (${err.status}). Please try again.`);
         }
+      } else if (err instanceof Error) {
+        // Generic unexpected errors (network issues, parsing errors, etc.)
+        // surface here as plain Error instances. Surface the message to aid
+        // diagnosis, but do not assume this is an authentication failure.
+        const msg = err.message || 'Unknown error';
+        setError(`Failed to load groups: ${msg}`);
       } else {
         setError('Failed to load groups. Please try again.');
       }
@@ -137,9 +150,26 @@ export function GroupsList() {
       )}
 
       {error && !isLoading && (
-        <p className={styles.errorText} role="alert">
-          {error}
-        </p>
+        <div>
+          <p className={styles.errorText} role="alert">
+            {error}
+          </p>
+          {isAuthError && (
+            <div className={styles.formActions}>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  login().catch((e) => {
+                    console.warn('[Auth] Login redirect failed:', e);
+                  });
+                }}
+              >
+                Sign in again
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
       {!isLoading && !error && groups.length === 0 && (
