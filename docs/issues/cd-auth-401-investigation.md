@@ -30,6 +30,7 @@ has never passed.
 | 2026-03-24 | — | Deep analysis of 500 root cause: database connection resilience, scale-to-zero cold starts, missing TCP keepalive, no pool error logging. | Fixes applied (see 500 resolution below). |
 | 2026-03-24 | #89 | CD run deployed all fixes (db resilience, minReplicas: 1). E2E passed. Promotion succeeded. | API 500 resilience fixes deployed. Manual browsing still shows "Failed to load groups". |
 | 2026-03-24 | — | Deep analysis of persistent "Failed to load groups": API receives no requests at all, client-side MSAL token acquisition likely failing before fetch call is made. | See "Symptom (persistent — client-side auth failure)" below. |
+| 2026-03-24 | — | Azure Portal shows SPA redirect URI with commit suffix (revision-specific URL like `--r58fd57000`). The "Remove revision URL" cleanup step had a logging bug (printed "Removed" even on PATCH failure) and no step existed to clean up stale revision-specific URIs. | Fixes applied: cleanup logging bug fixed, "ensure main FQDN" step now also removes stale revision-specific redirect URIs. |
 
 ## Root Cause
 
