@@ -9,7 +9,7 @@ import type { TokenValidatorPort } from './token-validator.port.js';
  */
 export class EntraTokenValidator implements TokenValidatorPort {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
-  private readonly issuer: string;
+  private readonly issuers: string[];
   private readonly audience: string[];
 
   constructor() {
@@ -19,7 +19,17 @@ export class EntraTokenValidator implements TokenValidatorPort {
     if (!tenantId) throw new Error('AZURE_TENANT_ID environment variable is required');
     if (!clientId) throw new Error('AZURE_CLIENT_ID environment variable is required');
 
-    this.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
+    // Accept both v1 and v2 issuers.  Azure AD issues v1 tokens (iss =
+    // "https://sts.windows.net/{tenantId}/") when the app registration's
+    // accessTokenAcceptedVersion is null or 1, and v2 tokens (iss =
+    // "https://login.microsoftonline.com/{tenantId}/v2.0") when it is 2.
+    // Both bootstrap.sh and the CD workflow attempt to set
+    // requestedAccessTokenVersion=2, but the update may silently fail;
+    // accepting both formats keeps auth resilient.
+    this.issuers = [
+      `https://login.microsoftonline.com/${tenantId}/v2.0`,
+      `https://sts.windows.net/${tenantId}/`,
+    ];
 
     // Accept both the default Application ID URI form (`api://<clientId>`) and the bare
     // clientId GUID so tokens using either of these standard formats are validated.
@@ -33,7 +43,7 @@ export class EntraTokenValidator implements TokenValidatorPort {
 
   async validate(token: string): Promise<IdentityContext> {
     const { payload } = await jwtVerify(token, this.jwks, {
-      issuer: this.issuer,
+      issuer: this.issuers,
       audience: this.audience,
     });
 

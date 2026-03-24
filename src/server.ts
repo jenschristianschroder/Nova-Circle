@@ -56,24 +56,12 @@ const db = databaseUrl
 let tokenValidator: TokenValidatorPort | undefined;
 if (process.env['AZURE_TENANT_ID'] && process.env['AZURE_CLIENT_ID']) {
   tokenValidator = new EntraTokenValidator();
-  // ── TEMPORARY DEBUG LOGGING (remove after root cause is found) ──────────
-  const tenantId = process.env['AZURE_TENANT_ID'];
-  const clientId = process.env['AZURE_CLIENT_ID'];
-  logger.info('[auth-debug] EntraTokenValidator initialized', {
-    expectedIssuer: `https://login.microsoftonline.com/${tenantId}/v2.0`,
-    expectedAudience: [`api://${clientId}`, clientId],
-    tenantId,
-    clientId,
-  });
-  // ── END TEMPORARY DEBUG LOGGING ─────────────────────────────────────────
 } else {
-  // ── TEMPORARY DEBUG LOGGING (remove after root cause is found) ──────────
-  logger.warn('[auth-debug] EntraTokenValidator NOT initialized — missing env vars', {
+  logger.warn('EntraTokenValidator not initialized — AZURE_TENANT_ID or AZURE_CLIENT_ID missing', {
     AZURE_TENANT_ID: process.env['AZURE_TENANT_ID'] ? 'set' : 'MISSING',
     AZURE_CLIENT_ID: process.env['AZURE_CLIENT_ID'] ? 'set' : 'MISSING',
     NODE_ENV: process.env['NODE_ENV'],
   });
-  // ── END TEMPORARY DEBUG LOGGING ─────────────────────────────────────────
 }
 
 const app = createApp({

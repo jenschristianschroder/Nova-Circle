@@ -169,7 +169,7 @@ describe('EntraTokenValidator', () => {
       await expect(validator.validate('expired.jwt.token')).rejects.toThrow('JWTExpired');
     });
 
-    it('calls jwtVerify with the correct issuer and audience', async () => {
+    it('calls jwtVerify with both v1 and v2 issuers and audience', async () => {
       mockedJwtVerify.mockResolvedValueOnce({
         payload: { oid: 'oid-value', name: 'Dave' },
         protectedHeader: { alg: 'RS256' },
@@ -181,11 +181,16 @@ describe('EntraTokenValidator', () => {
       expect(mockedJwtVerify).toHaveBeenCalledTimes(1);
       // Azure AD v2 access tokens have aud = "api://<clientId>" (the Application ID URI).
       // The validator accepts both formats for compatibility.
+      // Both v1 and v2 issuers are accepted because the app registration's
+      // accessTokenAcceptedVersion may be null/1 (v1 tokens) or 2 (v2 tokens).
       expect(mockedJwtVerify).toHaveBeenCalledWith(
         'my.token',
         'mocked-jwks',
         expect.objectContaining({
-          issuer: 'https://login.microsoftonline.com/test-tenant-id/v2.0',
+          issuer: [
+            'https://login.microsoftonline.com/test-tenant-id/v2.0',
+            'https://sts.windows.net/test-tenant-id/',
+          ],
           audience: ['api://test-client-id', 'test-client-id'],
         }),
       );

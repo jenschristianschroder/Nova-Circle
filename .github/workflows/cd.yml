@@ -507,7 +507,26 @@ jobs:
             exit 0
           fi
 
-          # ── 1. Ensure Application ID URI (api://<clientId>) is set ───────────
+          # ── 1a. Ensure accessTokenAcceptedVersion is 2 ───────────────────────
+          # Without this the tenant issues v1 tokens whose issuer
+          # (https://sts.windows.net/{tenantId}/) differs from the v2 endpoint.
+          # Setting it to 2 ensures v2 tokens with the expected v2 issuer.
+          CURRENT_VERSION=$(az rest --method GET \
+            --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+            --query "api.requestedAccessTokenVersion" --output tsv 2>/dev/null || echo "")
+          if [[ "${CURRENT_VERSION}" != "2" ]]; then
+            az rest --method PATCH \
+              --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
+              --body '{"api":{"requestedAccessTokenVersion":2}}' \
+              --headers 'Content-Type=application/json' \
+              --output none \
+              && echo "Set accessTokenAcceptedVersion to 2." \
+              || echo "::warning::Could not set accessTokenAcceptedVersion — ensure the CD service principal has Application.ReadWrite.OwnedBy permission."
+          else
+            echo "accessTokenAcceptedVersion is already 2."
+          fi
+
+          # ── 1b. Ensure Application ID URI (api://<clientId>) is set ──────────
           EXPECTED_URI="api://${CLIENT_ID}"
           CURRENT_URIS=$(az rest --method GET \
             --uri "https://graph.microsoft.com/v1.0/applications/${OBJ_ID}" \
