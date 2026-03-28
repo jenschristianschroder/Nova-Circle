@@ -35,10 +35,17 @@ SIGNUP_AUTHORITY="${VITE_AZURE_SIGNUP_AUTHORITY:-}"
 CLIENT_ID=$(printf '%s' "$CLIENT_ID" | sed 's/[^a-fA-F0-9-]//g')
 TENANT_ID=$(printf '%s' "$TENANT_ID" | sed 's/[^a-fA-F0-9-]//g')
 
-# Sanitise sign-up authority: allow URL-safe characters only (letters, digits,
-# hyphens, dots, slashes, colons, underscores). The @ character is excluded
-# to prevent potential redirect phishing attacks.
-SIGNUP_AUTHORITY=$(printf '%s' "$SIGNUP_AUTHORITY" | sed 's/[^a-zA-Z0-9_./:_-]//g')
+# Validate sign-up authority: must be an HTTPS URL pointing to a known Azure
+# authority hostname (*.b2clogin.com, login.microsoftonline.com, *.ciamlogin.com).
+# If invalid, an empty string is written and a warning is logged.
+if [ -n "$SIGNUP_AUTHORITY" ]; then
+  if printf '%s\n' "$SIGNUP_AUTHORITY" | grep -Eq '^https://([a-zA-Z0-9-]+\.b2clogin\.com|login\.microsoftonline\.com|[a-zA-Z0-9-]+\.ciamlogin\.com)(/[a-zA-Z0-9_./-]*)?$'; then
+    : # valid — keep SIGNUP_AUTHORITY as-is
+  else
+    echo "env-config: WARNING: VITE_AZURE_SIGNUP_AUTHORITY '${SIGNUP_AUTHORITY}' is not a recognised Azure authority URL. Expected https://<tenant>.b2clogin.com/..., https://login.microsoftonline.com/..., or https://<tenant>.ciamlogin.com/... — ignoring." >&2
+    SIGNUP_AUTHORITY=""
+  fi
+fi
 
 printf 'window.__ENV__ = {\n  VITE_AZURE_CLIENT_ID: "%s",\n  VITE_AZURE_TENANT_ID: "%s",\n  VITE_AZURE_SIGNUP_AUTHORITY: "%s"\n};\n' \
   "$CLIENT_ID" \

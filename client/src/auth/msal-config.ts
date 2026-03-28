@@ -29,8 +29,52 @@ const tenantId = (window.__ENV__?.VITE_AZURE_TENANT_ID || import.meta.env.VITE_A
  * (e.g. a B2C sign-up user flow). When absent, sign-up uses the
  * same authority as sign-in.
  */
-const signUpAuthority = (window.__ENV__?.VITE_AZURE_SIGNUP_AUTHORITY ||
+const rawSignUpAuthority = (window.__ENV__?.VITE_AZURE_SIGNUP_AUTHORITY ||
   import.meta.env.VITE_AZURE_SIGNUP_AUTHORITY) as string | undefined;
+
+/** Known Azure authority hostnames that are safe redirect targets. */
+const ALLOWED_AUTHORITY_PATTERNS = [
+  /^[a-z0-9-]+\.b2clogin\.com$/i,
+  /^login\.microsoftonline\.com$/i,
+  /^[a-z0-9-]+\.ciamlogin\.com$/i,
+];
+
+/**
+ * Validates that a sign-up authority URL is a safe HTTPS URL pointing
+ * to a known Azure authority hostname. Returns the trimmed URL string
+ * on success, or undefined (with a console warning) on failure.
+ */
+function validateSignUpAuthority(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    console.warn('[Auth] VITE_AZURE_SIGNUP_AUTHORITY is not a valid URL, ignoring:', trimmed);
+    return undefined;
+  }
+
+  if (parsed.protocol !== 'https:') {
+    console.warn('[Auth] VITE_AZURE_SIGNUP_AUTHORITY must use https:, ignoring:', trimmed);
+    return undefined;
+  }
+
+  const hostnameAllowed = ALLOWED_AUTHORITY_PATTERNS.some((pattern) =>
+    pattern.test(parsed.hostname),
+  );
+  if (!hostnameAllowed) {
+    console.warn(
+      '[Auth] VITE_AZURE_SIGNUP_AUTHORITY hostname is not a recognised Azure authority, ignoring:',
+      parsed.hostname,
+    );
+    return undefined;
+  }
+
+  return trimmed;
+}
 
 /** True when Azure credentials are present in the environment. */
 export const msalConfigured = Boolean(clientId && tenantId);
@@ -66,4 +110,4 @@ export const silentRequest: Omit<SilentRequest, 'account'> = {
 };
 
 /** Authority to use for the sign-up redirect (B2C user flow or default). */
-export const signUpAuthorityUrl: string | undefined = signUpAuthority;
+export const signUpAuthorityUrl: string | undefined = validateSignUpAuthority(rawSignUpAuthority);
