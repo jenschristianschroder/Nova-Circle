@@ -16,6 +16,7 @@ import { Login } from '../../pages/Login';
 
 // Mock useAuth so Login doesn't need a real MSAL context.
 const mockLogin = vi.fn().mockResolvedValue(undefined);
+const mockSignUp = vi.fn().mockResolvedValue(undefined);
 
 const mockAuthState = {
   isAuthenticated: false,
@@ -23,6 +24,7 @@ const mockAuthState = {
   account: null,
   getAccessToken: vi.fn(),
   login: mockLogin,
+  signUp: mockSignUp,
   logout: vi.fn(),
 };
 
@@ -50,6 +52,7 @@ function renderLogin() {
 beforeEach(() => {
   localStorage.clear();
   mockLogin.mockClear();
+  mockSignUp.mockClear();
   mockAuthState.isAuthenticated = false;
   mockAuthState.isLoading = false;
 });
@@ -78,6 +81,11 @@ describe('Login page', () => {
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
+  it('renders the create account button', () => {
+    renderLogin();
+    expect(screen.getByRole('button', { name: /create account/i })).toBeInTheDocument();
+  });
+
   it('renders the features section', () => {
     renderLogin();
     expect(screen.getByRole('heading', { name: /what nova-circle offers/i })).toBeInTheDocument();
@@ -98,6 +106,13 @@ describe('Login page', () => {
     renderLogin();
     await user.click(screen.getByRole('button', { name: /sign in/i }));
     expect(mockLogin).toHaveBeenCalledOnce();
+  });
+
+  it('calls signUp when the create account button is clicked', async () => {
+    const user = userEvent.setup();
+    renderLogin();
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+    expect(mockSignUp).toHaveBeenCalledOnce();
   });
 
   it('does not render the component showcase or token swatches', () => {

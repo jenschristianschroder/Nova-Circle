@@ -9,7 +9,7 @@
 import { useCallback } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { InteractionStatus, InteractionRequiredAuthError } from '@azure/msal-browser';
-import { silentRequest } from './msal-config';
+import { silentRequest, signUpAuthorityUrl } from './msal-config';
 
 export interface AuthState {
   /** Whether the user is fully signed in (account present + no pending interaction). */
@@ -22,6 +22,8 @@ export interface AuthState {
   getAccessToken: () => Promise<string>;
   /** Redirect to the MSAL login page. */
   login: () => Promise<void>;
+  /** Redirect to the sign-up flow (B2C user flow or default authority). */
+  signUp: () => Promise<void>;
   /** Sign the user out and return to the origin. */
   logout: () => Promise<void>;
 }
@@ -65,9 +67,16 @@ export function useAuth(): AuthState {
     await instance.loginRedirect({ scopes: silentRequest.scopes ?? [] });
   }, [instance]);
 
+  const signUp = useCallback(async (): Promise<void> => {
+    await instance.loginRedirect({
+      scopes: silentRequest.scopes ?? [],
+      ...(signUpAuthorityUrl ? { authority: signUpAuthorityUrl } : {}),
+    });
+  }, [instance]);
+
   const logout = useCallback(async (): Promise<void> => {
     await instance.logoutRedirect({ account: account ?? undefined });
   }, [instance, account]);
 
-  return { isAuthenticated, isLoading, account, getAccessToken, login, logout };
+  return { isAuthenticated, isLoading, account, getAccessToken, login, signUp, logout };
 }

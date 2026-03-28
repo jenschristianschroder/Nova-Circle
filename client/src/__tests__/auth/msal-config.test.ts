@@ -89,3 +89,115 @@ describe('msal-config — runtime injection via window.__ENV__', () => {
     expect(apiScopes).toHaveLength(0);
   });
 });
+
+describe('msal-config — signUpAuthorityUrl', () => {
+  it('is undefined when VITE_AZURE_SIGNUP_AUTHORITY is not set', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+
+  it('returns the configured sign-up authority when set to a valid b2clogin.com URL', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY:
+        'https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/B2C_1_signup',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBe(
+      'https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/B2C_1_signup',
+    );
+  });
+
+  it('accepts a login.microsoftonline.com authority URL', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'https://login.microsoftonline.com/some-tenant/v2.0',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBe('https://login.microsoftonline.com/some-tenant/v2.0');
+  });
+
+  it('accepts a ciamlogin.com authority URL', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'https://mytenant.ciamlogin.com/mytenant.onmicrosoft.com/v2.0',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBe('https://mytenant.ciamlogin.com/mytenant.onmicrosoft.com/v2.0');
+  });
+
+  it('is undefined when VITE_AZURE_SIGNUP_AUTHORITY is empty string', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: '',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+
+  it('rejects a non-https authority URL', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'http://mytenant.b2clogin.com/tenant/flow',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+
+  it('rejects a javascript: protocol authority', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'javascript:alert(1)',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+
+  it('rejects an arbitrary non-Azure hostname', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'https://evil.example.com/phish',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+
+  it('rejects an invalid URL string', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'not-a-url',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+});

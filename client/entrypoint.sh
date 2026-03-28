@@ -27,6 +27,7 @@ JS_DEST=/usr/share/nginx/html/env-config.js
 
 CLIENT_ID="${VITE_AZURE_CLIENT_ID:-}"
 TENANT_ID="${VITE_AZURE_TENANT_ID:-}"
+SIGNUP_AUTHORITY="${VITE_AZURE_SIGNUP_AUTHORITY:-}"
 
 # Sanitise: Azure Client IDs and Tenant IDs are UUIDs consisting only of
 # hex digits and hyphens. Strip any other characters defensively to prevent
@@ -34,12 +35,25 @@ TENANT_ID="${VITE_AZURE_TENANT_ID:-}"
 CLIENT_ID=$(printf '%s' "$CLIENT_ID" | sed 's/[^a-fA-F0-9-]//g')
 TENANT_ID=$(printf '%s' "$TENANT_ID" | sed 's/[^a-fA-F0-9-]//g')
 
-printf 'window.__ENV__ = {\n  VITE_AZURE_CLIENT_ID: "%s",\n  VITE_AZURE_TENANT_ID: "%s"\n};\n' \
+# Validate sign-up authority: must be an HTTPS URL pointing to a known Azure
+# authority hostname (*.b2clogin.com, login.microsoftonline.com, *.ciamlogin.com).
+# If invalid, an empty string is written and a warning is logged.
+if [ -n "$SIGNUP_AUTHORITY" ]; then
+  if printf '%s\n' "$SIGNUP_AUTHORITY" | grep -Eq '^https://([a-zA-Z0-9-]+\.b2clogin\.com|login\.microsoftonline\.com|[a-zA-Z0-9-]+\.ciamlogin\.com)(/[a-zA-Z0-9_./-]*)?$'; then
+    : # valid — keep SIGNUP_AUTHORITY as-is
+  else
+    echo "env-config: WARNING: VITE_AZURE_SIGNUP_AUTHORITY '${SIGNUP_AUTHORITY}' is not a recognised Azure authority URL. Expected https://<tenant>.b2clogin.com/..., https://login.microsoftonline.com/..., or https://<tenant>.ciamlogin.com/... — ignoring." >&2
+    SIGNUP_AUTHORITY=""
+  fi
+fi
+
+printf 'window.__ENV__ = {\n  VITE_AZURE_CLIENT_ID: "%s",\n  VITE_AZURE_TENANT_ID: "%s",\n  VITE_AZURE_SIGNUP_AUTHORITY: "%s"\n};\n' \
   "$CLIENT_ID" \
   "$TENANT_ID" \
+  "$SIGNUP_AUTHORITY" \
   > "$JS_DEST"
 
-echo "env-config: wrote VITE_AZURE_CLIENT_ID and VITE_AZURE_TENANT_ID to ${JS_DEST}"
+echo "env-config: wrote VITE_AZURE_CLIENT_ID, VITE_AZURE_TENANT_ID, and VITE_AZURE_SIGNUP_AUTHORITY to ${JS_DEST}"
 
 # ── 2. Write nginx config (including /api proxy when backend URL is set) ───────
 
