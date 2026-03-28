@@ -36,8 +36,9 @@ CLIENT_ID=$(printf '%s' "$CLIENT_ID" | sed 's/[^a-fA-F0-9-]//g')
 TENANT_ID=$(printf '%s' "$TENANT_ID" | sed 's/[^a-fA-F0-9-]//g')
 
 # Sanitise sign-up authority: allow URL-safe characters only (letters, digits,
-# hyphens, dots, slashes, colons, underscores).
-SIGNUP_AUTHORITY=$(printf '%s' "$SIGNUP_AUTHORITY" | sed 's/[^a-zA-Z0-9_./:@-]//g')
+# hyphens, dots, slashes, colons, underscores). The @ character is excluded
+# to prevent potential redirect phishing attacks.
+SIGNUP_AUTHORITY=$(printf '%s' "$SIGNUP_AUTHORITY" | sed 's/[^a-zA-Z0-9_./:_-]//g')
 
 printf 'window.__ENV__ = {\n  VITE_AZURE_CLIENT_ID: "%s",\n  VITE_AZURE_TENANT_ID: "%s",\n  VITE_AZURE_SIGNUP_AUTHORITY: "%s"\n};\n' \
   "$CLIENT_ID" \

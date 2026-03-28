@@ -66,4 +66,4 @@ export const silentRequest: Omit<SilentRequest, 'account'> = {
 };
 
 /** Authority to use for the sign-up redirect (B2C user flow or default). */
-export const signUpAuthorityUrl: string | undefined = signUpAuthority || undefined;
+export const signUpAuthorityUrl: string | undefined = signUpAuthority;
