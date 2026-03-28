@@ -3,22 +3,26 @@
  *
  * Route structure:
  *  /login                                → Login page (unauthenticated landing)
- *  /groups                               → GroupsList (authenticated)
- *  /groups/:groupId                      → GroupDetail (authenticated)
- *  /groups/:groupId/events/new           → EventCreate (authenticated)
- *  /groups/:groupId/events/:eventId      → EventDetail (authenticated)
- *  /profile                              → Profile (authenticated)
+ *  /signup                               → SignUp page (authenticated, unregistered)
+ *  /groups                               → GroupsList (authenticated + registered)
+ *  /groups/:groupId                      → GroupDetail (authenticated + registered)
+ *  /groups/:groupId/events/new           → EventCreate (authenticated + registered)
+ *  /groups/:groupId/events/:eventId      → EventDetail (authenticated + registered)
+ *  /profile                              → Profile (authenticated + registered)
  *  /                                     → Redirect to /groups
  *  *                                     → Redirect to /groups
  *
- * Authenticated routes are wrapped in AppShell (persistent nav bar) and
- * ProtectedRoute (redirects unauthenticated users to /login).
+ * Authenticated routes are wrapped in AppShell (persistent nav bar),
+ * ProtectedRoute (redirects unauthenticated users to /login), and
+ * RegistrationGate (redirects unregistered users to /signup).
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RegistrationGate } from './components/RegistrationGate';
 import { Login } from './pages/Login';
+import { SignUp } from './pages/SignUp';
 import { GroupsList } from './pages/GroupsList';
 import { GroupDetail } from './pages/GroupDetail';
 import { EventDetail } from './pages/EventDetail';
@@ -31,10 +35,20 @@ export const router = createBrowserRouter([
     element: <Login />,
   },
   {
+    path: '/signup',
+    element: (
+      <ProtectedRoute>
+        <SignUp />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/',
     element: (
       <ProtectedRoute>
-        <AppShell />
+        <RegistrationGate>
+          <AppShell />
+        </RegistrationGate>
       </ProtectedRoute>
     ),
     children: [

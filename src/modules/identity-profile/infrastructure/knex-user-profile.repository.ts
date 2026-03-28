@@ -32,6 +32,31 @@ export class KnexUserProfileRepository implements UserProfileRepositoryPort {
     return row ? toUserProfile(row) : null;
   }
 
+  async exists(id: string): Promise<boolean> {
+    const row = await this.db<UserProfileRow>('user_profiles')
+      .where({ id })
+      .select(this.db.raw('1'))
+      .first();
+    return row !== undefined;
+  }
+
+  async create(data: CreateUserProfileData): Promise<UserProfile> {
+    const now = new Date();
+    const rows = await this.db<UserProfileRow>('user_profiles')
+      .insert({
+        id: data.userId,
+        display_name: data.displayName,
+        avatar_url: data.avatarUrl ?? null,
+        created_at: now,
+        updated_at: now,
+      })
+      .returning('*');
+
+    const row = rows[0];
+    if (!row) throw new Error('Insert returned no row');
+    return toUserProfile(row);
+  }
+
   /**
    * Inserts a minimal user_profiles row if none exists for the given userId.
    * Uses INSERT … ON CONFLICT DO NOTHING so this is a cheap no-op when the

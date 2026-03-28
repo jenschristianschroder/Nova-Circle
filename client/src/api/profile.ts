@@ -28,3 +28,13 @@ export async function updateMyProfile(
     body: JSON.stringify(data),
   });
 }
+
+export async function signUp(
+  apiFetch: ApiFetch,
+  data: { displayName: string; avatarUrl?: string | null },
+): Promise<UserProfile> {
+  return apiFetch<UserProfile>('/api/v1/signup', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
