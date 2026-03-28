@@ -50,7 +50,7 @@ export class DeleteMessageUseCase {
 
     if (!isAuthor && !isEventCreator) {
       if (!event.groupId) {
-        throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
+        throw Object.assign(new Error('Only the event owner can perform this action on a personal event'), { code: 'FORBIDDEN' });
       }
       const role = await this.memberRepo.getRole(event.groupId, caller.userId);
       const isAdminOrOwner = role === 'owner' || role === 'admin';
