@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApiClient } from '../../api/client';
+import { useApiClient, ApiError } from '../../api/client';
 import { signUp } from '../../api/profile';
 import { useAuth } from '../../auth/useAuth';
 import { Button } from '../../components/Button';
@@ -35,7 +35,11 @@ export function SignUp() {
         avatarUrl: avatarUrl.trim() || null,
       });
       navigate('/groups', { replace: true });
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'ALREADY_REGISTERED') {
+        navigate('/groups', { replace: true });
+        return;
+      }
       setError('Failed to create your account. Please try again.');
     } finally {
       setIsSaving(false);
