@@ -71,11 +71,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.schema.alterTable('event_shares', (table) => {
     table.index('event_id', 'idx_event_shares_event_id');
-  });
-  await knex.schema.alterTable('event_shares', (table) => {
     table.index('group_id', 'idx_event_shares_group_id');
-  });
-  await knex.schema.alterTable('event_shares', (table) => {
     table.index('shared_by_user_id', 'idx_event_shares_shared_by_user_id');
   });
 }
@@ -94,6 +90,7 @@ export async function down(knex: Knex): Promise<void> {
 
   // ── Restore group_id NOT NULL constraint ───────────────────────────────
   // NOTE: This will fail if personal events (group_id IS NULL) exist.
-  // Such rows must be cleaned up before rolling back this migration.
+  // Before rolling back, remove or assign a group to personal events:
+  //   DELETE FROM events WHERE group_id IS NULL;
   await knex.raw('ALTER TABLE events ALTER COLUMN group_id SET NOT NULL');
 }
