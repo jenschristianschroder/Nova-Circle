@@ -79,8 +79,18 @@ export function GroupsList() {
       setNewGroupName('');
       setNewGroupDescription('');
       setShowCreateForm(false);
-    } catch {
-      setCreateError('Failed to create group. Please try again.');
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setCreateError('Failed to create group: authentication error. Please sign in again.');
+        } else if (err.status === 400) {
+          setCreateError(`Failed to create group: ${err.message}`);
+        } else {
+          setCreateError(`Failed to create group (${err.status}). Please try again.`);
+        }
+      } else {
+        setCreateError('Failed to create group. Please try again.');
+      }
     } finally {
       setIsCreating(false);
     }

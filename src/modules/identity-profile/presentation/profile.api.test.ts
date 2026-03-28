@@ -32,13 +32,22 @@ describe('Profile API', () => {
       expect(res.body).toMatchObject({ code: 'UNAUTHORIZED' });
     });
 
-    it.skipIf(skipReason !== undefined)('returns 404 when profile does not exist', async () => {
-      const identity = FakeIdentity.random();
-      const res = await request(app)
-        .get('/api/v1/me')
-        .set(testAuthHeaders(identity.userId, identity.displayName));
-      expect(res.status).toBe(404);
-    });
+    it.skipIf(skipReason !== undefined)(
+      'returns auto-provisioned profile when no explicit profile exists',
+      async () => {
+        const identity = FakeIdentity.random();
+        const res = await request(app)
+          .get('/api/v1/me')
+          .set(testAuthHeaders(identity.userId, identity.displayName));
+        // ensure-profile middleware auto-creates a minimal profile on the first
+        // authenticated request, so GET /me always returns 200.
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({
+          id: identity.userId,
+          displayName: identity.displayName,
+        });
+      },
+    );
 
     it.skipIf(skipReason !== undefined)('returns profile after it is created', async () => {
       const identity = FakeIdentity.random();
