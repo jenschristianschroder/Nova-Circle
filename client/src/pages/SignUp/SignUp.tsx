@@ -64,9 +64,7 @@ export function SignUp() {
           <h1 id="signup-heading" className={styles.heading}>
             Complete your profile
           </h1>
-          <p className={styles.subtitle}>
-            Choose a display name to get started with Nova-Circle.
-          </p>
+          <p className={styles.subtitle}>Choose a display name to get started with Nova-Circle.</p>
 
           <form onSubmit={(e) => void handleSubmit(e)} noValidate>
             <div className={styles.field}>
@@ -107,18 +105,10 @@ export function SignUp() {
             )}
 
             <div className={styles.formActions}>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void logout()}
-              >
+              <Button type="button" variant="secondary" onClick={() => void logout()}>
                 Sign out
               </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSaving || !displayName.trim()}
-              >
+              <Button type="submit" variant="primary" disabled={isSaving || !displayName.trim()}>
                 {isSaving ? 'Creating…' : 'Create account'}
               </Button>
             </div>

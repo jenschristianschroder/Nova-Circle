@@ -90,9 +90,7 @@ describe('createRequireRegistrationMiddleware', () => {
   it('exempts GET /profile/me for unregistered users', async () => {
     const identity: IdentityContext = { userId: 'user-3', displayName: 'Carol' };
     const port = makePort({ exists: vi.fn().mockResolvedValue(false) });
-    const app = buildTestApp(port, identity, [
-      { method: 'GET', pathPrefix: '/profile/me' },
-    ]);
+    const app = buildTestApp(port, identity, [{ method: 'GET', pathPrefix: '/profile/me' }]);
     const res = await request(app).get('/profile/me');
 
     expect(res.status).toBe(200);
@@ -103,9 +101,7 @@ describe('createRequireRegistrationMiddleware', () => {
   it('exempts POST /signup for unregistered users', async () => {
     const identity: IdentityContext = { userId: 'user-4', displayName: 'Dave' };
     const port = makePort({ exists: vi.fn().mockResolvedValue(false) });
-    const app = buildTestApp(port, identity, [
-      { method: 'POST', pathPrefix: '/signup' },
-    ]);
+    const app = buildTestApp(port, identity, [{ method: 'POST', pathPrefix: '/signup' }]);
     const res = await request(app).post('/signup');
 
     expect(res.status).toBe(200);
@@ -116,9 +112,7 @@ describe('createRequireRegistrationMiddleware', () => {
   it('does not exempt non-matching methods on exempt paths', async () => {
     const identity: IdentityContext = { userId: 'user-5', displayName: 'Eve' };
     const port = makePort({ exists: vi.fn().mockResolvedValue(false) });
-    const app = buildTestApp(port, identity, [
-      { method: 'POST', pathPrefix: '/signup' },
-    ]);
+    const app = buildTestApp(port, identity, [{ method: 'POST', pathPrefix: '/signup' }]);
     // GET /signup is not exempt — only POST /signup is
     const res = await request(app).get('/signup');
 

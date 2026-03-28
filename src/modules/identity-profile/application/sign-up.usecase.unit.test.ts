@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  SignUpUseCase,
-  AlreadyRegisteredError,
-} from './sign-up.usecase.js';
+import { SignUpUseCase, AlreadyRegisteredError } from './sign-up.usecase.js';
 import type { UserProfileRepositoryPort } from '../domain/user-profile.repository.port.js';
 import type { CreateUserProfileData } from '../domain/user-profile.js';
 
@@ -52,9 +49,7 @@ describe('SignUpUseCase', () => {
 
     await uc.execute(identity, { displayName: '  Bob  ' });
 
-    expect(repo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ displayName: 'Bob' }),
-    );
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Bob' }));
   });
 
   it('passes avatarUrl when provided', async () => {
@@ -77,9 +72,7 @@ describe('SignUpUseCase', () => {
 
     await uc.execute(identity, { displayName: 'Dave' });
 
-    expect(repo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ avatarUrl: null }),
-    );
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ avatarUrl: null }));
   });
 
   it('throws when displayName is empty', async () => {
@@ -106,9 +99,9 @@ describe('SignUpUseCase', () => {
     const repo = makeRepo();
     const uc = new SignUpUseCase(repo);
 
-    await expect(
-      uc.execute(identity, { displayName: 'a'.repeat(101) }),
-    ).rejects.toThrow('displayName must not exceed 100 characters');
+    await expect(uc.execute(identity, { displayName: 'a'.repeat(101) })).rejects.toThrow(
+      'displayName must not exceed 100 characters',
+    );
     expect(repo.create).not.toHaveBeenCalled();
   });
 

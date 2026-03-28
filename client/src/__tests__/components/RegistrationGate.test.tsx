@@ -51,10 +51,7 @@ function renderGate(children: React.ReactNode) {
       <MemoryRouter initialEntries={['/app']}>
         <Routes>
           <Route path="/signup" element={<div>Sign up page</div>} />
-          <Route
-            path="/app"
-            element={<RegistrationGate>{children}</RegistrationGate>}
-          />
+          <Route path="/app" element={<RegistrationGate>{children}</RegistrationGate>} />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,
