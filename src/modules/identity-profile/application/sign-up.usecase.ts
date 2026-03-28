@@ -26,15 +26,27 @@ export class SignUpUseCase {
       throw new Error('displayName must not exceed 100 characters');
     }
 
-    const existing = await this.repo.findById(identity.userId);
-    if (existing) {
-      throw new AlreadyRegisteredError();
+    try {
+      return await this.repo.create({
+        userId: identity.userId,
+        displayName: trimmed,
+        avatarUrl: input.avatarUrl ?? null,
+      });
+    } catch (error: unknown) {
+      if (isUniqueViolation(error)) {
+        throw new AlreadyRegisteredError();
+      }
+      throw error;
     }
-
-    return this.repo.create({
-      userId: identity.userId,
-      displayName: trimmed,
-      avatarUrl: input.avatarUrl ?? null,
-    });
   }
+}
+
+/**
+ * Detects a PostgreSQL unique-constraint violation (error code 23505).
+ * This keeps sign-up atomic: the insert is the single source of truth,
+ * so concurrent requests for the same user cannot both succeed.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  return (error as { code?: string }).code === '23505';
 }

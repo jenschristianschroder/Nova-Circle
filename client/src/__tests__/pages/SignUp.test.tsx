@@ -167,4 +167,16 @@ describe('SignUp', () => {
       });
     });
   });
+
+  it('navigates to /groups when server returns ALREADY_REGISTERED', async () => {
+    const user = userEvent.setup();
+    const { ApiError } = await import('../../api/client');
+    mockApiFetch.mockRejectedValue(new ApiError(409, 'ALREADY_REGISTERED', 'Already registered'));
+
+    renderSignUp();
+    await user.type(screen.getByLabelText(/display name/i), 'Alice');
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+
+    await waitFor(() => expect(screen.getByText('Groups page')).toBeInTheDocument());
+  });
 });

@@ -2,6 +2,13 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import type { UserProfileRepositoryPort } from '../domain/user-profile.repository.port.js';
 import { SignUpUseCase, AlreadyRegisteredError } from '../application/sign-up.usecase.js';
+import { logger } from '../../../shared/logger/logger.js';
+
+/** Known validation error messages thrown by SignUpUseCase. */
+const VALIDATION_MESSAGES = new Set([
+  'displayName must not be empty',
+  'displayName must not exceed 100 characters',
+]);
 
 export function createSignupRouter(repo: UserProfileRepositoryPort): express.Router {
   const router = express.Router();
@@ -35,8 +42,13 @@ export function createSignupRouter(repo: UserProfileRepositoryPort): express.Rou
         res.status(409).json({ error: 'User is already registered', code: 'ALREADY_REGISTERED' });
         return;
       }
-      const message = err instanceof Error ? err.message : 'Invalid input';
-      res.status(400).json({ error: message, code: 'VALIDATION_ERROR' });
+      const message = err instanceof Error ? err.message : '';
+      if (VALIDATION_MESSAGES.has(message)) {
+        res.status(400).json({ error: message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      logger.error('Unexpected error during signup', err, { userId: identity.userId });
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
 

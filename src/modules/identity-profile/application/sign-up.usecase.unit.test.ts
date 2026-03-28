@@ -4,7 +4,7 @@ import {
   AlreadyRegisteredError,
 } from './sign-up.usecase.js';
 import type { UserProfileRepositoryPort } from '../domain/user-profile.repository.port.js';
-import type { UserProfile, CreateUserProfileData } from '../domain/user-profile.js';
+import type { CreateUserProfileData } from '../domain/user-profile.js';
 
 function makeRepo(overrides?: Partial<UserProfileRepositoryPort>): UserProfileRepositoryPort {
   return {
@@ -38,7 +38,6 @@ describe('SignUpUseCase', () => {
 
     const result = await uc.execute(identity, { displayName: 'Alice' });
 
-    expect(repo.findById).toHaveBeenCalledWith('user-1');
     expect(repo.create).toHaveBeenCalledWith({
       userId: 'user-1',
       displayName: 'Alice',
@@ -113,20 +112,23 @@ describe('SignUpUseCase', () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  it('throws AlreadyRegisteredError when user is already registered', async () => {
-    const existing: UserProfile = {
-      id: 'user-1',
-      displayName: 'Alice',
-      avatarUrl: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const repo = makeRepo({ findById: vi.fn().mockResolvedValue(existing) });
+  it('throws AlreadyRegisteredError when create hits a unique constraint violation', async () => {
+    const uniqueViolation = Object.assign(new Error('duplicate key value'), { code: '23505' });
+    const repo = makeRepo({ create: vi.fn().mockRejectedValue(uniqueViolation) });
     const uc = new SignUpUseCase(repo);
 
     await expect(uc.execute(identity, { displayName: 'Alice' })).rejects.toThrow(
       AlreadyRegisteredError,
     );
-    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('re-throws non-unique-violation errors from create', async () => {
+    const dbError = new Error('connection refused');
+    const repo = makeRepo({ create: vi.fn().mockRejectedValue(dbError) });
+    const uc = new SignUpUseCase(repo);
+
+    await expect(uc.execute(identity, { displayName: 'Alice' })).rejects.toThrow(
+      'connection refused',
+    );
   });
 });
