@@ -32,7 +32,7 @@ const tenantId = (window.__ENV__?.VITE_AZURE_TENANT_ID || import.meta.env.VITE_A
 const rawSignUpAuthority = (window.__ENV__?.VITE_AZURE_SIGNUP_AUTHORITY ||
   import.meta.env.VITE_AZURE_SIGNUP_AUTHORITY) as string | undefined;
 
-/** Known Azure authority hostnames that are safe redirect targets. */
+/** Azure authority hostnames that are safe to use as sign-up redirect targets. */
 const ALLOWED_AUTHORITY_PATTERNS = [
   /^[a-z0-9-]+\.b2clogin\.com$/i,
   /^login\.microsoftonline\.com$/i,
