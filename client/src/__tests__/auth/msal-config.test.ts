@@ -121,30 +121,24 @@ describe('msal-config — signUpAuthorityUrl', () => {
     (window as Window).__ENV__ = {
       VITE_AZURE_CLIENT_ID: 'cid',
       VITE_AZURE_TENANT_ID: 'tid',
-      VITE_AZURE_SIGNUP_AUTHORITY:
-        'https://login.microsoftonline.com/some-tenant/v2.0',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'https://login.microsoftonline.com/some-tenant/v2.0',
     };
 
     const { signUpAuthorityUrl } = await import('@/auth/msal-config');
 
-    expect(signUpAuthorityUrl).toBe(
-      'https://login.microsoftonline.com/some-tenant/v2.0',
-    );
+    expect(signUpAuthorityUrl).toBe('https://login.microsoftonline.com/some-tenant/v2.0');
   });
 
   it('accepts a ciamlogin.com authority URL', async () => {
     (window as Window).__ENV__ = {
       VITE_AZURE_CLIENT_ID: 'cid',
       VITE_AZURE_TENANT_ID: 'tid',
-      VITE_AZURE_SIGNUP_AUTHORITY:
-        'https://mytenant.ciamlogin.com/mytenant.onmicrosoft.com/v2.0',
+      VITE_AZURE_SIGNUP_AUTHORITY: 'https://mytenant.ciamlogin.com/mytenant.onmicrosoft.com/v2.0',
     };
 
     const { signUpAuthorityUrl } = await import('@/auth/msal-config');
 
-    expect(signUpAuthorityUrl).toBe(
-      'https://mytenant.ciamlogin.com/mytenant.onmicrosoft.com/v2.0',
-    );
+    expect(signUpAuthorityUrl).toBe('https://mytenant.ciamlogin.com/mytenant.onmicrosoft.com/v2.0');
   });
 
   it('is undefined when VITE_AZURE_SIGNUP_AUTHORITY is empty string', async () => {
