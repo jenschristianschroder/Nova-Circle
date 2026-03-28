@@ -153,6 +153,6 @@ test.describe('Event detail page', () => {
     await expect(eventPage.rsvpDeclineButton).not.toBeVisible();
 
     // A cancellation indicator must be shown.
-    await expect(page.getByText('Cancelled')).toBeVisible();
+    await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
   });
 });

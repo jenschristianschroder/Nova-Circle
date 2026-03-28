@@ -25,9 +25,9 @@ describe('Profile API', () => {
     if (db) await db.destroy();
   });
 
-  describe('GET /api/v1/me', () => {
+  describe('GET /api/v1/profile/me', () => {
     it.skipIf(skipReason !== undefined)('returns 401 when no identity is provided', async () => {
-      const res = await request(app).get('/api/v1/me');
+      const res = await request(app).get('/api/v1/profile/me');
       expect(res.status).toBe(401);
       expect(res.body).toMatchObject({ code: 'UNAUTHORIZED' });
     });
@@ -37,7 +37,7 @@ describe('Profile API', () => {
       async () => {
         const identity = FakeIdentity.random();
         const res = await request(app)
-          .get('/api/v1/me')
+          .get('/api/v1/profile/me')
           .set(testAuthHeaders(identity.userId, identity.displayName));
         // ensure-profile middleware auto-creates a minimal profile on the first
         // authenticated request, so GET /me always returns 200.
@@ -52,28 +52,28 @@ describe('Profile API', () => {
     it.skipIf(skipReason !== undefined)('returns profile after it is created', async () => {
       const identity = FakeIdentity.random();
       await request(app)
-        .put('/api/v1/me')
+        .put('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName))
         .send({ displayName: 'Test User' });
 
       const res = await request(app)
-        .get('/api/v1/me')
+        .get('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName));
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({ displayName: 'Test User' });
     });
   });
 
-  describe('PUT /api/v1/me', () => {
+  describe('PUT /api/v1/profile/me', () => {
     it.skipIf(skipReason !== undefined)('returns 401 when no identity is provided', async () => {
-      const res = await request(app).put('/api/v1/me').send({ displayName: 'Alice' });
+      const res = await request(app).put('/api/v1/profile/me').send({ displayName: 'Alice' });
       expect(res.status).toBe(401);
     });
 
     it.skipIf(skipReason !== undefined)('creates profile with valid data', async () => {
       const identity = FakeIdentity.random();
       const res = await request(app)
-        .put('/api/v1/me')
+        .put('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName))
         .send({ displayName: 'Alice' });
 
@@ -84,12 +84,12 @@ describe('Profile API', () => {
     it.skipIf(skipReason !== undefined)('updates existing profile', async () => {
       const identity = FakeIdentity.random();
       await request(app)
-        .put('/api/v1/me')
+        .put('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName))
         .send({ displayName: 'Old Name' });
 
       const res = await request(app)
-        .put('/api/v1/me')
+        .put('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName))
         .send({ displayName: 'New Name' });
 
@@ -100,7 +100,7 @@ describe('Profile API', () => {
     it.skipIf(skipReason !== undefined)('returns 400 when displayName is empty', async () => {
       const identity = FakeIdentity.random();
       const res = await request(app)
-        .put('/api/v1/me')
+        .put('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName))
         .send({ displayName: '   ' });
 
@@ -110,7 +110,7 @@ describe('Profile API', () => {
     it.skipIf(skipReason !== undefined)('returns 400 when displayName is missing', async () => {
       const identity = FakeIdentity.random();
       const res = await request(app)
-        .put('/api/v1/me')
+        .put('/api/v1/profile/me')
         .set(testAuthHeaders(identity.userId, identity.displayName))
         .send({});
 
