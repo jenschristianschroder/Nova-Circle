@@ -3,6 +3,7 @@ import express from 'express';
 import request from 'supertest';
 import {
   createEnsureProfileMiddleware,
+  normalizeDisplayName,
   type EnsureProfilePort,
 } from './ensure-profile-middleware.js';
 import type { IdentityContext } from './identity-context.js';
@@ -33,11 +34,46 @@ function buildTestApp(
 
 function makeProfilePort(overrides?: Partial<EnsureProfilePort>): EnsureProfilePort {
   return {
-    findById: vi.fn().mockResolvedValue(null),
-    upsert: vi.fn().mockResolvedValue({}),
+    ensureExists: vi.fn().mockResolvedValue(false),
     ...overrides,
   };
 }
+
+// ── normalizeDisplayName ────────────────────────────────────────────────────
+
+describe('normalizeDisplayName', () => {
+  it('returns a normal name unchanged', () => {
+    expect(normalizeDisplayName('Alice')).toBe('Alice');
+  });
+
+  it('trims leading and trailing whitespace', () => {
+    expect(normalizeDisplayName('  Bob  ')).toBe('Bob');
+  });
+
+  it('truncates to 100 characters', () => {
+    const long = 'x'.repeat(150);
+    const result = normalizeDisplayName(long);
+    expect(result).toHaveLength(100);
+    expect(result).toBe('x'.repeat(100));
+  });
+
+  it('falls back to "User" when input is empty', () => {
+    expect(normalizeDisplayName('')).toBe('User');
+  });
+
+  it('falls back to "User" when input is only whitespace', () => {
+    expect(normalizeDisplayName('   ')).toBe('User');
+  });
+
+  it('trims before truncating (does not count leading spaces)', () => {
+    const padded = '  ' + 'a'.repeat(101);
+    const result = normalizeDisplayName(padded);
+    expect(result).toHaveLength(100);
+    expect(result).toBe('a'.repeat(100));
+  });
+});
+
+// ── createEnsureProfileMiddleware ───────────────────────────────────────────
 
 describe('createEnsureProfileMiddleware', () => {
   beforeEach(() => {
@@ -50,73 +86,75 @@ describe('createEnsureProfileMiddleware', () => {
     const res = await request(app).get('/test');
 
     expect(res.status).toBe(200);
-    expect(port.findById).not.toHaveBeenCalled();
-    expect(port.upsert).not.toHaveBeenCalled();
+    expect(port.ensureExists).not.toHaveBeenCalled();
   });
 
-  it('does not upsert when profile already exists', async () => {
-    const identity: IdentityContext = { userId: 'user-1', displayName: 'Alice' };
-    const port = makeProfilePort({
-      findById: vi.fn().mockResolvedValue({ id: 'user-1' }),
-    });
+  it('calls ensureExists with normalised displayName for an authenticated request', async () => {
+    const identity: IdentityContext = { userId: 'user-1', displayName: '  Alice  ' };
+    const port = makeProfilePort();
     const app = buildTestApp(port, identity);
     const res = await request(app).get('/test');
 
     expect(res.status).toBe(200);
-    expect(port.findById).toHaveBeenCalledWith('user-1');
-    expect(port.upsert).not.toHaveBeenCalled();
-  });
-
-  it('upserts a minimal profile when none exists', async () => {
-    const identity: IdentityContext = { userId: 'user-2', displayName: 'Bob' };
-    const port = makeProfilePort({
-      findById: vi.fn().mockResolvedValue(null),
-    });
-    const app = buildTestApp(port, identity);
-    const res = await request(app).get('/test');
-
-    expect(res.status).toBe(200);
-    expect(port.findById).toHaveBeenCalledWith('user-2');
-    expect(port.upsert).toHaveBeenCalledWith({
-      userId: 'user-2',
-      displayName: 'Bob',
+    expect(port.ensureExists).toHaveBeenCalledWith({
+      userId: 'user-1',
+      displayName: 'Alice',
       avatarUrl: null,
     });
   });
 
-  it('calls next even when findById throws (logs but does not block)', async () => {
-    const identity: IdentityContext = { userId: 'user-3', displayName: 'Eve' };
-    const port = makeProfilePort({
-      findById: vi.fn().mockRejectedValue(new Error('DB down')),
-    });
-    const app = buildTestApp(port, identity);
-    const res = await request(app).get('/test');
-
-    expect(res.status).toBe(200);
-    expect(port.upsert).not.toHaveBeenCalled();
-  });
-
-  it('calls next even when upsert throws (logs but does not block)', async () => {
-    const identity: IdentityContext = { userId: 'user-4', displayName: 'Mallory' };
-    const port = makeProfilePort({
-      findById: vi.fn().mockResolvedValue(null),
-      upsert: vi.fn().mockRejectedValue(new Error('Upsert failed')),
-    });
-    const app = buildTestApp(port, identity);
-    const res = await request(app).get('/test');
-
-    expect(res.status).toBe(200);
-    expect(port.upsert).toHaveBeenCalled();
-  });
-
-  it('passes identity displayName to upsert for a new profile', async () => {
-    const identity: IdentityContext = { userId: 'user-5', displayName: 'Charlie Test' };
+  it('truncates displayName longer than 100 chars before calling ensureExists', async () => {
+    const identity: IdentityContext = { userId: 'user-2', displayName: 'B'.repeat(150) };
     const port = makeProfilePort();
     const app = buildTestApp(port, identity);
     await request(app).get('/test');
 
-    expect(port.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ displayName: 'Charlie Test' }),
+    expect(port.ensureExists).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: 'B'.repeat(100) }),
     );
+  });
+
+  it('uses "User" fallback when displayName is whitespace-only', async () => {
+    const identity: IdentityContext = { userId: 'user-3', displayName: '   ' };
+    const port = makeProfilePort();
+    const app = buildTestApp(port, identity);
+    await request(app).get('/test');
+
+    expect(port.ensureExists).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: 'User' }),
+    );
+  });
+
+  it('does not log when profile already existed (ensureExists returns false)', async () => {
+    const identity: IdentityContext = { userId: 'user-4', displayName: 'Dave' };
+    const port = makeProfilePort({
+      ensureExists: vi.fn().mockResolvedValue(false),
+    });
+    const app = buildTestApp(port, identity);
+    const res = await request(app).get('/test');
+
+    expect(res.status).toBe(200);
+    expect(port.ensureExists).toHaveBeenCalled();
+  });
+
+  it('calls next even when ensureExists throws (logs but does not block)', async () => {
+    const identity: IdentityContext = { userId: 'user-5', displayName: 'Eve' };
+    const port = makeProfilePort({
+      ensureExists: vi.fn().mockRejectedValue(new Error('DB down')),
+    });
+    const app = buildTestApp(port, identity);
+    const res = await request(app).get('/test');
+
+    expect(res.status).toBe(200);
+    expect(port.ensureExists).toHaveBeenCalled();
+  });
+
+  it('passes avatarUrl as null for auto-provisioned profiles', async () => {
+    const identity: IdentityContext = { userId: 'user-6', displayName: 'Frank' };
+    const port = makeProfilePort();
+    const app = buildTestApp(port, identity);
+    await request(app).get('/test');
+
+    expect(port.ensureExists).toHaveBeenCalledWith(expect.objectContaining({ avatarUrl: null }));
   });
 });

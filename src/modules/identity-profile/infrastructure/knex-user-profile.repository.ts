@@ -32,6 +32,29 @@ export class KnexUserProfileRepository implements UserProfileRepositoryPort {
     return row ? toUserProfile(row) : null;
   }
 
+  /**
+   * Inserts a minimal user_profiles row if none exists for the given userId.
+   * Uses INSERT … ON CONFLICT DO NOTHING so this is a cheap no-op when the
+   * profile already exists (no SELECT needed).
+   *
+   * Returns `true` when a new row was actually inserted.
+   */
+  async ensureExists(data: {
+    userId: string;
+    displayName: string;
+    avatarUrl: string | null;
+  }): Promise<boolean> {
+    const now = new Date();
+    const result: { rowCount?: number } = await this.db.raw(
+      `INSERT INTO user_profiles (id, display_name, avatar_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (id) DO NOTHING`,
+      [data.userId, data.displayName, data.avatarUrl, now, now],
+    );
+    // pg returns rowCount; if 0 the row already existed.
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async upsert(data: CreateUserProfileData): Promise<UserProfile> {
     const now = new Date();
     const rows = await this.db<UserProfileRow>('user_profiles')
