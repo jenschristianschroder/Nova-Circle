@@ -27,6 +27,7 @@ JS_DEST=/usr/share/nginx/html/env-config.js
 
 CLIENT_ID="${VITE_AZURE_CLIENT_ID:-}"
 TENANT_ID="${VITE_AZURE_TENANT_ID:-}"
+SIGNUP_AUTHORITY="${VITE_AZURE_SIGNUP_AUTHORITY:-}"
 
 # Sanitise: Azure Client IDs and Tenant IDs are UUIDs consisting only of
 # hex digits and hyphens. Strip any other characters defensively to prevent
@@ -34,12 +35,17 @@ TENANT_ID="${VITE_AZURE_TENANT_ID:-}"
 CLIENT_ID=$(printf '%s' "$CLIENT_ID" | sed 's/[^a-fA-F0-9-]//g')
 TENANT_ID=$(printf '%s' "$TENANT_ID" | sed 's/[^a-fA-F0-9-]//g')
 
-printf 'window.__ENV__ = {\n  VITE_AZURE_CLIENT_ID: "%s",\n  VITE_AZURE_TENANT_ID: "%s"\n};\n' \
+# Sanitise sign-up authority: allow URL-safe characters only (letters, digits,
+# hyphens, dots, slashes, colons, underscores).
+SIGNUP_AUTHORITY=$(printf '%s' "$SIGNUP_AUTHORITY" | sed 's/[^a-zA-Z0-9_./:@-]//g')
+
+printf 'window.__ENV__ = {\n  VITE_AZURE_CLIENT_ID: "%s",\n  VITE_AZURE_TENANT_ID: "%s",\n  VITE_AZURE_SIGNUP_AUTHORITY: "%s"\n};\n' \
   "$CLIENT_ID" \
   "$TENANT_ID" \
+  "$SIGNUP_AUTHORITY" \
   > "$JS_DEST"
 
-echo "env-config: wrote VITE_AZURE_CLIENT_ID and VITE_AZURE_TENANT_ID to ${JS_DEST}"
+echo "env-config: wrote VITE_AZURE_CLIENT_ID, VITE_AZURE_TENANT_ID, and VITE_AZURE_SIGNUP_AUTHORITY to ${JS_DEST}"
 
 # ── 2. Write nginx config (including /api proxy when backend URL is set) ───────
 

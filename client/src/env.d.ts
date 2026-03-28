@@ -11,5 +11,6 @@ interface Window {
   __ENV__?: {
     VITE_AZURE_CLIENT_ID?: string;
     VITE_AZURE_TENANT_ID?: string;
+    VITE_AZURE_SIGNUP_AUTHORITY?: string;
   };
 }

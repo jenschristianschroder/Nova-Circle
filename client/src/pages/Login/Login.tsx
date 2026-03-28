@@ -1,8 +1,11 @@
 /**
  * Login page — shown to unauthenticated users.
  *
- * Displays a brief product description and a "Sign in" button that triggers
- * the MSAL redirect login flow. No personal data is rendered or stored here.
+ * Displays a brief product description and two calls to action:
+ * - "Create account" triggers the MSAL sign-up redirect flow
+ * - "Sign in" triggers the MSAL login redirect flow
+ *
+ * No personal data is rendered or stored here.
  */
 
 import { Navigate } from 'react-router-dom';
@@ -11,7 +14,7 @@ import { Button } from '../../components/Button';
 import styles from './Login.module.css';
 
 export function Login() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, signUp, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -47,7 +50,10 @@ export function Login() {
             Organise events with friends and family. Privacy-first, no tracking.
           </p>
           <div className={styles.heroActions}>
-            <Button variant="primary" size="lg" onClick={() => void login()}>
+            <Button variant="primary" size="lg" onClick={() => void signUp()}>
+              Create account
+            </Button>
+            <Button variant="secondary" size="lg" onClick={() => void login()}>
               Sign in
             </Button>
           </div>

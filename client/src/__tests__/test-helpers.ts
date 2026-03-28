@@ -20,6 +20,7 @@ export function mockUseAuth(overrides?: {
     account: { name: overrides?.displayName ?? 'Test User' },
     getAccessToken: vi.fn().mockResolvedValue('mock-token'),
     login: vi.fn().mockResolvedValue(undefined),
+    signUp: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
   };
   return () => defaults;

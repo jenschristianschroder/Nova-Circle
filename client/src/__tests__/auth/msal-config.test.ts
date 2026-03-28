@@ -89,3 +89,43 @@ describe('msal-config — runtime injection via window.__ENV__', () => {
     expect(apiScopes).toHaveLength(0);
   });
 });
+
+describe('msal-config — signUpAuthorityUrl', () => {
+  it('is undefined when VITE_AZURE_SIGNUP_AUTHORITY is not set', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+
+  it('returns the configured sign-up authority when set', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY:
+        'https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/B2C_1_signup',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBe(
+      'https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/B2C_1_signup',
+    );
+  });
+
+  it('is undefined when VITE_AZURE_SIGNUP_AUTHORITY is empty string', async () => {
+    (window as Window).__ENV__ = {
+      VITE_AZURE_CLIENT_ID: 'cid',
+      VITE_AZURE_TENANT_ID: 'tid',
+      VITE_AZURE_SIGNUP_AUTHORITY: '',
+    };
+
+    const { signUpAuthorityUrl } = await import('@/auth/msal-config');
+
+    expect(signUpAuthorityUrl).toBeUndefined();
+  });
+});

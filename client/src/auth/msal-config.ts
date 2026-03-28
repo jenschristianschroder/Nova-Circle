@@ -23,6 +23,15 @@ const tenantId = (window.__ENV__?.VITE_AZURE_TENANT_ID || import.meta.env.VITE_A
   | string
   | undefined;
 
+/**
+ * Optional sign-up authority for Azure AD B2C / Entra External ID.
+ * When set, the "Create account" flow redirects to this authority
+ * (e.g. a B2C sign-up user flow). When absent, sign-up uses the
+ * same authority as sign-in.
+ */
+const signUpAuthority = (window.__ENV__?.VITE_AZURE_SIGNUP_AUTHORITY ||
+  import.meta.env.VITE_AZURE_SIGNUP_AUTHORITY) as string | undefined;
+
 /** True when Azure credentials are present in the environment. */
 export const msalConfigured = Boolean(clientId && tenantId);
 
@@ -55,3 +64,6 @@ export const apiScopes: string[] = clientId ? [`api://${clientId}/user_impersona
 export const silentRequest: Omit<SilentRequest, 'account'> = {
   scopes: apiScopes,
 };
+
+/** Authority to use for the sign-up redirect (B2C user flow or default). */
+export const signUpAuthorityUrl: string | undefined = signUpAuthority || undefined;
