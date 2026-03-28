@@ -80,6 +80,7 @@ export function createGroupRouter(
         res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
         return;
       }
+      logger.error('Failed to create group', err, { userId: identity.userId });
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });

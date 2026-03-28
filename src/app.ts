@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createAuthMiddleware } from './shared/auth/auth-middleware.js';
+import { createEnsureProfileMiddleware } from './shared/auth/ensure-profile-middleware.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { logger } from './shared/logger/logger.js';
 import { KnexUserProfileRepository } from './modules/identity-profile/infrastructure/knex-user-profile.repository.js';
@@ -187,8 +188,10 @@ export function createApp(deps?: AppDependencies): express.Application {
     const auditLog = new KnexAuditLogRepository(db);
 
     const authMiddleware = createAuthMiddleware(deps.tokenValidator);
+    const ensureProfile = createEnsureProfileMiddleware(profileRepo);
 
     app.use('/api/v1', authMiddleware);
+    app.use('/api/v1', ensureProfile);
 
     app.use('/api/v1', createProfileRouter(profileRepo));
     app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo, auditLog));
