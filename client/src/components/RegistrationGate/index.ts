@@ -1,0 +1,1 @@
+export { RegistrationGate } from './RegistrationGate';

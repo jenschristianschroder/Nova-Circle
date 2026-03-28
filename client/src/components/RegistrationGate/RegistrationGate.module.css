@@ -1,0 +1,19 @@
+.loadingPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  background-color: var(--nc-surface-background);
+  color: var(--nc-content-primary);
+}
+
+.loadingText {
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-lg);
+}
+
+.errorText {
+  color: var(--nc-danger-default);
+  font-size: var(--nc-font-size-md);
+  text-align: center;
+}

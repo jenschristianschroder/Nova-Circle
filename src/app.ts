@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createAuthMiddleware } from './shared/auth/auth-middleware.js';
-import { createEnsureProfileMiddleware } from './shared/auth/ensure-profile-middleware.js';
+import { createRequireRegistrationMiddleware } from './shared/auth/require-registration-middleware.js';
 import type { TokenValidatorPort } from './shared/auth/token-validator.port.js';
 import { logger } from './shared/logger/logger.js';
 import { KnexUserProfileRepository } from './modules/identity-profile/infrastructure/knex-user-profile.repository.js';
@@ -17,6 +17,7 @@ import { KnexEventRepository } from './modules/event-management/infrastructure/k
 import { KnexEventInvitationRepository } from './modules/event-management/infrastructure/knex-event-invitation.repository.js';
 import { KnexAuditLogRepository } from './modules/audit-security/infrastructure/knex-audit-log.repository.js';
 import { createProfileRouter } from './modules/identity-profile/presentation/profile.router.js';
+import { createSignupRouter } from './modules/identity-profile/presentation/signup.router.js';
 import { createGroupRouter } from './modules/group-management/presentation/group.router.js';
 import { createMembershipRouter } from './modules/group-membership/presentation/membership.router.js';
 import { createEventRouter } from './modules/event-management/presentation/event.router.js';
@@ -188,11 +189,15 @@ export function createApp(deps?: AppDependencies): express.Application {
     const auditLog = new KnexAuditLogRepository(db);
 
     const authMiddleware = createAuthMiddleware(deps.tokenValidator);
-    const ensureProfile = createEnsureProfileMiddleware(profileRepo);
+    const requireRegistration = createRequireRegistrationMiddleware(profileRepo, [
+      { method: 'GET', pathPrefix: '/profile/me' },
+      { method: 'POST', pathPrefix: '/signup' },
+    ]);
 
     app.use('/api/v1', authMiddleware);
-    app.use('/api/v1', ensureProfile);
+    app.use('/api/v1', requireRegistration);
 
+    app.use('/api/v1/signup', createSignupRouter(profileRepo));
     app.use('/api/v1/profile', createProfileRouter(profileRepo));
     app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo, auditLog));
     app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo, auditLog));
