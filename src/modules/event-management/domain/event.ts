@@ -2,7 +2,8 @@ export type EventStatus = 'scheduled' | 'cancelled';
 
 export interface Event {
   readonly id: string;
-  readonly groupId: string;
+  readonly groupId: string | null;
+  readonly ownerId: string;
   readonly title: string;
   readonly description: string | null;
   readonly startAt: Date;

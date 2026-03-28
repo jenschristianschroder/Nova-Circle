@@ -125,14 +125,6 @@ describe('Personal event ownership migration', () => {
     expect(result.rows.length).toBe(1);
   });
 
-  it.skipIf(skipReason !== undefined)('idx_event_shares_event_id index exists', async () => {
-    const result = await db.raw<{ rows: IndexRow[] }>(
-      `SELECT indexname FROM pg_indexes
-       WHERE tablename = 'event_shares' AND indexname = 'idx_event_shares_event_id'`,
-    );
-    expect(result.rows.length).toBe(1);
-  });
-
   it.skipIf(skipReason !== undefined)('idx_event_shares_group_id index exists', async () => {
     const result = await db.raw<{ rows: IndexRow[] }>(
       `SELECT indexname FROM pg_indexes
@@ -152,72 +144,108 @@ describe('Personal event ownership migration', () => {
     },
   );
 
-  // ── Data migration tests ───────────────────────────────────────────────
+  // ── Data migration tests (step-by-step migration) ───────────────────────
 
   it.skipIf(skipReason !== undefined)(
-    'owner_id is back-filled from created_by for group-scoped events',
+    'migration back-fills owner_id from created_by for existing events',
     async () => {
-      const userId = 'bbbbbbbb-0000-4000-8000-000000000001';
-      await db('user_profiles')
-        .insert({ id: userId, display_name: 'Migration Test User' })
-        .onConflict('id')
-        .ignore();
+      // Use a separate Knex instance for this controlled migration test.
+      const stepDb = createTestDb();
+      try {
+        // Step 1: Run all migrations EXCEPT the personal-event-ownership one.
+        // The migration we are testing is the last one (20260328000010).
+        await stepDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
+        await stepDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
+        await stepDb.migrate.up({ name: '20260309000003_group_management.ts' });
+        await stepDb.migrate.up({ name: '20260309000004_group_membership.ts' });
+        await stepDb.migrate.up({ name: '20260310000005_event_management.ts' });
+        await stepDb.migrate.up({ name: '20260310000006_audit_security.ts' });
+        await stepDb.migrate.up({ name: '20260311000007_event_collaboration.ts' });
+        await stepDb.migrate.up({ name: '20260311000008_event_capture.ts' });
+        await stepDb.migrate.up({ name: '20260312000009_add_production_indexes.ts' });
 
-      const groups = await db<IdRow>('groups')
-        .insert({ name: 'Migration Test Group', owner_id: userId })
-        .returning('id');
+        // Step 2: Insert test data in the pre-migration schema (no owner_id column).
+        const userId = 'cccccccc-0000-4000-8000-000000000001';
+        await stepDb('user_profiles').insert({ id: userId, display_name: 'Backfill User' });
 
-      const events = await db<EventRow>('events')
-        .insert({
-          group_id: groups[0]!.id,
-          title: 'Migration Test Event',
-          start_at: new Date('2026-06-01T12:00:00Z'),
-          created_by: userId,
-          owner_id: userId,
-        })
-        .returning(['id', 'owner_id', 'created_by']);
+        const groups = await stepDb<IdRow>('groups')
+          .insert({ name: 'Backfill Group', owner_id: userId })
+          .returning('id');
 
-      expect(events[0]!.owner_id).toBe(events[0]!.created_by);
+        const events = await stepDb<IdRow>('events')
+          .insert({
+            group_id: groups[0]!.id,
+            title: 'Backfill Event',
+            start_at: new Date('2026-06-01T12:00:00Z'),
+            created_by: userId,
+          })
+          .returning('id');
+
+        // Step 3: Run the personal-event-ownership migration.
+        await stepDb.migrate.up({ name: '20260328000010_personal_event_ownership.ts' });
+
+        // Step 4: Verify owner_id was back-filled from created_by.
+        const rows = await stepDb<EventRow>('events')
+          .where({ id: events[0]!.id })
+          .select('owner_id', 'created_by');
+
+        expect(rows[0]!.owner_id).toBe(userId);
+        expect(rows[0]!.owner_id).toBe(rows[0]!.created_by);
+      } finally {
+        await stepDb.destroy();
+      }
     },
   );
 
   it.skipIf(skipReason !== undefined)(
-    'event_shares row is created for a group-scoped event',
+    'migration back-fills event_shares for existing group-scoped events',
     async () => {
-      const userId = 'bbbbbbbb-0000-4000-8000-000000000002';
-      await db('user_profiles')
-        .insert({ id: userId, display_name: 'Shares Test User' })
-        .onConflict('id')
-        .ignore();
+      // Use a separate Knex instance for this controlled migration test.
+      const stepDb = createTestDb();
+      try {
+        // Step 1: Run all migrations EXCEPT the personal-event-ownership one.
+        await stepDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
+        await stepDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
+        await stepDb.migrate.up({ name: '20260309000003_group_management.ts' });
+        await stepDb.migrate.up({ name: '20260309000004_group_membership.ts' });
+        await stepDb.migrate.up({ name: '20260310000005_event_management.ts' });
+        await stepDb.migrate.up({ name: '20260310000006_audit_security.ts' });
+        await stepDb.migrate.up({ name: '20260311000007_event_collaboration.ts' });
+        await stepDb.migrate.up({ name: '20260311000008_event_capture.ts' });
+        await stepDb.migrate.up({ name: '20260312000009_add_production_indexes.ts' });
 
-      const groups = await db<IdRow>('groups')
-        .insert({ name: 'Shares Test Group', owner_id: userId })
-        .returning('id');
+        // Step 2: Insert test data in the pre-migration schema.
+        const userId = 'cccccccc-0000-4000-8000-000000000002';
+        await stepDb('user_profiles').insert({ id: userId, display_name: 'Shares Backfill User' });
 
-      const events = await db<IdRow>('events')
-        .insert({
-          group_id: groups[0]!.id,
-          title: 'Shares Test Event',
-          start_at: new Date('2026-06-01T12:00:00Z'),
-          created_by: userId,
-          owner_id: userId,
-        })
-        .returning('id');
+        const groups = await stepDb<IdRow>('groups')
+          .insert({ name: 'Shares Backfill Group', owner_id: userId })
+          .returning('id');
 
-      // Manually insert a share row to validate the table works.
-      await db('event_shares').insert({
-        event_id: events[0]!.id,
-        group_id: groups[0]!.id,
-        visibility_level: 'details',
-        shared_by_user_id: userId,
-      });
+        const events = await stepDb<IdRow>('events')
+          .insert({
+            group_id: groups[0]!.id,
+            title: 'Shares Backfill Event',
+            start_at: new Date('2026-06-01T12:00:00Z'),
+            created_by: userId,
+          })
+          .returning('id');
 
-      const shares = await db<EventShareRow>('event_shares').where({
-        event_id: events[0]!.id,
-      });
-      expect(shares.length).toBe(1);
-      expect(shares[0]!.visibility_level).toBe('details');
-      expect(shares[0]!.group_id).toBe(groups[0]!.id);
+        // Step 3: Run the personal-event-ownership migration.
+        await stepDb.migrate.up({ name: '20260328000010_personal_event_ownership.ts' });
+
+        // Step 4: Verify event_shares row was created by the migration.
+        const shares = await stepDb<EventShareRow>('event_shares').where({
+          event_id: events[0]!.id,
+        });
+
+        expect(shares.length).toBe(1);
+        expect(shares[0]!.group_id).toBe(groups[0]!.id);
+        expect(shares[0]!.visibility_level).toBe('details');
+        expect(shares[0]!.shared_by_user_id).toBe(userId);
+      } finally {
+        await stepDb.destroy();
+      }
     },
   );
 

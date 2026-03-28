@@ -70,7 +70,6 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await knex.schema.alterTable('event_shares', (table) => {
-    table.index('event_id', 'idx_event_shares_event_id');
     table.index('group_id', 'idx_event_shares_group_id');
     table.index('shared_by_user_id', 'idx_event_shares_shared_by_user_id');
   });

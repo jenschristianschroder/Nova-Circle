@@ -38,6 +38,9 @@ export class DeleteChecklistItemUseCase {
     const isEventCreator = event.createdBy === caller.userId;
 
     if (!isItemCreator && !isEventCreator) {
+      if (!event.groupId) {
+        throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
+      }
       const role = await this.memberRepo.getRole(event.groupId, caller.userId);
       const isAdminOrOwner = role === 'owner' || role === 'admin';
       if (!isAdminOrOwner) {
