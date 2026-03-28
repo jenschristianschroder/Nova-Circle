@@ -7,7 +7,8 @@ Core capabilities:
 - manage user profile
 - manage group memberships
 - manage groups where the user is owner or administrator
-- manage events inside groups
+- manage personal events
+- share events to groups
 - create events from natural language text, voice, and images
 - support event-scoped chat
 - support event-scoped checklist
