@@ -33,7 +33,6 @@ describe('Event Share API', () => {
   let secondGroupId: string;
   let personalEventId: string;
   let groupEventId: string;
-  let shareId: string;
 
   beforeAll(async () => {
     if (skipReason) return;
@@ -161,13 +160,13 @@ describe('Event Share API', () => {
     });
 
     it.skipIf(skipReason !== undefined)(
-      'rejects non-owner sharing attempt (404 to prevent info leakage)',
+      'rejects non-owner sharing attempt (403 FORBIDDEN)',
       async () => {
         const res = await request(app)
           .post(`/api/v1/events/${personalEventId}/shares`)
           .set(testAuthHeaders(member.userId, member.displayName))
           .send({ groupId, visibilityLevel: 'title' });
-        // Non-owners get FORBIDDEN (the use case throws FORBIDDEN for non-owner).
+        // Non-owners get FORBIDDEN; the use case throws FORBIDDEN for non-owner attempts.
         expect(res.status).toBe(403);
       },
     );
@@ -211,7 +210,6 @@ describe('Event Share API', () => {
         });
         expect(body.id).toBeTruthy();
         expect(body.sharedAt).toBeTruthy();
-        shareId = body.id;
       },
     );
 
@@ -294,16 +292,35 @@ describe('Event Share API', () => {
   // ═══════════════════════════════════════════════════════════════════════
 
   describe('PATCH /api/v1/events/:eventId/shares/:shareId', () => {
+    let patchEventId: string;
+    let patchShareId: string;
+
+    beforeAll(async () => {
+      if (skipReason) return;
+      // Create a dedicated personal event and share for PATCH tests.
+      const eventRes = await request(app)
+        .post('/api/v1/events')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Patch Test Event', startAt: '2026-08-01T10:00:00Z' });
+      patchEventId = (eventRes.body as { id: string }).id;
+
+      const shareRes = await request(app)
+        .post(`/api/v1/events/${patchEventId}/shares`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ groupId, visibilityLevel: 'title' });
+      patchShareId = (shareRes.body as ShareBody).id;
+    });
+
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .patch(`/api/v1/events/${patchEventId}/shares/${patchShareId}`)
         .send({ visibilityLevel: 'busy' });
       expect(res.status).toBe(401);
     });
 
     it.skipIf(skipReason !== undefined)('returns 400 when visibilityLevel is invalid', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .patch(`/api/v1/events/${patchEventId}/shares/${patchShareId}`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ visibilityLevel: 'public' });
       expect(res.status).toBe(400);
@@ -312,7 +329,7 @@ describe('Event Share API', () => {
 
     it.skipIf(skipReason !== undefined)('returns 400 when visibilityLevel is missing', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .patch(`/api/v1/events/${patchEventId}/shares/${patchShareId}`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({});
       expect(res.status).toBe(400);
@@ -320,7 +337,7 @@ describe('Event Share API', () => {
 
     it.skipIf(skipReason !== undefined)('returns 404 for invalid UUID in shareId', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/bad-id`)
+        .patch(`/api/v1/events/${patchEventId}/shares/bad-id`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ visibilityLevel: 'busy' });
       expect(res.status).toBe(404);
@@ -328,7 +345,7 @@ describe('Event Share API', () => {
 
     it.skipIf(skipReason !== undefined)('returns 404 for non-existent shareId', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/00000000-0000-4000-8000-ffffffffffff`)
+        .patch(`/api/v1/events/${patchEventId}/shares/00000000-0000-4000-8000-ffffffffffff`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ visibilityLevel: 'busy' });
       expect(res.status).toBe(404);
@@ -336,7 +353,7 @@ describe('Event Share API', () => {
 
     it.skipIf(skipReason !== undefined)('returns 403 for non-owner', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .patch(`/api/v1/events/${patchEventId}/shares/${patchShareId}`)
         .set(testAuthHeaders(member.userId, member.displayName))
         .send({ visibilityLevel: 'busy' });
       expect(res.status).toBe(403);
@@ -344,15 +361,15 @@ describe('Event Share API', () => {
 
     it.skipIf(skipReason !== undefined)('updates visibility level for owner (200)', async () => {
       const res = await request(app)
-        .patch(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .patch(`/api/v1/events/${patchEventId}/shares/${patchShareId}`)
         .set(testAuthHeaders(owner.userId, owner.displayName))
         .send({ visibilityLevel: 'busy' });
 
       expect(res.status).toBe(200);
       const body = res.body as ShareBody;
       expect(body).toMatchObject({
-        id: shareId,
-        eventId: personalEventId,
+        id: patchShareId,
+        eventId: patchEventId,
         groupId,
         visibilityLevel: 'busy',
       });
@@ -360,12 +377,12 @@ describe('Event Share API', () => {
 
     it.skipIf(skipReason !== undefined)('updated visibility is persisted', async () => {
       const res = await request(app)
-        .get(`/api/v1/events/${personalEventId}/shares`)
+        .get(`/api/v1/events/${patchEventId}/shares`)
         .set(testAuthHeaders(owner.userId, owner.displayName));
 
       expect(res.status).toBe(200);
       const shares = (res.body as { shares: ShareBody[] }).shares;
-      const updated = shares.find((s) => s.id === shareId);
+      const updated = shares.find((s) => s.id === patchShareId);
       expect(updated).toBeDefined();
       expect(updated!.visibilityLevel).toBe('busy');
     });
@@ -376,28 +393,49 @@ describe('Event Share API', () => {
   // ═══════════════════════════════════════════════════════════════════════
 
   describe('DELETE /api/v1/events/:eventId/shares/:shareId', () => {
+    let deleteEventId: string;
+    let deleteShareId: string;
+
+    beforeAll(async () => {
+      if (skipReason) return;
+      // Create a dedicated personal event and share for DELETE tests.
+      const eventRes = await request(app)
+        .post('/api/v1/events')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Delete Test Event', startAt: '2026-09-01T10:00:00Z' });
+      deleteEventId = (eventRes.body as { id: string }).id;
+
+      const shareRes = await request(app)
+        .post(`/api/v1/events/${deleteEventId}/shares`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ groupId, visibilityLevel: 'title' });
+      deleteShareId = (shareRes.body as ShareBody).id;
+    });
+
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
-      const res = await request(app).delete(`/api/v1/events/${personalEventId}/shares/${shareId}`);
+      const res = await request(app).delete(
+        `/api/v1/events/${deleteEventId}/shares/${deleteShareId}`,
+      );
       expect(res.status).toBe(401);
     });
 
     it.skipIf(skipReason !== undefined)('returns 404 for invalid UUID in shareId', async () => {
       const res = await request(app)
-        .delete(`/api/v1/events/${personalEventId}/shares/bad-id`)
+        .delete(`/api/v1/events/${deleteEventId}/shares/bad-id`)
         .set(testAuthHeaders(owner.userId, owner.displayName));
       expect(res.status).toBe(404);
     });
 
     it.skipIf(skipReason !== undefined)('returns 403 for non-owner', async () => {
       const res = await request(app)
-        .delete(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .delete(`/api/v1/events/${deleteEventId}/shares/${deleteShareId}`)
         .set(testAuthHeaders(member.userId, member.displayName));
       expect(res.status).toBe(403);
     });
 
     it.skipIf(skipReason !== undefined)('revokes share for owner (204)', async () => {
       const res = await request(app)
-        .delete(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+        .delete(`/api/v1/events/${deleteEventId}/shares/${deleteShareId}`)
         .set(testAuthHeaders(owner.userId, owner.displayName));
       expect(res.status).toBe(204);
     });
@@ -406,12 +444,12 @@ describe('Event Share API', () => {
       'share no longer appears in list after revocation',
       async () => {
         const res = await request(app)
-          .get(`/api/v1/events/${personalEventId}/shares`)
+          .get(`/api/v1/events/${deleteEventId}/shares`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
 
         expect(res.status).toBe(200);
         const shares = (res.body as { shares: ShareBody[] }).shares;
-        expect(shares.find((s) => s.id === shareId)).toBeUndefined();
+        expect(shares.find((s) => s.id === deleteShareId)).toBeUndefined();
       },
     );
 
@@ -419,7 +457,7 @@ describe('Event Share API', () => {
       'returns 404 when revoking an already-deleted share',
       async () => {
         const res = await request(app)
-          .delete(`/api/v1/events/${personalEventId}/shares/${shareId}`)
+          .delete(`/api/v1/events/${deleteEventId}/shares/${deleteShareId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
         expect(res.status).toBe(404);
       },
@@ -434,9 +472,15 @@ describe('Event Share API', () => {
     it.skipIf(skipReason !== undefined)(
       'records audit events for share creation, update, and revocation',
       async () => {
-        // Create a fresh share to track audit events.
+        // Create a dedicated personal event and share for audit verification.
+        const eventRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Audit Test Event', startAt: '2026-10-01T10:00:00Z' });
+        const auditEventId = (eventRes.body as { id: string }).id;
+
         const createRes = await request(app)
-          .post(`/api/v1/events/${personalEventId}/shares`)
+          .post(`/api/v1/events/${auditEventId}/shares`)
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ groupId, visibilityLevel: 'title' });
         expect(createRes.status).toBe(201);
@@ -444,21 +488,21 @@ describe('Event Share API', () => {
 
         // Update it.
         const updateRes = await request(app)
-          .patch(`/api/v1/events/${personalEventId}/shares/${newShareId}`)
+          .patch(`/api/v1/events/${auditEventId}/shares/${newShareId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ visibilityLevel: 'details' });
         expect(updateRes.status).toBe(200);
 
         // Revoke it.
         const revokeRes = await request(app)
-          .delete(`/api/v1/events/${personalEventId}/shares/${newShareId}`)
+          .delete(`/api/v1/events/${auditEventId}/shares/${newShareId}`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
         expect(revokeRes.status).toBe(204);
 
         // Verify audit log entries exist.
         const auditRows = await db('audit_log')
           .where({ resource_type: 'event_share', resource_id: newShareId })
-          .orderBy('created_at', 'asc');
+          .orderBy('occurred_at', 'asc');
 
         const actions = auditRows.map((r: { action: string }) => r.action);
         expect(actions).toContain('event_share.created');
