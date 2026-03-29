@@ -2,7 +2,7 @@
  * DayView — renders a single day (or custom multi-day) with hourly time slots.
  *
  * Events are positioned vertically based on their start/end time.
- * Overlapping events are rendered side-by-side.
+ * Overlapping events are not specially arranged and may visually overlap.
  */
 
 import { type CalendarDisplayEvent } from './Calendar';
@@ -100,7 +100,7 @@ function DayColumn({
                 position: 'absolute',
                 top: `${pos.top}%`,
                 height: `${pos.height}%`,
-                left: '3.5rem',
+                left: '0.25rem',
                 right: '0.25rem',
               }}
             />

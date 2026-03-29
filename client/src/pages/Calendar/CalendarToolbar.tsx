@@ -21,6 +21,14 @@ interface CalendarToolbarProps {
   onCustomDaysChange: (days: number) => void;
 }
 
+/** Format YYYY-MM-DD using local date parts (avoids UTC off-by-one). */
+function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function formatToolbarTitle(mode: ViewMode, anchor: Date, customDays: number): string {
   switch (mode) {
     case 'day':
@@ -118,7 +126,7 @@ export function CalendarToolbar({
 
         <input
           type="date"
-          value={anchor.toISOString().split('T')[0]}
+          value={toLocalDateString(anchor)}
           onChange={(e) => {
             const d = new Date(e.target.value + 'T00:00:00');
             if (!isNaN(d.getTime())) onDateSelect(d);
@@ -129,16 +137,21 @@ export function CalendarToolbar({
 
         <div className={styles.modeSelector} role="radiogroup" aria-label="View mode">
           {MODE_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={mode === value}
-              className={`${styles.modeButton} ${mode === value ? styles.modeButtonActive : ''}`}
-              onClick={() => onModeChange(value)}
-            >
-              {label}
-            </button>
+            <label key={value} className={styles.modeLabel}>
+              <input
+                type="radio"
+                name="calendar-view-mode"
+                value={value}
+                checked={mode === value}
+                onChange={() => onModeChange(value)}
+                className={styles.hiddenRadio}
+              />
+              <span
+                className={`${styles.modeButton} ${mode === value ? styles.modeButtonActive : ''}`}
+              >
+                {label}
+              </span>
+            </label>
           ))}
         </div>
       </div>

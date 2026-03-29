@@ -79,10 +79,25 @@
   padding: 2px;
 }
 
-.modeButton {
-  background: none;
-  border: none;
+.hiddenRadio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.modeLabel {
   cursor: pointer;
+}
+
+.modeButton {
+  display: inline-flex;
+  align-items: center;
   padding: var(--nc-space-xs) var(--nc-space-sm);
   font-size: var(--nc-font-size-sm);
   font-family: inherit;
@@ -93,7 +108,7 @@
     background-color 0.15s;
 }
 
-.modeButton:hover {
+.modeLabel:hover .modeButton {
   color: var(--nc-content-primary);
 }
 
@@ -104,7 +119,8 @@
   box-shadow: var(--nc-shadow-sm);
 }
 
-.modeButton:focus-visible {
+/* Focus ring forwarded from hidden radio */
+.hiddenRadio:focus-visible + .modeButton {
   outline: 2px solid var(--nc-border-focus);
   outline-offset: 1px;
 }
@@ -329,11 +345,16 @@
   z-index: 1;
 }
 
-.eventBlock[aria-disabled='false'] {
+/* Clickable event block rendered as <button> */
+.eventBlockClickable {
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.eventBlock[aria-disabled='false']:hover {
+.eventBlockClickable:hover {
   opacity: 0.85;
 }
 

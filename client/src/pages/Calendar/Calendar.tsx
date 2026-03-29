@@ -15,6 +15,7 @@ import {
   listGroupEvents,
   type CalendarEvent,
   type SharedGroupEvent,
+  type SharedGroupEventsResponse,
   type VisibilityLevel,
 } from '../../api/events';
 import { listMyGroups, type Group } from '../../api/groups';
@@ -104,12 +105,37 @@ export function Calendar() {
       const groupsList = await listMyGroups(apiFetch);
       setGroups(groupsList);
 
+      // Helper: fetch all pages of group events for a given group
+      async function fetchAllGroupEvents(
+        groupId: string,
+        dateFrom: string,
+        dateTo: string,
+      ): Promise<SharedGroupEventsResponse> {
+        const first = await listGroupEvents(apiFetch, groupId, {
+          from: dateFrom,
+          to: dateTo,
+          limit: 100,
+          page: 1,
+        });
+        const allEvents = [...first.events];
+        let page = 2;
+        while (allEvents.length < first.total) {
+          const next = await listGroupEvents(apiFetch, groupId, {
+            from: dateFrom,
+            to: dateTo,
+            limit: 100,
+            page,
+          });
+          allEvents.push(...next.events);
+          page++;
+        }
+        return { ...first, events: allEvents };
+      }
+
       // Fetch personal events and shared events in parallel
       const [personal, ...groupResults] = await Promise.all([
         listPersonalEvents(apiFetch, { from, to }),
-        ...groupsList.map((g) =>
-          listGroupEvents(apiFetch, g.id, { from, to, limit: 100 }),
-        ),
+        ...groupsList.map((g) => fetchAllGroupEvents(g.id, from, to)),
       ]);
 
       setPersonalEvents(personal);

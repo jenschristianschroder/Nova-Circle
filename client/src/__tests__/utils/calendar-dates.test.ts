@@ -167,9 +167,23 @@ describe('weeksInMonthGrid', () => {
     expect(weeksInMonthGrid(new Date(2026, 2, 15))).toBeGreaterThanOrEqual(4);
   });
 
-  it('returns at most 7 weeks', () => {
-    // A month grid can span up to 7 week rows when the month starts late in the week
-    expect(weeksInMonthGrid(new Date(2026, 2, 15))).toBeLessThanOrEqual(7);
+  it('returns at most 6 weeks', () => {
+    expect(weeksInMonthGrid(new Date(2026, 2, 15))).toBeLessThanOrEqual(6);
+  });
+
+  it('returns exactly 6 weeks for March 2026', () => {
+    // March 2026: starts Sunday → grid starts Mon Feb 23, ends Sun Apr 5 → 6 rows
+    expect(weeksInMonthGrid(new Date(2026, 2, 15))).toBe(6);
+  });
+
+  it('returns exactly 5 weeks for May 2026', () => {
+    // May 2026: starts Friday, ends Sunday → grid starts Mon Apr 27, ends Sun May 31 → 5 rows
+    expect(weeksInMonthGrid(new Date(2026, 4, 1))).toBe(5);
+  });
+
+  it('returns exactly 4 weeks for February 2021', () => {
+    // February 2021: 1st is Monday, 28th is Sunday → exactly 4 week rows
+    expect(weeksInMonthGrid(new Date(2021, 1, 1))).toBe(4);
   });
 });
 

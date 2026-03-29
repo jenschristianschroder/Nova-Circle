@@ -5,7 +5,7 @@
  * - `busy`    → opaque block showing owner name + "Busy", not clickable
  * - `title`   → shows event title and time, not clickable
  * - `details` → shows title, time, preview; clickable to full detail
- * - `owner`   → personal event with full detail; clickable
+ * - `owner`   → personal event with full detail; clickable when route exists
  */
 
 import { type CalendarDisplayEvent } from './Calendar';
@@ -22,7 +22,9 @@ interface EventBlockProps {
 }
 
 export function EventBlock({ event, onClick, showTime = true, style }: EventBlockProps) {
-  const isClickable = event.visibilityLevel === 'details' || event.visibilityLevel === 'owner';
+  const isClickable =
+    (event.visibilityLevel === 'details' || event.visibilityLevel === 'owner') &&
+    event.groupId !== null;
   const startDate = new Date(event.startAt);
 
   const visClass =
@@ -36,34 +38,8 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
 
   const cancelledClass = event.status === 'cancelled' ? styles.eventCancelled : '';
 
-  const handleClick = () => {
-    if (isClickable && onClick) onClick(event);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Enter' || e.key === ' ') && isClickable && onClick) {
-      e.preventDefault();
-      onClick(event);
-    }
-  };
-
-  return (
-    <div
-      className={`${styles.eventBlock} ${visClass} ${cancelledClass}`}
-      style={style}
-      role="button"
-      tabIndex={isClickable ? 0 : -1}
-      aria-disabled={!isClickable}
-      aria-label={
-        isClickable
-          ? `Open event: ${event.title}`
-          : event.visibilityLevel === 'busy'
-            ? `${event.ownerDisplayName ?? 'Someone'} is busy`
-            : `Event: ${event.title}`
-      }
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-    >
+  const content = (
+    <>
       <span className={styles.eventBlockTitle}>{event.title}</span>
       {showTime && (
         <span className={styles.eventBlockTime}>{formatTime(startDate)}</span>
@@ -71,6 +47,34 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
       {event.status === 'cancelled' && (
         <span className={styles.eventBlockBadge}>Cancelled</span>
       )}
+    </>
+  );
+
+  if (isClickable) {
+    return (
+      <button
+        type="button"
+        className={`${styles.eventBlock} ${styles.eventBlockClickable} ${visClass} ${cancelledClass}`}
+        style={style}
+        onClick={() => onClick?.(event)}
+        aria-label={`Open event: ${event.title}`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={`${styles.eventBlock} ${visClass} ${cancelledClass}`}
+      style={style}
+      aria-label={
+        event.visibilityLevel === 'busy'
+          ? `${event.ownerDisplayName ?? 'Someone'} is busy`
+          : `Event: ${event.title}`
+      }
+    >
+      {content}
     </div>
   );
 }

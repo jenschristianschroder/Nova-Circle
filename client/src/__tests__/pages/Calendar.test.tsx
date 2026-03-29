@@ -157,7 +157,7 @@ describe('Calendar page', () => {
     renderCalendar();
     await waitFor(() => {
       const monthRadio = screen.getByRole('radio', { name: 'Month' });
-      expect(monthRadio).toHaveAttribute('aria-checked', 'true');
+      expect(monthRadio).toBeChecked();
     });
   });
 
@@ -196,10 +196,7 @@ describe('Calendar page', () => {
     await user.click(screen.getByRole('radio', { name: 'Day' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Day' })).toHaveAttribute(
-        'aria-checked',
-        'true',
-      );
+      expect(screen.getByRole('radio', { name: 'Day' })).toBeChecked();
     });
   });
 
@@ -213,10 +210,7 @@ describe('Calendar page', () => {
     await user.click(screen.getByRole('radio', { name: 'Week' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Week' })).toHaveAttribute(
-        'aria-checked',
-        'true',
-      );
+      expect(screen.getByRole('radio', { name: 'Week' })).toBeChecked();
     });
   });
 
@@ -239,10 +233,7 @@ describe('Calendar page', () => {
     mockAllData();
     renderCalendar();
     await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Day' })).toHaveAttribute(
-        'aria-checked',
-        'true',
-      );
+      expect(screen.getByRole('radio', { name: 'Day' })).toBeChecked();
     });
   });
 

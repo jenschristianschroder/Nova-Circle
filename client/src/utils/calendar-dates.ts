@@ -99,8 +99,9 @@ export function monthGridRange(date: Date): DateRange {
 /** Return the number of calendar weeks visible in the month grid. */
 export function weeksInMonthGrid(date: Date): number {
   const { start, end } = monthGridRange(date);
-  const diffMs = end.getTime() - start.getTime();
-  return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const lastWeekStart = startOfWeek(end);
+  const diffMs = lastWeekStart.getTime() - start.getTime();
+  return diffMs / (7 * 24 * 60 * 60 * 1000) + 1;
 }
 
 // ── View-mode ranges ───────────────────────────────────────────────────────────
