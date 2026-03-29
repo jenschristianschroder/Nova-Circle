@@ -126,17 +126,17 @@ describe('Capture API', () => {
     );
 
     it.skipIf(skipReason !== undefined)(
-      'returns 202 with missing_group when no groupId provided',
+      'returns 201 with personal event when no groupId provided',
       async () => {
         const res = await request(app)
           .post('/api/v1/capture/text')
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ text: 'Team lunch tomorrow at noon' });
 
-        expect(res.status).toBe(202);
+        expect(res.status).toBe(201);
         const body = res.body as CaptureResponseBody;
-        expect(body.type).toBe('draft');
-        expect(body.draft!.issues.some((i) => i.code === 'missing_group')).toBe(true);
+        expect(body.type).toBe('event');
+        expect(body.eventId).toBeTruthy();
       },
     );
   });
@@ -274,7 +274,7 @@ describe('Capture API', () => {
     );
 
     it.skipIf(skipReason !== undefined)(
-      'returns 202 with missing_group when no groupId is provided',
+      'returns 201 with personal event when no groupId is provided',
       async () => {
         const res = await request(app)
           .post('/api/v1/capture/image')
@@ -284,10 +284,10 @@ describe('Capture API', () => {
             contentType: 'image/jpeg',
           });
 
-        expect(res.status).toBe(202);
+        expect(res.status).toBe(201);
         const body = res.body as CaptureResponseBody;
-        expect(body.type).toBe('draft');
-        expect(body.draft!.issues.some((i) => i.code === 'missing_group')).toBe(true);
+        expect(body.type).toBe('event');
+        expect(body.eventId).toBeTruthy();
       },
     );
   });

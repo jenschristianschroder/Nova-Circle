@@ -37,50 +37,67 @@ export class PromoteDraftUseCase {
         code: 'CONFLICT',
       });
     }
-    if (!draft.candidateTitle || !draft.candidateStartAt || !draft.groupId) {
+    if (!draft.candidateTitle || !draft.candidateStartAt) {
       throw Object.assign(
-        new Error('Draft is missing required fields (title, startAt, or groupId)'),
+        new Error('Draft is missing required fields (title or startAt)'),
         { code: 'CONFLICT' },
       );
     }
-    // Defensively validate the stored groupId is a valid UUID before calling the
-    // member repository – a corrupt row must not cause an unhandled PostgreSQL cast error.
-    if (!isValidUuid(draft.groupId)) {
-      throw Object.assign(new Error('Draft has an invalid groupId and cannot be promoted'), {
-        code: 'CONFLICT',
+
+    if (draft.groupId) {
+      // Group-scoped event promotion.
+      // Defensively validate the stored groupId is a valid UUID before calling the
+      // member repository – a corrupt row must not cause an unhandled PostgreSQL cast error.
+      if (!isValidUuid(draft.groupId)) {
+        throw Object.assign(new Error('Draft has an invalid groupId and cannot be promoted'), {
+          code: 'CONFLICT',
+        });
+      }
+
+      // Verify the caller is still a member of the group at promotion time.
+      // A user who was removed from the group after creating the draft must not be
+      // able to promote it (which would re-add them via the invitees snapshot).
+      const isStillMember = await this.memberRepo.isMember(draft.groupId, caller.userId);
+      if (!isStillMember) {
+        throw Object.assign(
+          new Error('You are not a member of the group associated with this draft'),
+          { code: 'CONFLICT' },
+        );
+      }
+
+      // Snapshot group membership at promotion time.
+      const memberList = await this.memberRepo.listByGroup(draft.groupId);
+      const inviteeIds = memberList.map((m) => m.userId);
+      if (!inviteeIds.includes(caller.userId)) {
+        inviteeIds.push(caller.userId);
+      }
+
+      const event = await this.eventCreator.createEventWithInvitations({
+        groupId: draft.groupId,
+        title: draft.candidateTitle.trim(),
+        description: draft.candidateDescription ?? null,
+        startAt: draft.candidateStartAt,
+        endAt: draft.candidateEndAt ?? null,
+        createdBy: caller.userId,
+        inviteeIds,
       });
+
+      await this.draftRepo.promote(draftId);
+      return { eventId: event.id };
+    } else {
+      // Personal event promotion – no group, no invitations.
+      const event = await this.eventCreator.createEventWithInvitations({
+        groupId: null,
+        title: draft.candidateTitle.trim(),
+        description: draft.candidateDescription ?? null,
+        startAt: draft.candidateStartAt,
+        endAt: draft.candidateEndAt ?? null,
+        createdBy: caller.userId,
+        inviteeIds: [],
+      });
+
+      await this.draftRepo.promote(draftId);
+      return { eventId: event.id };
     }
-
-    // Verify the caller is still a member of the group at promotion time.
-    // A user who was removed from the group after creating the draft must not be
-    // able to promote it (which would re-add them via the invitees snapshot).
-    const isStillMember = await this.memberRepo.isMember(draft.groupId, caller.userId);
-    if (!isStillMember) {
-      throw Object.assign(
-        new Error('You are not a member of the group associated with this draft'),
-        { code: 'CONFLICT' },
-      );
-    }
-
-    // Snapshot group membership at promotion time.
-    const memberList = await this.memberRepo.listByGroup(draft.groupId);
-    const inviteeIds = memberList.map((m) => m.userId);
-    if (!inviteeIds.includes(caller.userId)) {
-      inviteeIds.push(caller.userId);
-    }
-
-    const event = await this.eventCreator.createEventWithInvitations({
-      groupId: draft.groupId,
-      title: draft.candidateTitle.trim(),
-      description: draft.candidateDescription ?? null,
-      startAt: draft.candidateStartAt,
-      endAt: draft.candidateEndAt ?? null,
-      createdBy: caller.userId,
-      inviteeIds,
-    });
-
-    await this.draftRepo.promote(draftId);
-
-    return { eventId: event.id };
   }
 }

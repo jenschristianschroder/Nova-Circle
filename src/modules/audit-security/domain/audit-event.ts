@@ -8,6 +8,7 @@
 export type AuditAction =
   | 'event.created'
   | 'event.cancelled'
+  | 'event.deleted'
   | 'event_invitation.added'
   | 'event_invitation.removed'
   | 'member.added'

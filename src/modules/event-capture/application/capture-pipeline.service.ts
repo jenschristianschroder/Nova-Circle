@@ -181,57 +181,68 @@ export class CapturePipelineService {
       });
     }
 
-    // Group validation.
+    // Group validation — only required for group-scoped events.
+    // When no groupId is provided, a personal event will be created instead.
     let resolvedGroupId = input.groupId;
 
-    if (!resolvedGroupId) {
-      issues.push({
-        code: 'missing_group',
-        field: 'groupId',
-        message: 'No group could be identified from the input',
-      });
-    } else if (!isValidUuid(resolvedGroupId)) {
-      // An invalid UUID would cause a PostgreSQL cast error; treat as unauthorized access.
-      issues.push({
-        code: 'unauthorized_group_access',
-        field: 'groupId',
-        message: 'Invalid group identifier',
-      });
-      resolvedGroupId = null;
-    } else {
-      const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
-      if (!isMember) {
+    if (resolvedGroupId) {
+      if (!isValidUuid(resolvedGroupId)) {
+        // An invalid UUID would cause a PostgreSQL cast error; treat as unauthorized access.
         issues.push({
           code: 'unauthorized_group_access',
           field: 'groupId',
-          message: 'You are not a member of the specified group',
+          message: 'Invalid group identifier',
         });
-        // Clear groupId to avoid persisting an inaccessible group reference.
         resolvedGroupId = null;
+      } else {
+        const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
+        if (!isMember) {
+          issues.push({
+            code: 'unauthorized_group_access',
+            field: 'groupId',
+            message: 'You are not a member of the specified group',
+          });
+          // Clear groupId to avoid persisting an inaccessible group reference.
+          resolvedGroupId = null;
+        }
       }
     }
 
     // Step 6: Route.
-    if (issues.length === 0 && resolvedGroupId && parsedStart) {
-      // All required fields are valid – delegate to event-management.
-      const memberList = await this.memberRepo.listByGroup(resolvedGroupId);
-      const inviteeIds = memberList.map((m) => m.userId);
-      if (!inviteeIds.includes(caller.userId)) {
-        inviteeIds.push(caller.userId);
+    if (issues.length === 0 && parsedStart) {
+      if (resolvedGroupId) {
+        // Group-scoped event – delegate to event-management with invitees.
+        const memberList = await this.memberRepo.listByGroup(resolvedGroupId);
+        const inviteeIds = memberList.map((m) => m.userId);
+        if (!inviteeIds.includes(caller.userId)) {
+          inviteeIds.push(caller.userId);
+        }
+
+        const event = await this.eventCreator.createEventWithInvitations({
+          groupId: resolvedGroupId,
+          title: candidates.title!.value.trim(),
+          description: candidates.description?.value ?? null,
+          startAt: parsedStart,
+          endAt: parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
+          createdBy: caller.userId,
+          inviteeIds,
+        });
+
+        return { type: 'event', eventId: event.id };
+      } else {
+        // Personal event – no group, no invitations.
+        const event = await this.eventCreator.createEventWithInvitations({
+          groupId: null,
+          title: candidates.title!.value.trim(),
+          description: candidates.description?.value ?? null,
+          startAt: parsedStart,
+          endAt: parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
+          createdBy: caller.userId,
+          inviteeIds: [],
+        });
+
+        return { type: 'event', eventId: event.id };
       }
-
-      const hasValidTimeRange = !issues.some((i) => i.code === 'invalid_time_range');
-      const event = await this.eventCreator.createEventWithInvitations({
-        groupId: resolvedGroupId,
-        title: candidates.title!.value.trim(),
-        description: candidates.description?.value ?? null,
-        startAt: parsedStart,
-        endAt: parsedEnd && hasValidTimeRange ? parsedEnd : null,
-        createdBy: caller.userId,
-        inviteeIds,
-      });
-
-      return { type: 'event', eventId: event.id };
     }
 
     // Persist an EventDraft with structured issue codes.
@@ -297,26 +308,26 @@ export class CapturePipelineService {
       });
     }
 
-    // Group.
+    // Group — only validate if provided; omitting means personal event.
     let resolvedGroupId = candidates.groupId;
-    if (!resolvedGroupId) {
-      issues.push({ code: 'missing_group', field: 'groupId', message: 'A group is required' });
-    } else if (!isValidUuid(resolvedGroupId)) {
-      issues.push({
-        code: 'unauthorized_group_access',
-        field: 'groupId',
-        message: 'Invalid group identifier',
-      });
-      resolvedGroupId = null;
-    } else {
-      const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
-      if (!isMember) {
+    if (resolvedGroupId) {
+      if (!isValidUuid(resolvedGroupId)) {
         issues.push({
           code: 'unauthorized_group_access',
           field: 'groupId',
-          message: 'You are not a member of the specified group',
+          message: 'Invalid group identifier',
         });
         resolvedGroupId = null;
+      } else {
+        const isMember = await this.memberRepo.isMember(resolvedGroupId, caller.userId);
+        if (!isMember) {
+          issues.push({
+            code: 'unauthorized_group_access',
+            field: 'groupId',
+            message: 'You are not a member of the specified group',
+          });
+          resolvedGroupId = null;
+        }
       }
     }
 

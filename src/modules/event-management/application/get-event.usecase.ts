@@ -15,6 +15,14 @@ export class GetEventUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
+    // Personal events (no groupId) are accessible only by their owner.
+    if (event.groupId === null) {
+      if (event.ownerId !== caller.userId) {
+        throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+      }
+      return event;
+    }
+
     // Group membership alone does NOT grant access; a valid invitation is required.
     const hasAccess = await this.invitationRepo.hasAccess(eventId, caller.userId);
     if (!hasAccess) {
