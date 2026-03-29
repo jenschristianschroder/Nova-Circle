@@ -1,0 +1,129 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nc-overlay-backdrop, rgba(0, 0, 0, 0.4));
+  z-index: 100;
+}
+
+.dialog {
+  background: var(--nc-surface-default);
+  border-radius: var(--nc-radius-lg, 12px);
+  box-shadow: var(--nc-shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+  width: min(90vw, 32rem);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--nc-border-default);
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--nc-text-default);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--nc-text-muted);
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  color: var(--nc-text-default);
+}
+
+.error {
+  color: var(--nc-danger-default);
+  padding: 0.5rem 1.25rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.loading,
+.empty {
+  padding: 2rem 1.25rem;
+  text-align: center;
+  color: var(--nc-text-muted);
+  margin: 0;
+}
+
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.groupItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  gap: 0.75rem;
+}
+
+.groupItem:not(:last-child) {
+  border-bottom: 1px solid var(--nc-border-default);
+}
+
+.groupInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.groupName {
+  font-weight: 500;
+  color: var(--nc-text-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sharedBadge {
+  font-size: 0.75rem;
+  color: var(--nc-accent-default);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.visibilitySelect {
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-sm, 4px);
+  background: var(--nc-surface-default);
+  color: var(--nc-text-default);
+  cursor: pointer;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--nc-border-default);
+}
