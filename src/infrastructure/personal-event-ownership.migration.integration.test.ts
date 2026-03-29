@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { createTestDb } from '../infrastructure/test-db.js';
+import knex from 'knex';
 import type { Knex } from 'knex';
+import { createTestDb } from '../infrastructure/test-db.js';
 
 const skipReason = !process.env['TEST_DATABASE_URL']
   ? 'TEST_DATABASE_URL is not set – skipping personal-event-ownership migration tests'
@@ -34,13 +35,54 @@ interface ConstraintRow {
 
 /**
  * Drops and recreates the `public` schema so that migrations can be applied
- * from scratch on the same test database. This is necessary because the
- * integration test suite shares a single database and the step-by-step
- * migration tests need a blank slate.
+ * from scratch on the same test database.
+ *
+ * Uses IF EXISTS / IF NOT EXISTS so the helper is idempotent and robust
+ * across repeated runs and crash recovery.
  */
 async function resetSchema(connection: Knex): Promise<void> {
-  await connection.raw('DROP SCHEMA public CASCADE');
-  await connection.raw('CREATE SCHEMA public');
+  await connection.raw('DROP SCHEMA IF EXISTS public CASCADE');
+  await connection.raw('CREATE SCHEMA IF NOT EXISTS public');
+}
+
+/**
+ * Creates a Knex instance backed by an ephemeral PostgreSQL schema so that
+ * step-by-step and rollback tests do not clobber the `public` schema used
+ * by the suite-level `db` connection. Each call creates a unique schema,
+ * preventing test-order dependencies and cross-test interference.
+ *
+ * Returns the Knex instance and a cleanup function that drops the schema.
+ */
+async function createIsolatedTestDb(): Promise<{
+  db: Knex;
+  cleanup: () => Promise<void>;
+}> {
+  const schemaName = `test_step_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+
+  const setup = createTestDb();
+  await setup.raw(`CREATE SCHEMA "${schemaName}"`);
+  await setup.destroy();
+
+  const isolatedDb = knex({
+    client: 'pg',
+    connection: process.env['TEST_DATABASE_URL']!,
+    searchPath: [schemaName],
+    migrations: {
+      directory: new URL('../../db/migrations', import.meta.url).pathname,
+      extension: 'ts',
+      loadExtensions: ['.ts'],
+    },
+    pool: { min: 1, max: 5 },
+  });
+
+  const cleanup = async (): Promise<void> => {
+    await isolatedDb.destroy();
+    const teardown = createTestDb();
+    await teardown.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+    await teardown.destroy();
+  };
+
+  return { db: isolatedDb, cleanup };
 }
 
 /**
@@ -161,12 +203,10 @@ describe('Personal event ownership migration', () => {
   it.skipIf(skipReason !== undefined)(
     'migration back-fills owner_id from created_by for existing events',
     async () => {
-      // Use a separate Knex instance so we can control migrations step-by-step.
-      const stepDb = createTestDb();
+      // Use an isolated schema so we can control migrations step-by-step
+      // without clobbering the suite-level `public` schema.
+      const { db: stepDb, cleanup } = await createIsolatedTestDb();
       try {
-        // Reset the schema so migrations start from scratch.
-        await resetSchema(stepDb);
-
         // Step 1: Run all migrations EXCEPT the personal-event-ownership one.
         await stepDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
         await stepDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
@@ -206,7 +246,7 @@ describe('Personal event ownership migration', () => {
         expect(rows[0]!.owner_id).toBe(userId);
         expect(rows[0]!.owner_id).toBe(rows[0]!.created_by);
       } finally {
-        await stepDb.destroy();
+        await cleanup();
       }
     },
   );
@@ -214,12 +254,10 @@ describe('Personal event ownership migration', () => {
   it.skipIf(skipReason !== undefined)(
     'migration back-fills event_shares for existing group-scoped events',
     async () => {
-      // Use a separate Knex instance so we can control migrations step-by-step.
-      const stepDb = createTestDb();
+      // Use an isolated schema so we can control migrations step-by-step
+      // without clobbering the suite-level `public` schema.
+      const { db: stepDb, cleanup } = await createIsolatedTestDb();
       try {
-        // Reset the schema so migrations start from scratch.
-        await resetSchema(stepDb);
-
         // Step 1: Run all migrations EXCEPT the personal-event-ownership one.
         await stepDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
         await stepDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
@@ -261,7 +299,7 @@ describe('Personal event ownership migration', () => {
         expect(shares[0]!.visibility_level).toBe('details');
         expect(shares[0]!.shared_by_user_id).toBe(userId);
       } finally {
-        await stepDb.destroy();
+        await cleanup();
       }
     },
   );
@@ -383,14 +421,11 @@ describe('Personal event ownership migration', () => {
   // ── Down migration test ─────────────────────────────────────────────────
 
   it.skipIf(skipReason !== undefined)(
-    'down migration reverses all changes',
+    'down migration reverses all changes and deletes personal events',
     async () => {
-      // Use a separate Knex instance for this destructive test.
-      const rollbackDb = createTestDb();
+      // Use an isolated schema so this destructive test does not affect `public`.
+      const { db: rollbackDb, cleanup } = await createIsolatedTestDb();
       try {
-        // Start from a clean slate so no leftover data interferes.
-        await resetSchema(rollbackDb);
-
         // Apply migrations one-by-one to put each in its own batch.
         // This lets rollback() undo only the personal-event-ownership migration.
         await rollbackDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
@@ -408,6 +443,23 @@ describe('Personal event ownership migration', () => {
         expect(await rollbackDb.schema.hasTable('event_shares')).toBe(true);
         expect(await rollbackDb.schema.hasColumn('events', 'owner_id')).toBe(true);
 
+        // Insert a personal event (group_id IS NULL) to exercise the down
+        // migration's delete-before-NOT-NULL-restore behaviour.
+        const userId = 'dddddddd-0000-4000-8000-000000000001';
+        await rollbackDb('user_profiles').insert({
+          id: userId,
+          display_name: 'Rollback User',
+        });
+        const personalEvents = await rollbackDb<IdRow>('events')
+          .insert({
+            group_id: null,
+            title: 'Personal Event To Delete',
+            start_at: new Date('2026-07-01T12:00:00Z'),
+            created_by: userId,
+            owner_id: userId,
+          })
+          .returning('id');
+
         // Roll back the last migration only.
         await rollbackDb.migrate.rollback();
 
@@ -420,11 +472,18 @@ describe('Personal event ownership migration', () => {
         // group_id should be NOT NULL again.
         const result = await rollbackDb.raw<{ rows: NullabilityRow[] }>(
           `SELECT is_nullable FROM information_schema.columns
-           WHERE table_name = 'events' AND column_name = 'group_id'`,
+           WHERE table_schema = current_schema()
+             AND table_name = 'events' AND column_name = 'group_id'`,
         );
         expect(result.rows[0]?.is_nullable).toBe('NO');
+
+        // Personal event should have been deleted by the down migration.
+        const remaining = await rollbackDb('events').where({
+          id: personalEvents[0]!.id,
+        });
+        expect(remaining.length).toBe(0);
       } finally {
-        await rollbackDb.destroy();
+        await cleanup();
       }
     },
   );
