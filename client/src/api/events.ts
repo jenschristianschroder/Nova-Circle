@@ -38,6 +38,27 @@ export interface EventInvitation {
 
 type ApiFetch = <T>(path: string, init?: RequestInit) => Promise<T>;
 
+// ── Personal Event API ─────────────────────────────────────────────────────────
+
+export interface ListPersonalEventsParams {
+  from?: string;
+  to?: string;
+}
+
+/** Fetch the authenticated user's personal events, optionally filtered by date range. */
+export async function listPersonalEvents(
+  apiFetch: ApiFetch,
+  params?: ListPersonalEventsParams,
+): Promise<CalendarEvent[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.from) searchParams.set('from', params.from);
+  if (params?.to) searchParams.set('to', params.to);
+
+  const qs = searchParams.toString();
+  const url = `/api/v1/events${qs ? `?${qs}` : ''}`;
+  return apiFetch<CalendarEvent[]>(url);
+}
+
 // ── Shared Group Event types ───────────────────────────────────────────────────
 
 /**
