@@ -75,21 +75,24 @@ describe('Personal Events API', () => {
       expect(res.status).toBe(401);
     });
 
-    it.skipIf(skipReason !== undefined)('creates personal event with correct ownership', async () => {
-      const res = await request(app)
-        .post('/api/v1/events')
-        .set(testAuthHeaders(owner.userId, owner.displayName))
-        .send({ title: 'My Event', startAt: '2026-06-01T10:00:00Z' });
+    it.skipIf(skipReason !== undefined)(
+      'creates personal event with correct ownership',
+      async () => {
+        const res = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'My Event', startAt: '2026-06-01T10:00:00Z' });
 
-      expect(res.status).toBe(201);
-      const body = res.body as EventBody;
-      expect(body).toMatchObject({
-        title: 'My Event',
-        ownerId: owner.userId,
-        status: 'scheduled',
-      });
-      expect(body.groupId).toBeNull();
-    });
+        expect(res.status).toBe(201);
+        const body = res.body as EventBody;
+        expect(body).toMatchObject({
+          title: 'My Event',
+          ownerId: owner.userId,
+          status: 'scheduled',
+        });
+        expect(body.groupId).toBeNull();
+      },
+    );
 
     it.skipIf(skipReason !== undefined)('creates event with description and endAt', async () => {
       const res = await request(app)
@@ -207,35 +210,32 @@ describe('Personal Events API', () => {
       expect(res.status).toBe(401);
     });
 
-    it.skipIf(skipReason !== undefined)(
-      "returns only the caller's personal events",
-      async () => {
-        // Create events for both users
-        await request(app)
-          .post('/api/v1/events')
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ title: 'Owner List Event', startAt: '2026-07-01T10:00:00Z' });
+    it.skipIf(skipReason !== undefined)("returns only the caller's personal events", async () => {
+      // Create events for both users
+      await request(app)
+        .post('/api/v1/events')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Owner List Event', startAt: '2026-07-01T10:00:00Z' });
 
-        await request(app)
-          .post('/api/v1/events')
-          .set(testAuthHeaders(otherUser.userId, otherUser.displayName))
-          .send({ title: 'Other User Event', startAt: '2026-07-01T10:00:00Z' });
+      await request(app)
+        .post('/api/v1/events')
+        .set(testAuthHeaders(otherUser.userId, otherUser.displayName))
+        .send({ title: 'Other User Event', startAt: '2026-07-01T10:00:00Z' });
 
-        const ownerRes = await request(app)
-          .get('/api/v1/events')
-          .set(testAuthHeaders(owner.userId, owner.displayName));
+      const ownerRes = await request(app)
+        .get('/api/v1/events')
+        .set(testAuthHeaders(owner.userId, owner.displayName));
 
-        expect(ownerRes.status).toBe(200);
-        expect(Array.isArray(ownerRes.body)).toBe(true);
+      expect(ownerRes.status).toBe(200);
+      expect(Array.isArray(ownerRes.body)).toBe(true);
 
-        const ownerEvents = ownerRes.body as EventBody[];
-        for (const evt of ownerEvents) {
-          expect(evt.ownerId).toBe(owner.userId);
-        }
-        // Other user's event should not appear
-        expect(ownerEvents.some((e) => e.title === 'Other User Event')).toBe(false);
-      },
-    );
+      const ownerEvents = ownerRes.body as EventBody[];
+      for (const evt of ownerEvents) {
+        expect(evt.ownerId).toBe(owner.userId);
+      }
+      // Other user's event should not appear
+      expect(ownerEvents.some((e) => e.title === 'Other User Event')).toBe(false);
+    });
 
     it.skipIf(skipReason !== undefined)('supports from/to date range filtering', async () => {
       // Create events at different times
@@ -361,9 +361,7 @@ describe('Personal Events API', () => {
     });
 
     it.skipIf(skipReason !== undefined)('returns 401 without auth', async () => {
-      const res = await request(app)
-        .patch(`/api/v1/events/${eventId}`)
-        .send({ title: 'Updated' });
+      const res = await request(app).patch(`/api/v1/events/${eventId}`).send({ title: 'Updated' });
       expect(res.status).toBe(401);
     });
 
