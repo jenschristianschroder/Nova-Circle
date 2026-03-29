@@ -117,9 +117,7 @@ function makeSharedEventRecord(overrides?: Partial<SharedEventRecord>): SharedEv
   };
 }
 
-function makeSharedEventQuery(
-  overrides?: Partial<SharedEventQueryPort>,
-): SharedEventQueryPort {
+function makeSharedEventQuery(overrides?: Partial<SharedEventQueryPort>): SharedEventQueryPort {
   return {
     listByGroup: vi.fn().mockResolvedValue({ events: [], total: 0 }),
     findByGroupAndEvent: vi.fn().mockResolvedValue(null),

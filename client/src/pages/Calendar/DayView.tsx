@@ -35,9 +35,7 @@ function eventsForDay(events: CalendarDisplayEvent[], day: Date): CalendarDispla
 
   return events.filter((ev) => {
     const eStart = new Date(ev.startAt);
-    const eEnd = ev.endAt
-      ? new Date(ev.endAt)
-      : new Date(eStart.getTime() + 60 * 60 * 1000);
+    const eEnd = ev.endAt ? new Date(ev.endAt) : new Date(eStart.getTime() + 60 * 60 * 1000);
     return eEnd > dayStart && eStart < dayEnd;
   });
 }
@@ -89,7 +87,11 @@ function DayColumn({
 
         {/* Positioned events */}
         {dayEvents.map((ev) => {
-          const pos = eventDayPosition(new Date(ev.startAt), ev.endAt ? new Date(ev.endAt) : null, day);
+          const pos = eventDayPosition(
+            new Date(ev.startAt),
+            ev.endAt ? new Date(ev.endAt) : null,
+            day,
+          );
           if (!pos) return null;
           return (
             <EventBlock

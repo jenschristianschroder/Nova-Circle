@@ -52,8 +52,5 @@ export interface SharedEventQueryPort {
     pagination?: SharedEventPagination,
   ): Promise<{ events: SharedEventRecord[]; total: number }>;
 
-  findByGroupAndEvent(
-    groupId: string,
-    eventId: string,
-  ): Promise<SharedEventRecord | null>;
+  findByGroupAndEvent(groupId: string, eventId: string): Promise<SharedEventRecord | null>;
 }

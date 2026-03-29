@@ -75,30 +75,15 @@ export function CalendarToolbar({
   return (
     <div className={styles.toolbar} role="toolbar" aria-label="Calendar navigation">
       <div className={styles.toolbarLeft}>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onToday}
-          aria-label="Go to today"
-        >
+        <Button variant="secondary" size="sm" onClick={onToday} aria-label="Go to today">
           Today
         </Button>
 
         <div className={styles.navButtons}>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onPrev}
-            aria-label="Previous period"
-          >
+          <Button variant="secondary" size="sm" onClick={onPrev} aria-label="Previous period">
             ‹
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onNext}
-            aria-label="Next period"
-          >
+          <Button variant="secondary" size="sm" onClick={onNext} aria-label="Next period">
             ›
           </Button>
         </div>

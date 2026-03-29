@@ -13,6 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from '../../design-system/ThemeContext';
 import { GroupDetail } from '../../pages/GroupDetail';
+import type { SharedGroupEvent } from '../../api/events';
 
 // ── Mocks ──────────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ const sampleGroup = {
   updatedAt: '2026-01-01T00:00:00Z',
 };
 
-const sampleEvents = [
+const sampleEvents: SharedGroupEvent[] = [
   {
     id: 'e1',
     ownerId: 'u1',
@@ -96,7 +97,7 @@ const sampleProfile = {
 /** Mock all four data calls: group, events, members, profile */
 function mockLoadData(
   group = sampleGroup,
-  events = sampleEvents,
+  events: SharedGroupEvent[] = sampleEvents,
   members = sampleMembers,
   profile = sampleProfile,
 ) {
@@ -331,7 +332,7 @@ describe('GroupDetail', () => {
   // ── Visibility-level rendering ──────────────────────────────────────────────
 
   it('renders busy events as non-clickable opaque blocks', async () => {
-    const busyEvent = {
+    const busyEvent: SharedGroupEvent = {
       id: 'e-busy',
       ownerId: 'u2',
       ownerDisplayName: 'Jane',
@@ -350,7 +351,7 @@ describe('GroupDetail', () => {
   });
 
   it('renders title-level events with limited badge and no click-through', async () => {
-    const titleEvent = {
+    const titleEvent: SharedGroupEvent = {
       id: 'e-title',
       ownerId: 'u2',
       ownerDisplayName: 'Jane',
@@ -371,7 +372,7 @@ describe('GroupDetail', () => {
 
   it('renders details-level events as clickable cards', async () => {
     const user = userEvent.setup();
-    const detailsEvent = {
+    const detailsEvent: SharedGroupEvent = {
       id: 'e-detail',
       ownerId: 'u2',
       ownerDisplayName: 'Jane',

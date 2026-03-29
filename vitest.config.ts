@@ -2,6 +2,15 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    // Register tsx at the root level so Knex can dynamically import .ts
+    // migration files inside forked worker processes.  Vitest reads
+    // poolOptions.forks from the root config, not from project-level
+    // overrides, so this must live here.
+    poolOptions: {
+      forks: {
+        execArgv: ['--import', 'tsx'],
+      },
+    },
     projects: [
       {
         extends: true,

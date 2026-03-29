@@ -211,7 +211,14 @@ export function createApp(deps?: AppDependencies): express.Application {
 
     app.use(
       '/api/v1/groups/:groupId/events',
-      createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo, auditLog, sharedEventQuery),
+      createEventRouter(
+        eventCreator,
+        eventRepo,
+        invitationRepo,
+        memberRepo,
+        auditLog,
+        sharedEventQuery,
+      ),
     );
     app.use('/api/v1/events', createPersonalEventRouter(eventCreator, eventRepo, auditLog));
 

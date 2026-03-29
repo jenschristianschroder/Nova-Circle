@@ -154,7 +154,7 @@ describe('monthGridRange', () => {
     // March 2026: starts on Sunday, ends on Tuesday
     const { start, end } = monthGridRange(new Date(2026, 2, 15));
     expect(start.getDay()).toBe(1); // Monday
-    expect(end.getDay()).toBe(0);   // Sunday
+    expect(end.getDay()).toBe(0); // Sunday
     expect(end.getHours()).toBe(23);
     // The range must contain the entire month
     expect(start.getTime()).toBeLessThanOrEqual(new Date(2026, 2, 1).getTime());
@@ -201,7 +201,7 @@ describe('viewRange', () => {
   it('returns 7-day range for week mode', () => {
     const { start, end } = viewRange('week', new Date(2026, 2, 18));
     expect(start.getDay()).toBe(1); // Monday
-    expect(end.getDay()).toBe(0);   // Sunday
+    expect(end.getDay()).toBe(0); // Sunday
     // The range covers Mon 00:00 to Sun 23:59 — 7 calendar days
     const startDay = start.getDate();
     const endDay = end.getDate();
@@ -211,7 +211,7 @@ describe('viewRange', () => {
   it('returns month grid range for month mode', () => {
     const { start, end } = viewRange('month', new Date(2026, 2, 15));
     expect(start.getDay()).toBe(1); // Monday
-    expect(end.getDay()).toBe(0);   // Sunday
+    expect(end.getDay()).toBe(0); // Sunday
   });
 
   it('returns custom N-day range', () => {
@@ -279,7 +279,7 @@ describe('navigatePrev', () => {
 describe('eventDayPosition', () => {
   it('positions an event in the morning', () => {
     const start = new Date(2026, 2, 15, 9, 0); // 9:00
-    const end = new Date(2026, 2, 15, 10, 0);  // 10:00
+    const end = new Date(2026, 2, 15, 10, 0); // 10:00
     const day = new Date(2026, 2, 15);
 
     const pos = eventDayPosition(start, end, day);
@@ -300,7 +300,7 @@ describe('eventDayPosition', () => {
 
   it('clamps multi-day events to the target day', () => {
     const start = new Date(2026, 2, 14, 22, 0); // starts day before
-    const end = new Date(2026, 2, 15, 3, 0);    // ends at 3 AM
+    const end = new Date(2026, 2, 15, 3, 0); // ends at 3 AM
     const day = new Date(2026, 2, 15);
 
     const pos = eventDayPosition(start, end, day);

@@ -175,7 +175,7 @@ describe('Event Checklist API', () => {
         .get(`/api/v1/groups/${groupId}/events`)
         .set(testAuthHeaders(owner.userId, owner.displayName));
       expect(res.status).toBe(200);
-      const events = res.body as unknown[];
+      const events = (res.body as { events: unknown[] }).events;
       for (const ev of events) {
         expect(ev).not.toHaveProperty('checklist');
         expect(ev).not.toHaveProperty('items');

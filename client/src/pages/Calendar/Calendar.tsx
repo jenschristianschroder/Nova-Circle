@@ -233,7 +233,7 @@ export function Calendar() {
         title:
           ev.visibilityLevel === 'busy'
             ? `${ev.ownerDisplayName} — Busy`
-            : ev.title ?? 'Untitled',
+            : (ev.title ?? 'Untitled'),
         startAt: ev.startAt,
         endAt: ev.endAt,
         visibilityLevel: ev.visibilityLevel,
