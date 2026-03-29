@@ -97,9 +97,9 @@ const sampleSharedEvents = {
 };
 
 function mockAllData(
-  groups = sampleGroups,
-  personal = samplePersonalEvents,
-  shared = sampleSharedEvents,
+  groups: unknown = sampleGroups,
+  personal: unknown = samplePersonalEvents,
+  shared: unknown = sampleSharedEvents,
 ) {
   mockApiFetch
     .mockResolvedValueOnce(groups) // listMyGroups
@@ -405,6 +405,7 @@ describe('Calendar page', () => {
           endAt: null,
           status: 'scheduled',
           visibilityLevel: 'title' as const,
+          description: undefined,
         },
       ],
       total: 1,
@@ -484,7 +485,7 @@ describe('Calendar page', () => {
         groupId: null,
         ownerId: 'u1',
         title: 'Quick Reminder',
-        description: null,
+        description: '',
         startAt: FIXED_ISO,
         endAt: null,
         status: 'scheduled',
@@ -558,7 +559,7 @@ describe('Calendar page', () => {
         groupId: null,
         ownerId: 'u1',
         title: 'Cancelled Event',
-        description: null,
+        description: '',
         startAt: FIXED_ISO,
         endAt: null,
         status: 'cancelled',
