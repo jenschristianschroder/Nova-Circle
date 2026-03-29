@@ -21,6 +21,7 @@ function makeEvent(overrides?: Partial<Event>): Event {
   return {
     id: 'event-1',
     groupId: 'group-1',
+    ownerId: 'creator-id',
     title: 'Team Lunch',
     description: null,
     startAt: new Date('2026-06-01T12:00:00Z'),
