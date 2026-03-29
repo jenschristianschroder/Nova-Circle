@@ -33,6 +33,17 @@ interface ConstraintRow {
 }
 
 /**
+ * Drops and recreates the `public` schema so that migrations can be applied
+ * from scratch on the same test database. This is necessary because the
+ * integration test suite shares a single database and the step-by-step
+ * migration tests need a blank slate.
+ */
+async function resetSchema(connection: Knex): Promise<void> {
+  await connection.raw('DROP SCHEMA public CASCADE');
+  await connection.raw('CREATE SCHEMA public');
+}
+
+/**
  * Integration tests for the 20260328000010_personal_event_ownership migration.
  *
  * Verifies:
@@ -50,6 +61,7 @@ describe('Personal event ownership migration', () => {
   beforeAll(async () => {
     if (skipReason) return;
     db = createTestDb();
+    await resetSchema(db);
     await db.migrate.latest();
   });
 
@@ -149,11 +161,13 @@ describe('Personal event ownership migration', () => {
   it.skipIf(skipReason !== undefined)(
     'migration back-fills owner_id from created_by for existing events',
     async () => {
-      // Use a separate Knex instance for this controlled migration test.
+      // Use a separate Knex instance so we can control migrations step-by-step.
       const stepDb = createTestDb();
       try {
+        // Reset the schema so migrations start from scratch.
+        await resetSchema(stepDb);
+
         // Step 1: Run all migrations EXCEPT the personal-event-ownership one.
-        // The migration we are testing is the last one (20260328000010).
         await stepDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
         await stepDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
         await stepDb.migrate.up({ name: '20260309000003_group_management.ts' });
@@ -200,9 +214,12 @@ describe('Personal event ownership migration', () => {
   it.skipIf(skipReason !== undefined)(
     'migration back-fills event_shares for existing group-scoped events',
     async () => {
-      // Use a separate Knex instance for this controlled migration test.
+      // Use a separate Knex instance so we can control migrations step-by-step.
       const stepDb = createTestDb();
       try {
+        // Reset the schema so migrations start from scratch.
+        await resetSchema(stepDb);
+
         // Step 1: Run all migrations EXCEPT the personal-event-ownership one.
         await stepDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
         await stepDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
@@ -371,13 +388,27 @@ describe('Personal event ownership migration', () => {
       // Use a separate Knex instance for this destructive test.
       const rollbackDb = createTestDb();
       try {
-        await rollbackDb.migrate.latest();
+        // Start from a clean slate so no leftover data interferes.
+        await resetSchema(rollbackDb);
+
+        // Apply migrations one-by-one to put each in its own batch.
+        // This lets rollback() undo only the personal-event-ownership migration.
+        await rollbackDb.migrate.up({ name: '20260309000001_initial_schema.ts' });
+        await rollbackDb.migrate.up({ name: '20260309000002_identity_profile.ts' });
+        await rollbackDb.migrate.up({ name: '20260309000003_group_management.ts' });
+        await rollbackDb.migrate.up({ name: '20260309000004_group_membership.ts' });
+        await rollbackDb.migrate.up({ name: '20260310000005_event_management.ts' });
+        await rollbackDb.migrate.up({ name: '20260310000006_audit_security.ts' });
+        await rollbackDb.migrate.up({ name: '20260311000007_event_collaboration.ts' });
+        await rollbackDb.migrate.up({ name: '20260311000008_event_capture.ts' });
+        await rollbackDb.migrate.up({ name: '20260312000009_add_production_indexes.ts' });
+        await rollbackDb.migrate.up({ name: '20260328000010_personal_event_ownership.ts' });
 
         // Verify the schema exists before rollback.
         expect(await rollbackDb.schema.hasTable('event_shares')).toBe(true);
         expect(await rollbackDb.schema.hasColumn('events', 'owner_id')).toBe(true);
 
-        // Roll back the last migration.
+        // Roll back the last migration only.
         await rollbackDb.migrate.rollback();
 
         // event_shares table should be gone.
