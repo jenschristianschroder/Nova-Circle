@@ -605,4 +605,191 @@ describe('Calendar page', () => {
       expect(screen.getByRole('radio', { name: 'Month' })).toBeChecked();
     });
   });
+
+  // ── Filter interaction tests ──────────────────────────────────────────────
+
+  it('hides personal events when personal toggle is unchecked', async () => {
+    const user = userEvent.setup();
+    mockAllData();
+    renderCalendar();
+
+    await waitFor(() => {
+      expect(screen.getByText('Personal Lunch')).toBeInTheDocument();
+    });
+
+    // Record call count before toggle
+    const callsBefore = mockApiFetch.mock.calls.length;
+
+    // After toggling personal off, re-fetch: groups + group events (no personal)
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(sampleSharedEvents);
+
+    await user.click(screen.getByRole('checkbox', { name: /personal events/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Personal Lunch')).not.toBeInTheDocument();
+      // Group events should still be visible
+      expect(screen.getByText('Team Meeting')).toBeInTheDocument();
+    });
+
+    // Verify a re-fetch occurred with correct endpoints
+    const callsAfter = mockApiFetch.mock.calls.slice(callsBefore);
+    const urls = callsAfter.map((c) => c[0] as string);
+    expect(urls.some((u) => u === '/api/v1/groups')).toBe(true);
+    expect(urls.some((u) => u.startsWith('/api/v1/groups/g1/events'))).toBe(true);
+    // Personal events endpoint should NOT be called when personal is off
+    expect(urls.some((u) => u.startsWith('/api/v1/events'))).toBe(false);
+  });
+
+  it('hides group events when group toggle is unchecked', async () => {
+    const user = userEvent.setup();
+    mockAllData();
+    renderCalendar();
+
+    await waitFor(() => {
+      expect(screen.getByText('Team Meeting')).toBeInTheDocument();
+    });
+
+    // Record call count before toggle
+    const callsBefore = mockApiFetch.mock.calls.length;
+
+    // After toggling g1 off, re-fetch: groups + personal (no group events)
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(samplePersonalEvents);
+
+    await user.click(screen.getByRole('checkbox', { name: /family/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument();
+      expect(screen.queryByText('Bob — Busy')).not.toBeInTheDocument();
+      // Personal events should still be visible
+      expect(screen.getByText('Personal Lunch')).toBeInTheDocument();
+    });
+
+    // Verify a re-fetch occurred with correct endpoints
+    const callsAfter = mockApiFetch.mock.calls.slice(callsBefore);
+    const urls = callsAfter.map((c) => c[0] as string);
+    expect(urls.some((u) => u === '/api/v1/groups')).toBe(true);
+    expect(urls.some((u) => u.startsWith('/api/v1/events'))).toBe(true);
+    // Group events endpoint should NOT be called when the group is hidden
+    expect(urls.some((u) => u.startsWith('/api/v1/groups/g1/events'))).toBe(false);
+  });
+
+  it('filter state persists across page refresh (remount)', async () => {
+    const user = userEvent.setup();
+    mockAllData();
+    const { unmount } = renderCalendar();
+
+    await waitFor(() => {
+      expect(screen.getByText('Personal Lunch')).toBeInTheDocument();
+    });
+
+    // Toggle personal events off
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(sampleSharedEvents);
+
+    await user.click(screen.getByRole('checkbox', { name: /personal events/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Personal Lunch')).not.toBeInTheDocument();
+    });
+
+    // Verify persisted state
+    const raw = localStorage.getItem('nc-calendar-filter');
+    expect(raw).not.toBeNull();
+    const stored = JSON.parse(raw as string);
+    expect(stored.personal).toBe(false);
+
+    // Unmount to simulate leaving the page
+    unmount();
+
+    // Remount — should restore filter state (personal off)
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(sampleSharedEvents);
+
+    renderCalendar();
+
+    await waitFor(() => {
+      // Personal toggle should remain unchecked
+      expect(screen.getByRole('checkbox', { name: /personal events/i })).not.toBeChecked();
+      // Group events still visible
+      expect(screen.getByText('Team Meeting')).toBeInTheDocument();
+    });
+  });
+
+  it('new groups default to visible in the filter', async () => {
+    // Stored filter only knows about g1 — g2 is a "new" group not in stored state
+    localStorage.setItem(
+      'nc-calendar-filter',
+      JSON.stringify({ personal: true, groups: { g1: true } }),
+    );
+
+    const twoGroups = [
+      sampleGroups[0],
+      {
+        id: 'g2',
+        name: 'Friends',
+        description: 'Friends group',
+        ownerId: 'u1',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ];
+
+    const friendsSharedEvents = {
+      events: [
+        {
+          id: 'se-friends',
+          ownerId: 'u4',
+          ownerDisplayName: 'Alice',
+          title: 'Friends Brunch',
+          startAt: FIXED_ISO,
+          endAt: null,
+          status: 'scheduled',
+          visibilityLevel: 'details' as const,
+          description: 'Brunch at the café',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 100,
+    };
+
+    mockApiFetch
+      .mockResolvedValueOnce(twoGroups) // listMyGroups
+      .mockResolvedValueOnce(samplePersonalEvents) // listPersonalEvents
+      .mockResolvedValueOnce(sampleSharedEvents) // listGroupEvents for g1
+      .mockResolvedValueOnce(friendsSharedEvents); // listGroupEvents for g2 (new group)
+
+    renderCalendar();
+
+    await waitFor(() => {
+      // Both groups should be checked in the filter — g2 defaults to visible
+      expect(screen.getByRole('checkbox', { name: /family/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: /friends/i })).toBeChecked();
+    });
+
+    // Verify events from the new group were fetched and rendered
+    expect(
+      mockApiFetch.mock.calls.some(
+        (c) => typeof c[0] === 'string' && c[0].startsWith('/api/v1/groups/g2/events'),
+      ),
+    ).toBe(true);
+  });
+
+  it('handles groups removed from user membership gracefully', async () => {
+    // Stored filter has g1 and a group (g-old) that user no longer belongs to
+    localStorage.setItem(
+      'nc-calendar-filter',
+      JSON.stringify({ personal: true, groups: { g1: true, 'g-old': false } }),
+    );
+
+    // User now only belongs to g1 — g-old is gone
+    mockAllData();
+    renderCalendar();
+
+    await waitFor(() => {
+      // Calendar renders normally — no error
+      expect(screen.getByText('Personal Lunch')).toBeInTheDocument();
+      expect(screen.getByText('Team Meeting')).toBeInTheDocument();
+      // Only g1 appears in the filter, not g-old
+      expect(screen.getByRole('checkbox', { name: /family/i })).toBeInTheDocument();
+    });
+  });
 });
