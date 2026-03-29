@@ -621,9 +621,7 @@ describe('Calendar page', () => {
     const callsBefore = mockApiFetch.mock.calls.length;
 
     // After toggling personal off, re-fetch: groups + group events (no personal)
-    mockApiFetch
-      .mockResolvedValueOnce(sampleGroups)
-      .mockResolvedValueOnce(sampleSharedEvents);
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(sampleSharedEvents);
 
     await user.click(screen.getByRole('checkbox', { name: /personal events/i }));
 
@@ -655,9 +653,7 @@ describe('Calendar page', () => {
     const callsBefore = mockApiFetch.mock.calls.length;
 
     // After toggling g1 off, re-fetch: groups + personal (no group events)
-    mockApiFetch
-      .mockResolvedValueOnce(sampleGroups)
-      .mockResolvedValueOnce(samplePersonalEvents);
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(samplePersonalEvents);
 
     await user.click(screen.getByRole('checkbox', { name: /family/i }));
 
@@ -687,9 +683,7 @@ describe('Calendar page', () => {
     });
 
     // Toggle personal events off
-    mockApiFetch
-      .mockResolvedValueOnce(sampleGroups)
-      .mockResolvedValueOnce(sampleSharedEvents);
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(sampleSharedEvents);
 
     await user.click(screen.getByRole('checkbox', { name: /personal events/i }));
 
@@ -707,9 +701,7 @@ describe('Calendar page', () => {
     unmount();
 
     // Remount — should restore filter state (personal off)
-    mockApiFetch
-      .mockResolvedValueOnce(sampleGroups)
-      .mockResolvedValueOnce(sampleSharedEvents);
+    mockApiFetch.mockResolvedValueOnce(sampleGroups).mockResolvedValueOnce(sampleSharedEvents);
 
     renderCalendar();
 
