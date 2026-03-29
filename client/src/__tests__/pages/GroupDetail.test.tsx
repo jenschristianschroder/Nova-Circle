@@ -365,7 +365,7 @@ describe('GroupDetail', () => {
     await waitFor(() => screen.getByText('Team Standup'));
     expect(screen.getByText('Team Standup')).toBeInTheDocument();
     expect(screen.getByText('Limited')).toBeInTheDocument();
-    const btn = screen.getByRole('button', { name: /open event team standup/i });
+    const btn = screen.getByRole('button', { name: /limited event: team standup/i });
     expect(btn).toBeDisabled();
   });
 

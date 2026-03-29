@@ -33,11 +33,16 @@ export interface SharedEventPagination {
  * Read-model port for querying events visible in a group context.
  *
  * Results include:
- * 1. Personal events shared to the group via `event_shares` (with visibility filtering).
- * 2. Legacy group-scoped events the user is invited to (shown with `details` visibility).
+ * 1. Events shared to the group via `event_shares` (with visibility filtering). This
+ *    typically covers personal events, but may also include group-scoped events where
+ *    ownership data has been back-filled (for example by the `personal_event_ownership`
+ *    migration).
+ * 2. Legacy group-scoped events the user is invited to (shown with `details` visibility),
+ *    for cases not already covered by `event_shares`.
  *
- * The two sets are disjoint: group events have `group_id` set and cannot appear
- * in `event_shares`, while personal events have `group_id = null`.
+ * Implementations MUST ensure that a given logical event is not returned twice when
+ * combining these sources (for example by restricting the `event_shares` source to
+ * personal events, or by deduplicating on `eventId`).
  */
 export interface SharedEventQueryPort {
   listByGroup(

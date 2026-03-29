@@ -184,14 +184,16 @@ export function createEventRouter(
       dateRange.to = new Date(toParam);
     }
 
-    // Parse optional pagination.
+    // Parse optional pagination — honor `limit` even when `page` is omitted.
     const pageParam = parseInt(req.query['page'] as string, 10);
     const limitParam = parseInt(req.query['limit'] as string, 10);
+    const hasPage = !isNaN(pageParam) && pageParam >= 1;
+    const hasLimit = !isNaN(limitParam) && limitParam >= 1;
     const pagination =
-      !isNaN(pageParam) && pageParam >= 1
+      hasPage || hasLimit
         ? {
-            page: pageParam,
-            limit: !isNaN(limitParam) && limitParam >= 1
+            page: hasPage ? pageParam : 1,
+            limit: hasLimit
               ? Math.min(limitParam, MAX_EVENTS_PER_PAGE)
               : DEFAULT_EVENTS_PER_PAGE,
           }

@@ -54,6 +54,7 @@ export class KnexSharedEventQuery implements SharedEventQueryPort {
       .join('events', 'event_shares.event_id', 'events.id')
       .join('user_profiles', 'events.owner_id', 'user_profiles.id')
       .where('event_shares.group_id', groupId)
+      .whereNull('events.group_id')
       .select(
         'events.id as event_id',
         'events.owner_id',
@@ -91,8 +92,8 @@ export class KnexSharedEventQuery implements SharedEventQueryPort {
       legacyQuery.where('events.start_at', '>=', dateRange.from);
     }
     if (dateRange?.to) {
-      sharedQuery.where('events.start_at', '<', dateRange.to);
-      legacyQuery.where('events.start_at', '<', dateRange.to);
+      sharedQuery.where('events.start_at', '<=', dateRange.to);
+      legacyQuery.where('events.start_at', '<=', dateRange.to);
     }
 
     // Use UNION ALL to combine both disjoint result sets.
@@ -139,6 +140,7 @@ export class KnexSharedEventQuery implements SharedEventQueryPort {
       .join('user_profiles', 'events.owner_id', 'user_profiles.id')
       .where('event_shares.group_id', groupId)
       .where('event_shares.event_id', eventId)
+      .whereNull('events.group_id')
       .select(
         'events.id as event_id',
         'events.owner_id',

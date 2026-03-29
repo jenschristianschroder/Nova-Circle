@@ -334,10 +334,13 @@ export function GroupDetail() {
                         : undefined
                     }
                     disabled={!isClickable}
+                    aria-disabled={!isClickable}
                     aria-label={
                       isBusy
                         ? `${event.ownerDisplayName} is busy`
-                        : `Open event ${event.title ?? UNTITLED_EVENT_LABEL}`
+                        : !isClickable
+                          ? `Limited event: ${event.title ?? UNTITLED_EVENT_LABEL}`
+                          : `Open event ${event.title ?? UNTITLED_EVENT_LABEL}`
                     }
                   >
                     <div className={styles.eventCardContent}>

@@ -14,7 +14,7 @@ import type { VisibilityLevel } from '../../event-sharing/domain/event-share.js'
  * Fields are present or absent depending on the share's `visibilityLevel`:
  * - `busy`    → id, ownerId, ownerDisplayName, startAt, endAt, visibilityLevel
  * - `title`   → above + title, status
- * - `details` → above + description, location (full data)
+ * - `details` → above + description
  */
 export interface SharedGroupEventDto {
   readonly id: string;
@@ -25,7 +25,7 @@ export interface SharedGroupEventDto {
   readonly visibilityLevel: VisibilityLevel;
   readonly title?: string;
   readonly description?: string | null;
-  readonly status?: string;
+  readonly status?: SharedEventRecord['status'];
 }
 
 /** Apply visibility-level filtering to a raw shared-event record. */
