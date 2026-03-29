@@ -35,6 +35,7 @@ const VISIBILITY_OPTIONS: { value: VisibilityLevel; label: string; description: 
 export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
   const { apiFetch } = useApiClient();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [shares, setShares] = useState<EventShareDto[]>([]);
@@ -70,9 +71,8 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
 
   // Move focus into the dialog when it opens.
   useEffect(() => {
-    if (isOpen && dialogRef.current) {
-      const closeBtn = dialogRef.current.querySelector<HTMLElement>('[aria-label="Close share dialog"]');
-      closeBtn?.focus();
+    if (isOpen && closeBtnRef.current) {
+      closeBtnRef.current.focus();
     }
   }, [isOpen, isLoading]);
 
@@ -168,6 +168,7 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
         <div className={styles.header}>
           <h2 className={styles.title}>Share event</h2>
           <button
+            ref={closeBtnRef}
             className={styles.closeButton}
             onClick={onClose}
             aria-label="Close share dialog"
