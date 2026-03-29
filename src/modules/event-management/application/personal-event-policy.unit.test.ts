@@ -72,7 +72,7 @@ describe('CreatePersonalEventUseCase', () => {
     startAt: new Date('2026-06-01T12:00:00Z'),
   };
 
-  it('creates a personal event with null groupId and no invitations', async () => {
+  it('creates a personal event with null groupId and owner as invitee', async () => {
     const eventCreator = makeEventCreator();
     const useCase = new CreatePersonalEventUseCase(eventCreator);
 
@@ -83,7 +83,7 @@ describe('CreatePersonalEventUseCase', () => {
         groupId: null,
         title: 'My Personal Event',
         createdBy: owner.userId,
-        inviteeIds: [],
+        inviteeIds: [owner.userId],
       }),
     );
   });

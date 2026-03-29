@@ -233,7 +233,7 @@ export class CapturePipelineService {
 
         return { type: 'event', eventId: event.id };
       } else {
-        // Personal event – no group, no invitations.
+        // Personal event – no group; owner is included so event-scoped features work.
         const event = await this.eventCreator.createEventWithInvitations({
           groupId: null,
           title: candidates.title!.value.trim(),
@@ -241,7 +241,7 @@ export class CapturePipelineService {
           startAt: parsedStart,
           endAt: resolvedEndAt,
           createdBy: caller.userId,
-          inviteeIds: [],
+          inviteeIds: [caller.userId],
         });
 
         return { type: 'event', eventId: event.id };

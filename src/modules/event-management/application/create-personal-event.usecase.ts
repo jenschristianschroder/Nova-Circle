@@ -38,7 +38,7 @@ export class CreatePersonalEventUseCase {
       startAt: command.startAt,
       endAt: command.endAt ?? null,
       createdBy: caller.userId,
-      inviteeIds: [],
+      inviteeIds: [caller.userId],
     });
   }
 }

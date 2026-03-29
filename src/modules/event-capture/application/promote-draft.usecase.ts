@@ -84,7 +84,7 @@ export class PromoteDraftUseCase {
       await this.draftRepo.promote(draftId);
       return { eventId: event.id };
     } else {
-      // Personal event promotion – no group, no invitations.
+      // Personal event promotion – no group; owner is included so event-scoped features work.
       const event = await this.eventCreator.createEventWithInvitations({
         groupId: null,
         title: draft.candidateTitle.trim(),
@@ -92,7 +92,7 @@ export class PromoteDraftUseCase {
         startAt: draft.candidateStartAt,
         endAt: draft.candidateEndAt ?? null,
         createdBy: caller.userId,
-        inviteeIds: [],
+        inviteeIds: [caller.userId],
       });
 
       await this.draftRepo.promote(draftId);
