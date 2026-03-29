@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import knex from 'knex';
 import type { Knex } from 'knex';
 import { createTestDb } from '../infrastructure/test-db.js';
@@ -57,7 +58,7 @@ async function createIsolatedTestDb(): Promise<{
   db: Knex;
   cleanup: () => Promise<void>;
 }> {
-  const schemaName = `test_step_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const schemaName = `test_step_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 
   const setup = createTestDb();
   await setup.raw(`CREATE SCHEMA "${schemaName}"`);
