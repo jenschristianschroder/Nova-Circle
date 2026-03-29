@@ -37,6 +37,9 @@ function isConflictError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'CONFLICT';
 }
 
+const DEFAULT_EVENTS_PER_PAGE = 50;
+const MAX_EVENTS_PER_PAGE = 100;
+
 export function createEventRouter(
   eventCreator: EventCreationPort,
   eventRepo: EventRepositoryPort,
@@ -186,7 +189,12 @@ export function createEventRouter(
     const limitParam = parseInt(req.query['limit'] as string, 10);
     const pagination =
       !isNaN(pageParam) && pageParam >= 1
-        ? { page: pageParam, limit: !isNaN(limitParam) && limitParam >= 1 ? Math.min(limitParam, 100) : 50 }
+        ? {
+            page: pageParam,
+            limit: !isNaN(limitParam) && limitParam >= 1
+              ? Math.min(limitParam, MAX_EVENTS_PER_PAGE)
+              : DEFAULT_EVENTS_PER_PAGE,
+          }
         : undefined;
 
     try {

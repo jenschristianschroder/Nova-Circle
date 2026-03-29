@@ -105,9 +105,19 @@ export class KnexSharedEventQuery implements SharedEventQueryPort {
       .first<{ total: number | string }>();
     const total = Number(countResult?.total ?? 0);
 
-    // Fetch the sorted, paginated page.
+    // Fetch the sorted, paginated page — explicit column selection for data minimization.
     let pageQuery = this.db
-      .select('*')
+      .select(
+        'event_id',
+        'owner_id',
+        'display_name',
+        'title',
+        'description',
+        'start_at',
+        'end_at',
+        'status',
+        'visibility_level',
+      )
       .from(unionQuery.clone().as('combined'))
       .orderBy('start_at', 'asc');
 

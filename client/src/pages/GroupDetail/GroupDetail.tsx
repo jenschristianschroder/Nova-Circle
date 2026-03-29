@@ -35,6 +35,8 @@ function formatDate(iso: string): string {
   });
 }
 
+const UNTITLED_EVENT_LABEL = 'Untitled';
+
 export function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>();
   const { apiFetch } = useApiClient();
@@ -335,7 +337,7 @@ export function GroupDetail() {
                     aria-label={
                       isBusy
                         ? `${event.ownerDisplayName} is busy`
-                        : `Open event ${event.title ?? 'Untitled'}`
+                        : `Open event ${event.title ?? UNTITLED_EVENT_LABEL}`
                     }
                   >
                     <div className={styles.eventCardContent}>
@@ -349,7 +351,7 @@ export function GroupDetail() {
                           </span>
                         ) : (
                           <span className={styles.eventTitle}>
-                            {event.title ?? 'Untitled'}
+                            {event.title ?? UNTITLED_EVENT_LABEL}
                           </span>
                         )}
                         <span className={styles.eventDate}>{formatDate(event.startAt)}</span>
@@ -359,7 +361,7 @@ export function GroupDetail() {
                         {event.status === 'cancelled' && (
                           <span className={styles.cancelledBadge}>Cancelled</span>
                         )}
-                        {event.visibilityLevel !== 'details' && !isBusy && (
+                        {event.visibilityLevel === 'title' && (
                           <span className={styles.limitedBadge}>Limited</span>
                         )}
                       </div>
