@@ -15,6 +15,7 @@ import type { AuditLogPort } from '../../audit-security/index.js';
 import type { Event } from '../domain/event.js';
 import type { EventInvitation } from '../domain/event-invitation.js';
 import type { GroupMember } from '../../group-membership/domain/group-member.js';
+import type { SharedEventQueryPort, SharedEventRecord } from '../domain/shared-event-query.port.js';
 import { FakeIdentity } from '../../../shared/test-helpers/fake-identity.js';
 
 function makeEvent(overrides?: Partial<Event>): Event {
@@ -97,6 +98,31 @@ function makeInvitationRepo(
     listByEvent: vi.fn().mockResolvedValue([]),
     add: vi.fn().mockResolvedValue(makeInvitation()),
     remove: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+function makeSharedEventRecord(overrides?: Partial<SharedEventRecord>): SharedEventRecord {
+  return {
+    eventId: 'event-1',
+    ownerId: 'creator-id',
+    ownerDisplayName: 'Test User',
+    title: 'Team Lunch',
+    description: null,
+    startAt: new Date('2026-06-01T12:00:00Z'),
+    endAt: new Date('2026-06-01T13:00:00Z'),
+    status: 'scheduled',
+    visibilityLevel: 'details',
+    ...overrides,
+  };
+}
+
+function makeSharedEventQuery(
+  overrides?: Partial<SharedEventQueryPort>,
+): SharedEventQueryPort {
+  return {
+    listByGroup: vi.fn().mockResolvedValue({ events: [], total: 0 }),
+    findByGroupAndEvent: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }
@@ -302,32 +328,121 @@ describe('GetEventUseCase', () => {
 // ---------------------------------------------------------------------------
 
 describe('ListGroupEventsUseCase', () => {
-  it('returns only invited events for a group member', async () => {
-    const events = [makeEvent()];
-    const eventRepo = makeEventRepo({ listByGroupForUser: vi.fn().mockResolvedValue(events) });
+  it('returns shared events for a group member with visibility filtering', async () => {
+    const records = [makeSharedEventRecord({ visibilityLevel: 'details' })];
+    const sharedEventQuery = makeSharedEventQuery({
+      listByGroup: vi.fn().mockResolvedValue({ events: records, total: 1 }),
+    });
     const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
-    const useCase = new ListGroupEventsUseCase(eventRepo, memberRepo);
+    const useCase = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
 
     const result = await useCase.execute(memberUser, 'group-1');
-    expect(result).toEqual(events);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      id: 'event-1',
+      ownerId: 'creator-id',
+      ownerDisplayName: 'Test User',
+      visibilityLevel: 'details',
+      title: 'Team Lunch',
+    });
+    expect(result.total).toBe(1);
   });
 
   it('throws NOT_FOUND for non-member (no disclosure of group or events)', async () => {
     const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(false) });
-    const useCase = new ListGroupEventsUseCase(makeEventRepo(), memberRepo);
+    const useCase = new ListGroupEventsUseCase(makeSharedEventQuery(), memberRepo);
 
     await expect(useCase.execute(outsider, 'group-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });
 
-  it('returns empty list when member has no event invitations', async () => {
+  it('returns empty list when no events are shared to the group', async () => {
     const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
-    const eventRepo = makeEventRepo({ listByGroupForUser: vi.fn().mockResolvedValue([]) });
-    const useCase = new ListGroupEventsUseCase(eventRepo, memberRepo);
+    const sharedEventQuery = makeSharedEventQuery({
+      listByGroup: vi.fn().mockResolvedValue({ events: [], total: 0 }),
+    });
+    const useCase = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
 
     const result = await useCase.execute(memberUser, 'group-1');
-    expect(result).toEqual([]);
+    expect(result.events).toEqual([]);
+    expect(result.total).toBe(0);
+  });
+
+  it('busy visibility returns only id, owner, times — no title or description', async () => {
+    const records = [makeSharedEventRecord({ visibilityLevel: 'busy', title: 'Secret Meeting' })];
+    const sharedEventQuery = makeSharedEventQuery({
+      listByGroup: vi.fn().mockResolvedValue({ events: records, total: 1 }),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
+
+    const result = await useCase.execute(memberUser, 'group-1');
+    const dto = result.events[0]!;
+    expect(dto.visibilityLevel).toBe('busy');
+    expect(dto.id).toBe('event-1');
+    expect(dto.ownerId).toBe('creator-id');
+    expect(dto.ownerDisplayName).toBe('Test User');
+    expect(dto).not.toHaveProperty('title');
+    expect(dto).not.toHaveProperty('description');
+    expect(dto).not.toHaveProperty('status');
+  });
+
+  it('title visibility returns title and status but no description', async () => {
+    const records = [
+      makeSharedEventRecord({
+        visibilityLevel: 'title',
+        title: 'Team Standup',
+        description: 'Weekly sync',
+      }),
+    ];
+    const sharedEventQuery = makeSharedEventQuery({
+      listByGroup: vi.fn().mockResolvedValue({ events: records, total: 1 }),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
+
+    const result = await useCase.execute(memberUser, 'group-1');
+    const dto = result.events[0]!;
+    expect(dto.visibilityLevel).toBe('title');
+    expect(dto.title).toBe('Team Standup');
+    expect(dto.status).toBe('scheduled');
+    expect(dto).not.toHaveProperty('description');
+  });
+
+  it('details visibility returns full event data', async () => {
+    const records = [
+      makeSharedEventRecord({
+        visibilityLevel: 'details',
+        title: 'Team Standup',
+        description: 'Weekly sync with the team',
+      }),
+    ];
+    const sharedEventQuery = makeSharedEventQuery({
+      listByGroup: vi.fn().mockResolvedValue({ events: records, total: 1 }),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
+
+    const result = await useCase.execute(memberUser, 'group-1');
+    const dto = result.events[0]!;
+    expect(dto.visibilityLevel).toBe('details');
+    expect(dto.title).toBe('Team Standup');
+    expect(dto.description).toBe('Weekly sync with the team');
+    expect(dto.status).toBe('scheduled');
+  });
+
+  it('passes date range and pagination to the query port', async () => {
+    const listByGroup = vi.fn().mockResolvedValue({ events: [], total: 0 });
+    const sharedEventQuery = makeSharedEventQuery({ listByGroup });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
+
+    const dateRange = { from: new Date('2026-01-01'), to: new Date('2026-12-31') };
+    const pagination = { page: 2, limit: 10 };
+    await useCase.execute(memberUser, 'group-1', dateRange, pagination);
+
+    expect(listByGroup).toHaveBeenCalledWith('group-1', memberUser.userId, dateRange, pagination);
   });
 });
 

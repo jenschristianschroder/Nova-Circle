@@ -167,6 +167,18 @@
   opacity: 0.6;
 }
 
+.eventCardBusy {
+  background-color: var(--nc-surface-background);
+  border-style: dashed;
+  opacity: 0.8;
+  cursor: default;
+}
+
+.eventCardBusy:hover {
+  border-color: var(--nc-border-default);
+  box-shadow: none;
+}
+
 .eventCardContent {
   display: flex;
   align-items: center;
@@ -206,6 +218,22 @@
   padding: 1px var(--nc-space-xs);
   border-radius: var(--nc-radius-sm);
   align-self: flex-start;
+}
+
+.limitedBadge {
+  font-size: var(--nc-font-size-xs);
+  font-weight: 600;
+  color: var(--nc-content-secondary);
+  background-color: var(--nc-surface-background);
+  padding: 1px var(--nc-space-xs);
+  border-radius: var(--nc-radius-sm);
+  border: 1px solid var(--nc-border-default);
+  align-self: flex-start;
+}
+
+.eventOwner {
+  font-size: var(--nc-font-size-xs);
+  color: var(--nc-content-secondary);
 }
 
 .eventChevron {

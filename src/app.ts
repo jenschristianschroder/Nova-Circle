@@ -36,6 +36,7 @@ import { FakeBlobStorageAdapter } from './modules/event-capture/infrastructure/f
 import { createCaptureRouter } from './modules/event-capture/presentation/capture.router.js';
 import { KnexEventShareRepository } from './modules/event-sharing/infrastructure/knex-event-share.repository.js';
 import { createEventShareRouter } from './modules/event-sharing/presentation/event-share.router.js';
+import { KnexSharedEventQuery } from './modules/event-management/infrastructure/knex-shared-event-query.js';
 import type { IEventFieldExtractor } from './modules/event-capture/application/event-field-extractor.port.js';
 import type { ISpeechToTextAdapter } from './modules/event-capture/application/speech-to-text.port.js';
 import type { IImageExtractionAdapter } from './modules/event-capture/application/image-extraction.port.js';
@@ -204,13 +205,16 @@ export function createApp(deps?: AppDependencies): express.Application {
     app.use('/api/v1/profile', createProfileRouter(profileRepo));
     app.use('/api/v1/groups', createGroupRouter(groupCreator, groupRepo, memberRepo, auditLog));
     app.use('/api/v1/groups/:id/members', createMembershipRouter(memberRepo, auditLog));
+
+    const shareRepo = new KnexEventShareRepository(db);
+    const sharedEventQuery = new KnexSharedEventQuery(db);
+
     app.use(
       '/api/v1/groups/:groupId/events',
-      createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo, auditLog),
+      createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo, auditLog, sharedEventQuery),
     );
     app.use('/api/v1/events', createPersonalEventRouter(eventCreator, eventRepo, auditLog));
 
-    const shareRepo = new KnexEventShareRepository(db);
     const locationRepo = new KnexEventLocationRepository(db);
     const checklistRepo = new KnexEventChecklistRepository(db);
     const chatRepo = new KnexEventChatRepository(db);

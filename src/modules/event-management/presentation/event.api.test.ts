@@ -220,7 +220,8 @@ describe('Events API', () => {
           .get(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(member.userId, member.displayName));
         expect(memberRes.status).toBe(200);
-        const memberEventIds = (memberRes.body as { id: string }[]).map((e) => e.id);
+        const memberBody = memberRes.body as { events: { id: string }[] };
+        const memberEventIds = memberBody.events.map((e) => e.id);
         expect(memberEventIds).toContain(sharedEventId);
         expect(memberEventIds).not.toContain(privateEventId);
 
@@ -228,7 +229,8 @@ describe('Events API', () => {
         const ownerRes = await request(app)
           .get(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
-        const ownerEventIds = (ownerRes.body as { id: string }[]).map((e) => e.id);
+        const ownerBody = ownerRes.body as { events: { id: string }[] };
+        const ownerEventIds = ownerBody.events.map((e) => e.id);
         expect(ownerEventIds).toContain(sharedEventId);
         expect(ownerEventIds).toContain(privateEventId);
       },
@@ -253,7 +255,8 @@ describe('Events API', () => {
           .get(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(newMember.userId, newMember.displayName));
         expect(eventsRes.status).toBe(200);
-        const eventIds = (eventsRes.body as { id: string }[]).map((e) => e.id);
+        const eventsBody = eventsRes.body as { events: { id: string }[] };
+        const eventIds = eventsBody.events.map((e) => e.id);
         expect(eventIds).not.toContain(historicEventId);
 
         // Direct GET also returns 404 for newMember.

@@ -6,9 +6,11 @@ import type { UpdateEventData } from '../domain/event.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { AuditLogPort } from '../../audit-security/index.js';
+import type { SharedEventQueryPort } from '../domain/shared-event-query.port.js';
 import { CreateEventUseCase } from '../application/create-event.usecase.js';
 import { GetEventUseCase } from '../application/get-event.usecase.js';
 import { ListGroupEventsUseCase } from '../application/list-group-events.usecase.js';
+import { GetSharedGroupEventUseCase } from '../application/get-shared-group-event.usecase.js';
 import { CancelEventUseCase } from '../application/cancel-event.usecase.js';
 import { UpdateEventUseCase } from '../application/update-event.usecase.js';
 import { ListEventInviteesUseCase } from '../application/list-event-invitees.usecase.js';
@@ -35,18 +37,23 @@ function isConflictError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'CONFLICT';
 }
 
+const DEFAULT_EVENTS_PER_PAGE = 50;
+const MAX_EVENTS_PER_PAGE = 100;
+
 export function createEventRouter(
   eventCreator: EventCreationPort,
   eventRepo: EventRepositoryPort,
   invitationRepo: EventInvitationRepositoryPort,
   memberRepo: GroupMemberRepositoryPort,
   auditLog: AuditLogPort,
+  sharedEventQuery: SharedEventQueryPort,
 ): express.Router {
   const router = express.Router({ mergeParams: true });
 
   const createEvent = new CreateEventUseCase(eventCreator, memberRepo);
   const getEvent = new GetEventUseCase(eventRepo, invitationRepo);
-  const listGroupEvents = new ListGroupEventsUseCase(eventRepo, memberRepo);
+  const listGroupEvents = new ListGroupEventsUseCase(sharedEventQuery, memberRepo);
+  const getSharedGroupEvent = new GetSharedGroupEventUseCase(sharedEventQuery, memberRepo);
   const cancelEvent = new CancelEventUseCase(eventRepo, invitationRepo, memberRepo);
   const updateEvent = new UpdateEventUseCase(eventRepo, invitationRepo, memberRepo);
   const listInvitees = new ListEventInviteesUseCase(eventRepo, invitationRepo);
@@ -166,9 +173,35 @@ export function createEventRouter(
       return;
     }
 
+    // Parse optional date range filters.
+    const fromParam = req.query['from'] as string | undefined;
+    const toParam = req.query['to'] as string | undefined;
+    const dateRange: { from?: Date; to?: Date } = {};
+    if (fromParam && !isNaN(Date.parse(fromParam))) {
+      dateRange.from = new Date(fromParam);
+    }
+    if (toParam && !isNaN(Date.parse(toParam))) {
+      dateRange.to = new Date(toParam);
+    }
+
+    // Parse optional pagination — honor `limit` even when `page` is omitted.
+    const pageParam = parseInt(req.query['page'] as string, 10);
+    const limitParam = parseInt(req.query['limit'] as string, 10);
+    const hasPage = !isNaN(pageParam) && pageParam >= 1;
+    const hasLimit = !isNaN(limitParam) && limitParam >= 1;
+    const pagination =
+      hasPage || hasLimit
+        ? {
+            page: hasPage ? pageParam : 1,
+            limit: hasLimit
+              ? Math.min(limitParam, MAX_EVENTS_PER_PAGE)
+              : DEFAULT_EVENTS_PER_PAGE,
+          }
+        : undefined;
+
     try {
-      const events = await listGroupEvents.execute(identity, groupId);
-      res.json(events);
+      const result = await listGroupEvents.execute(identity, groupId, dateRange, pagination);
+      res.json(result);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
@@ -199,19 +232,30 @@ export function createEventRouter(
     }
 
     try {
-      const event = await getEvent.execute(identity, eventId);
-      // Ensure the event belongs to the group in the URL.
-      if (event.groupId !== groupId) {
-        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      // First try shared event lookup (personal events shared to this group).
+      const sharedEvent = await getSharedGroupEvent.execute(identity, groupId, eventId);
+      res.json(sharedEvent);
+    } catch (sharedErr: unknown) {
+      if (!isNotFoundError(sharedErr)) {
+        res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
         return;
       }
-      res.json(event);
-    } catch (err: unknown) {
-      if (isNotFoundError(err)) {
-        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
-        return;
+
+      // Fallback: try legacy group-scoped event via invitation-based access.
+      try {
+        const event = await getEvent.execute(identity, eventId);
+        if (event.groupId !== groupId) {
+          res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+          return;
+        }
+        res.json(event);
+      } catch (err: unknown) {
+        if (isNotFoundError(err)) {
+          res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+          return;
+        }
+        res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
       }
-      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
     }
   });
 

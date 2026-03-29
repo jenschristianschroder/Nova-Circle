@@ -20,7 +20,7 @@ import {
   type Group,
   type GroupMember,
 } from '../../api/groups';
-import { listGroupEvents, type CalendarEvent } from '../../api/events';
+import { listGroupEvents, type SharedGroupEvent } from '../../api/events';
 import { getMyProfile, type UserProfile } from '../../api/profile';
 import { Button } from '../../components/Button';
 import styles from './GroupDetail.module.css';
@@ -35,13 +35,15 @@ function formatDate(iso: string): string {
   });
 }
 
+const UNTITLED_EVENT_LABEL = 'Untitled';
+
 export function GroupDetail() {
   const { groupId } = useParams<{ groupId: string }>();
   const { apiFetch } = useApiClient();
   const navigate = useNavigate();
 
   const [group, setGroup] = useState<Group | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<SharedGroupEvent[]>([]);
   const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
   const [myMembership, setMyMembership] = useState<GroupMember | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,14 +70,14 @@ export function GroupDetail() {
     setIsLoading(true);
     setError(null);
     try {
-      const [groupData, eventsData, membersData, profileData] = await Promise.all([
+      const [groupData, eventsResponse, membersData, profileData] = await Promise.all([
         getGroup(apiFetch, groupId),
         listGroupEvents(apiFetch, groupId),
         listGroupMembers(apiFetch, groupId),
         getMyProfile(apiFetch),
       ]);
       setGroup(groupData);
-      setEvents(eventsData);
+      setEvents(eventsResponse.events);
       setMyProfile(profileData);
       const membership = membersData.find((m) => m.userId === profileData.id) ?? null;
       setMyMembership(membership);
@@ -311,37 +313,71 @@ export function GroupDetail() {
           <p className={styles.emptyText}>No events yet. Create one to get started.</p>
         ) : (
           <ul className={styles.list} role="list" aria-label="Group events">
-            {events.map((event) => (
-              <li key={event.id}>
-                <button
-                  type="button"
-                  className={[
-                    styles.eventCard,
-                    event.status === 'cancelled' ? styles.eventCardCancelled : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => navigate(`/groups/${groupId}/events/${event.id}`)}
-                  aria-label={`Open event ${event.title}`}
-                >
-                  <div className={styles.eventCardContent}>
-                    <span className={styles.eventIcon} aria-hidden="true">
-                      {event.status === 'cancelled' ? '🚫' : '🗓'}
-                    </span>
-                    <div className={styles.eventInfo}>
-                      <span className={styles.eventTitle}>{event.title}</span>
-                      <span className={styles.eventDate}>{formatDate(event.startAt)}</span>
-                      {event.status === 'cancelled' && (
-                        <span className={styles.cancelledBadge}>Cancelled</span>
-                      )}
+            {events.map((event) => {
+              const isBusy = event.visibilityLevel === 'busy';
+              const isClickable = event.visibilityLevel === 'details';
+
+              return (
+                <li key={event.id}>
+                  <button
+                    type="button"
+                    className={[
+                      styles.eventCard,
+                      event.status === 'cancelled' ? styles.eventCardCancelled : '',
+                      isBusy ? styles.eventCardBusy : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={
+                      isClickable
+                        ? () => navigate(`/groups/${groupId}/events/${event.id}`)
+                        : undefined
+                    }
+                    disabled={!isClickable}
+                    aria-disabled={!isClickable}
+                    aria-label={
+                      isBusy
+                        ? `${event.ownerDisplayName} is busy`
+                        : !isClickable
+                          ? `Limited event: ${event.title ?? UNTITLED_EVENT_LABEL}`
+                          : `Open event ${event.title ?? UNTITLED_EVENT_LABEL}`
+                    }
+                  >
+                    <div className={styles.eventCardContent}>
+                      <span className={styles.eventIcon} aria-hidden="true">
+                        {isBusy ? '⬛' : event.status === 'cancelled' ? '🚫' : '🗓'}
+                      </span>
+                      <div className={styles.eventInfo}>
+                        {isBusy ? (
+                          <span className={styles.eventTitle}>
+                            {event.ownerDisplayName} — Busy
+                          </span>
+                        ) : (
+                          <span className={styles.eventTitle}>
+                            {event.title ?? UNTITLED_EVENT_LABEL}
+                          </span>
+                        )}
+                        <span className={styles.eventDate}>{formatDate(event.startAt)}</span>
+                        {!isBusy && event.ownerDisplayName && (
+                          <span className={styles.eventOwner}>{event.ownerDisplayName}</span>
+                        )}
+                        {event.status === 'cancelled' && (
+                          <span className={styles.cancelledBadge}>Cancelled</span>
+                        )}
+                        {event.visibilityLevel === 'title' && (
+                          <span className={styles.limitedBadge}>Limited</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <span className={styles.eventChevron} aria-hidden="true">
-                    ›
-                  </span>
-                </button>
-              </li>
-            ))}
+                    {isClickable && (
+                      <span className={styles.eventChevron} aria-hidden="true">
+                        ›
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
