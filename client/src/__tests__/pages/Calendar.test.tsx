@@ -676,7 +676,9 @@ describe('Calendar page', () => {
     });
 
     // Verify persisted state
-    const stored = JSON.parse(localStorage.getItem('nc-calendar-filter')!);
+    const raw = localStorage.getItem('nc-calendar-filter');
+    expect(raw).toBeDefined();
+    const stored = JSON.parse(raw!);
     expect(stored.personal).toBe(false);
 
     // Unmount to simulate leaving the page
