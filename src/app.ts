@@ -21,6 +21,7 @@ import { createSignupRouter } from './modules/identity-profile/presentation/sign
 import { createGroupRouter } from './modules/group-management/presentation/group.router.js';
 import { createMembershipRouter } from './modules/group-membership/presentation/membership.router.js';
 import { createEventRouter } from './modules/event-management/presentation/event.router.js';
+import { createPersonalEventRouter } from './modules/event-management/presentation/personal-event.router.js';
 import { KnexEventLocationRepository } from './modules/event-location/infrastructure/knex-event-location.repository.js';
 import { KnexEventChecklistRepository } from './modules/event-checklist/infrastructure/knex-event-checklist.repository.js';
 import { KnexEventChatRepository } from './modules/event-chat/infrastructure/knex-event-chat.repository.js';
@@ -205,6 +206,7 @@ export function createApp(deps?: AppDependencies): express.Application {
       '/api/v1/groups/:groupId/events',
       createEventRouter(eventCreator, eventRepo, invitationRepo, memberRepo, auditLog),
     );
+    app.use('/api/v1/events', createPersonalEventRouter(eventCreator, eventRepo, auditLog));
 
     const locationRepo = new KnexEventLocationRepository(db);
     const checklistRepo = new KnexEventChecklistRepository(db);

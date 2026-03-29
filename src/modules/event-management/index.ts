@@ -6,5 +6,7 @@
  */
 
 export type { Event, EventStatus, CreateEventData, UpdateEventData } from './domain/event.js';
+export type { DateRangeFilter } from './domain/event.repository.port.js';
 export type { EventInvitation, InvitationStatus } from './domain/event-invitation.js';
 export type { CreateEventCommand } from './application/create-event.usecase.js';
+export type { CreatePersonalEventCommand } from './application/create-personal-event.usecase.js';

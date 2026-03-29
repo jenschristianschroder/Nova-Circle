@@ -1,5 +1,5 @@
 import type { Knex } from 'knex';
-import type { EventRepositoryPort } from '../domain/event.repository.port.js';
+import type { EventRepositoryPort, DateRangeFilter } from '../domain/event.repository.port.js';
 import type { Event, UpdateEventData } from '../domain/event.js';
 
 interface EventRow {
@@ -77,5 +77,26 @@ export class KnexEventRepository implements EventRepositoryPort {
     await this.db('events')
       .where({ id: eventId })
       .update({ status: 'cancelled', updated_at: new Date() });
+  }
+
+  async listByOwner(userId: string, dateRange?: DateRangeFilter): Promise<Event[]> {
+    const query = this.db<EventRow>('events')
+      .where({ owner_id: userId })
+      .whereNull('group_id')
+      .orderBy('start_at', 'asc');
+
+    if (dateRange?.from) {
+      query.where('start_at', '>=', dateRange.from);
+    }
+    if (dateRange?.to) {
+      query.where('start_at', '<=', dateRange.to);
+    }
+
+    const rows = await query;
+    return rows.map(toEvent);
+  }
+
+  async deleteEvent(eventId: string): Promise<void> {
+    await this.db('events').where({ id: eventId }).delete();
   }
 }

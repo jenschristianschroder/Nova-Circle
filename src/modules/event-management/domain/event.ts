@@ -15,13 +15,13 @@ export interface Event {
 }
 
 export interface CreateEventData {
-  readonly groupId: string;
+  readonly groupId: string | null;
   readonly title: string;
   readonly description?: string | null;
   readonly startAt: Date;
   readonly endAt?: Date | null;
   readonly createdBy: string;
-  /** User IDs to invite. Creator is always included. */
+  /** User IDs to invite. For group events, the creator must be included. For personal events (groupId is null), the owner must be included to ensure event-scoped features work. */
   readonly inviteeIds: ReadonlyArray<string>;
 }
 

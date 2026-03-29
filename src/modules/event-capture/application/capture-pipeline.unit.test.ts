@@ -273,7 +273,7 @@ describe('CaptureTextUseCase', () => {
     }
   });
 
-  it('creates a draft with missing_group when no groupId provided and none extracted', async () => {
+  it('creates a personal event when no groupId provided and fields are complete', async () => {
     const caller = FakeIdentity.random();
     const pipeline = makePipeline(GOOD_FIELDS, makeDraftRepo());
     const useCase = new CaptureTextUseCase(pipeline);
@@ -283,10 +283,7 @@ describe('CaptureTextUseCase', () => {
       groupId: null,
     });
 
-    expect(result.type).toBe('draft');
-    if (result.type === 'draft') {
-      expect(result.draft.issues.some((i) => i.code === 'missing_group')).toBe(true);
-    }
+    expect(result.type).toBe('event');
   });
 
   it('creates a draft with low_confidence_extraction when title confidence is below threshold', async () => {
