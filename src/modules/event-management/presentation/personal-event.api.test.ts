@@ -601,7 +601,7 @@ describe('Personal Events API', () => {
           .post('/api/v1/events')
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ title: 'Personal Only', startAt: '2026-12-01T10:00:00Z' });
-        const personalTitle = (personalRes.body as EventBody).title;
+        const personalEventId = (personalRes.body as EventBody).id;
 
         // List group events
         const listRes = await request(app)
@@ -609,9 +609,9 @@ describe('Personal Events API', () => {
           .set(testAuthHeaders(owner.userId, owner.displayName));
 
         expect(listRes.status).toBe(200);
-        const listBody = listRes.body as { events?: EventBody[] };
-        const events = listBody.events ?? (listRes.body as EventBody[]);
-        expect(events.some((e) => e.title === personalTitle)).toBe(false);
+        const listBody = listRes.body as { events: { id: string }[] };
+        expect(Array.isArray(listBody.events)).toBe(true);
+        expect(listBody.events.map((e) => e.id)).not.toContain(personalEventId);
       },
     );
   });
