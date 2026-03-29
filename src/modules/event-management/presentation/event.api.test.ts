@@ -625,7 +625,7 @@ describe('Events API', () => {
           .get(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(owner.userId, owner.displayName));
         expect(listRes.status).toBe(200);
-        const found = (listRes.body as { id: string; status: string }[]).find(
+        const found = (listRes.body as { events: { id: string; status: string }[] }).events.find(
           (e) => e.id === eventId,
         );
         expect(found).toBeDefined();

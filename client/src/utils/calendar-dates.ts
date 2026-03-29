@@ -184,10 +184,8 @@ export function eventDayPosition(
   const clampedStart = eStart < dayStart ? dayStart : eStart;
   const clampedEnd = eEnd > dayEnd ? dayEnd : eEnd;
 
-  const minutesFromMidnight =
-    clampedStart.getHours() * 60 + clampedStart.getMinutes();
-  const durationMinutes =
-    (clampedEnd.getTime() - clampedStart.getTime()) / (1000 * 60);
+  const minutesFromMidnight = clampedStart.getHours() * 60 + clampedStart.getMinutes();
+  const durationMinutes = (clampedEnd.getTime() - clampedStart.getTime()) / (1000 * 60);
 
   const top = (minutesFromMidnight / (24 * 60)) * 100;
   const height = Math.max((durationMinutes / (24 * 60)) * 100, 1); // at least 1%

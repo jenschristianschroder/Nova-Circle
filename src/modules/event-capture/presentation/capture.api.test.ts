@@ -6,6 +6,8 @@ import { createApp } from '../../../app.js';
 import { testAuthHeaders } from '../../../shared/test-helpers/test-auth.js';
 import { FakeIdentity } from '../../../shared/test-helpers/fake-identity.js';
 import { KnexUserProfileRepository } from '../../identity-profile/infrastructure/knex-user-profile.repository.js';
+import { FakeEventFieldExtractor } from '../infrastructure/fake-event-field-extractor.js';
+import { FakeImageExtractionAdapter } from '../infrastructure/fake-image-extraction.adapter.js';
 
 interface DraftIssue {
   code: string;
@@ -40,13 +42,20 @@ describe('Capture API', () => {
   const owner = FakeIdentity.random();
   const outsider = FakeIdentity.random();
 
+  const fakeExtractor = new FakeEventFieldExtractor();
+  const fakeImageAdapter = new FakeImageExtractionAdapter();
+
   let groupId: string;
 
   beforeAll(async () => {
     if (skipReason) return;
     db = createTestDb();
     await db.migrate.latest();
-    app = createApp({ db });
+    app = createApp({
+      db,
+      eventFieldExtractor: fakeExtractor,
+      imageExtractionAdapter: fakeImageAdapter,
+    });
 
     const profileRepo = new KnexUserProfileRepository(db);
     await profileRepo.upsert({ userId: owner.userId, displayName: owner.displayName });
@@ -128,11 +137,16 @@ describe('Capture API', () => {
     it.skipIf(skipReason !== undefined)(
       'returns 201 with personal event when no groupId provided',
       async () => {
+        fakeExtractor.setFields({
+          title: { value: 'Team lunch', confidence: 0.95 },
+          startDateTime: { value: '2026-07-01T12:00:00Z', confidence: 0.9 },
+        });
         const res = await request(app)
           .post('/api/v1/capture/text')
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ text: 'Team lunch tomorrow at noon' });
 
+        fakeExtractor.setFields({});
         expect(res.status).toBe(201);
         const body = res.body as CaptureResponseBody;
         expect(body.type).toBe('event');
@@ -276,6 +290,13 @@ describe('Capture API', () => {
     it.skipIf(skipReason !== undefined)(
       'returns 201 with personal event when no groupId is provided',
       async () => {
+        fakeImageAdapter.setCandidate({
+          extractedText: 'Team lunch tomorrow at noon',
+          fields: {
+            title: { value: 'Team lunch', confidence: 0.95 },
+            startDateTime: { value: '2026-07-01T12:00:00Z', confidence: 0.9 },
+          },
+        });
         const res = await request(app)
           .post('/api/v1/capture/image')
           .set(testAuthHeaders(owner.userId, owner.displayName))
@@ -284,6 +305,7 @@ describe('Capture API', () => {
             contentType: 'image/jpeg',
           });
 
+        fakeImageAdapter.setCandidate({ extractedText: null, fields: {} });
         expect(res.status).toBe(201);
         const body = res.body as CaptureResponseBody;
         expect(body.type).toBe('event');

@@ -349,9 +349,7 @@ export function GroupDetail() {
                       </span>
                       <div className={styles.eventInfo}>
                         {isBusy ? (
-                          <span className={styles.eventTitle}>
-                            {event.ownerDisplayName} — Busy
-                          </span>
+                          <span className={styles.eventTitle}>{event.ownerDisplayName} — Busy</span>
                         ) : (
                           <span className={styles.eventTitle}>
                             {event.title ?? UNTITLED_EVENT_LABEL}

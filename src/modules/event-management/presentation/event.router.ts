@@ -193,9 +193,7 @@ export function createEventRouter(
       hasPage || hasLimit
         ? {
             page: hasPage ? pageParam : 1,
-            limit: hasLimit
-              ? Math.min(limitParam, MAX_EVENTS_PER_PAGE)
-              : DEFAULT_EVENTS_PER_PAGE,
+            limit: hasLimit ? Math.min(limitParam, MAX_EVENTS_PER_PAGE) : DEFAULT_EVENTS_PER_PAGE,
           }
         : undefined;
 

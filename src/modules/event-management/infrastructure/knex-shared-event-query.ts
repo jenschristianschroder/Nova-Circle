@@ -131,10 +131,7 @@ export class KnexSharedEventQuery implements SharedEventQueryPort {
     return { events: rows.map(toSharedEventRecord), total };
   }
 
-  async findByGroupAndEvent(
-    groupId: string,
-    eventId: string,
-  ): Promise<SharedEventRecord | null> {
+  async findByGroupAndEvent(groupId: string, eventId: string): Promise<SharedEventRecord | null> {
     const row = (await this.db('event_shares')
       .join('events', 'event_shares.event_id', 'events.id')
       .join('user_profiles', 'events.owner_id', 'user_profiles.id')

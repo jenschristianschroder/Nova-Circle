@@ -22,6 +22,8 @@ export default defineConfig({
           poolOptions: {
             forks: {
               singleFork: true,
+              // Register tsx so Knex can dynamically import .ts migration files.
+              execArgv: ['--import', 'tsx'],
             },
           },
         },
@@ -37,6 +39,8 @@ export default defineConfig({
           poolOptions: {
             forks: {
               singleFork: true,
+              // Register tsx so Knex can dynamically import .ts migration files.
+              execArgv: ['--import', 'tsx'],
             },
           },
         },

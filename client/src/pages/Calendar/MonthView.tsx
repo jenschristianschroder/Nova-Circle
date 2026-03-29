@@ -29,9 +29,7 @@ const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 function eventsForDay(events: CalendarDisplayEvent[], day: Date): CalendarDisplayEvent[] {
   return events.filter((ev) => {
     const eStart = new Date(ev.startAt);
-    const eEnd = ev.endAt
-      ? new Date(ev.endAt)
-      : new Date(eStart.getTime() + 60 * 60 * 1000);
+    const eEnd = ev.endAt ? new Date(ev.endAt) : new Date(eStart.getTime() + 60 * 60 * 1000);
     const dayStart = startOfDay(day);
     const dayEnd = new Date(dayStart);
     dayEnd.setHours(23, 59, 59, 999);
@@ -42,12 +40,7 @@ function eventsForDay(events: CalendarDisplayEvent[], day: Date): CalendarDispla
 /** Maximum events to show per day cell before collapsing. */
 const MAX_VISIBLE_EVENTS = 3;
 
-export function MonthView({
-  events,
-  anchor,
-  onEventClick,
-  onTimeSlotClick,
-}: MonthViewProps) {
+export function MonthView({ events, anchor, onEventClick, onTimeSlotClick }: MonthViewProps) {
   const { start, end } = monthGridRange(anchor);
   const days = daysInRange(start, end);
   const currentMonth = anchor.getMonth();
@@ -89,12 +82,7 @@ export function MonthView({
 
               <div className={styles.monthDayEvents}>
                 {dayEvents.slice(0, MAX_VISIBLE_EVENTS).map((ev) => (
-                  <EventBlock
-                    key={ev.id}
-                    event={ev}
-                    onClick={onEventClick}
-                    showTime={false}
-                  />
+                  <EventBlock key={ev.id} event={ev} onClick={onEventClick} showTime={false} />
                 ))}
                 {dayEvents.length > MAX_VISIBLE_EVENTS && (
                   <span className={styles.monthDayMore}>

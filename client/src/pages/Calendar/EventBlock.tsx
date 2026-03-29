@@ -47,12 +47,8 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
   const content = (
     <>
       <span className={styles.eventBlockTitle}>{event.title}</span>
-      {showTime && (
-        <span className={styles.eventBlockTime}>{formatTime(startDate)}</span>
-      )}
-      {event.status === 'cancelled' && (
-        <span className={styles.eventBlockBadge}>Cancelled</span>
-      )}
+      {showTime && <span className={styles.eventBlockTime}>{formatTime(startDate)}</span>}
+      {event.status === 'cancelled' && <span className={styles.eventBlockBadge}>Cancelled</span>}
     </>
   );
 
