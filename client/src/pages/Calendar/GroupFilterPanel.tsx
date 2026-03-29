@@ -8,16 +8,12 @@
  */
 
 import { type Group } from '../../api/groups';
-import {
-  groupColorVar,
-  PERSONAL_COLOR_VAR,
-  type buildGroupColorMap,
-} from '../../utils/group-colors';
+import { groupColorVar, PERSONAL_COLOR_VAR } from '../../utils/group-colors';
 import styles from './Calendar.module.css';
 
 interface GroupFilterPanelProps {
   groups: Group[];
-  groupColorMap: ReturnType<typeof buildGroupColorMap>;
+  groupColorMap: Map<string, number>;
   showPersonal: boolean;
   isGroupVisible: (groupId: string) => boolean;
   onTogglePersonal: () => void;

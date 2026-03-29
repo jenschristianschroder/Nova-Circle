@@ -126,4 +126,27 @@ describe('useCalendarFilter', () => {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_FILTER)!);
     expect(stored.groups).not.toHaveProperty('stale_group');
   });
+
+  it('ignores non-boolean group values in stored state', () => {
+    localStorage.setItem(
+      STORAGE_KEY_FILTER,
+      JSON.stringify({ personal: true, groups: { g1: 'false', g2: 0, g3: null } }),
+    );
+    const { result } = renderHook(() => useCalendarFilter(groupIds));
+    // Non-boolean values are stripped — all groups default to visible
+    expect(result.current.isGroupVisible('g1')).toBe(true);
+    expect(result.current.isGroupVisible('g2')).toBe(true);
+    expect(result.current.isGroupVisible('g3')).toBe(true);
+  });
+
+  it('ignores array-shaped groups in stored state', () => {
+    localStorage.setItem(
+      STORAGE_KEY_FILTER,
+      JSON.stringify({ personal: false, groups: ['g1', 'g2'] }),
+    );
+    const { result } = renderHook(() => useCalendarFilter(groupIds));
+    expect(result.current.showPersonal).toBe(false);
+    // Array is ignored — all groups default to visible
+    expect(result.current.visibleGroupIds.size).toBe(3);
+  });
 });

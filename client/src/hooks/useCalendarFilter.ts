@@ -42,9 +42,22 @@ function loadFilterState(): CalendarFilterState {
     const raw = localStorage.getItem(STORAGE_KEY_FILTER);
     if (!raw) return { personal: true, groups: {} };
     const parsed = JSON.parse(raw) as Partial<CalendarFilterState>;
+
+    const personal = typeof parsed.personal === 'boolean' ? parsed.personal : true;
+
+    const normalizedGroups: Record<string, boolean> = {};
+    const candidateGroups = parsed.groups;
+    if (candidateGroups && typeof candidateGroups === 'object' && !Array.isArray(candidateGroups)) {
+      for (const [key, value] of Object.entries(candidateGroups)) {
+        if (typeof value === 'boolean') {
+          normalizedGroups[key] = value;
+        }
+      }
+    }
+
     return {
-      personal: typeof parsed.personal === 'boolean' ? parsed.personal : true,
-      groups: parsed.groups && typeof parsed.groups === 'object' ? parsed.groups : {},
+      personal,
+      groups: normalizedGroups,
     };
   } catch {
     return { personal: true, groups: {} };

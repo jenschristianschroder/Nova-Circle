@@ -5,9 +5,9 @@
  * palette (semantic design tokens `--nc-group-color-0` … `--nc-group-color-7`).
  * Personal events use `--nc-group-color-personal`.
  *
- * The assignment is stable for a given ordered list of groups: slot `i`
- * is assigned to `groups[i] % SLOT_COUNT`. When a user has more groups
- * than palette slots, colours cycle deterministically.
+ * The assignment is stable for a given ordered list of groupIds: the group
+ * at index `i` is assigned to slot `i % GROUP_COLOR_SLOT_COUNT`. When a user
+ * has more groups than palette slots, colours cycle deterministically.
  */
 
 /** Number of group colour slots defined in the token system. */

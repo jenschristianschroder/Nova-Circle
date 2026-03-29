@@ -38,7 +38,7 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
 
   const cancelledClass = event.status === 'cancelled' ? styles.eventCancelled : '';
 
-  // Apply group colour as a CSS variable-driven left border + subtle bg tint
+  // Apply group colour as a CSS variable-driven left border
   const colorStyle: React.CSSProperties = { ...style };
   if (event.groupColorVar && event.visibilityLevel !== 'busy') {
     colorStyle.borderLeftColor = `var(${event.groupColorVar})`;
