@@ -6,7 +6,7 @@
  * with options to change or revoke.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApiClient } from '../../api/client';
 import {
   listEventShares,
@@ -34,6 +34,8 @@ const VISIBILITY_OPTIONS: { value: VisibilityLevel; label: string; description: 
 
 export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
   const { apiFetch } = useApiClient();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [shares, setShares] = useState<EventShareDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,8 +63,52 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
   useEffect(() => {
     if (isOpen) {
       void loadData();
+      // Save the currently focused element to restore on close.
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
     }
   }, [isOpen, loadData]);
+
+  // Move focus into the dialog when it opens.
+  useEffect(() => {
+    if (isOpen && dialogRef.current) {
+      const closeBtn = dialogRef.current.querySelector<HTMLElement>('[aria-label="Close share dialog"]');
+      closeBtn?.focus();
+    }
+  }, [isOpen, isLoading]);
+
+  // Keyboard handler: close on Escape, trap focus with Tab.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose();
+        previousFocusRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   function getShareForGroup(groupId: string): EventShareDto | undefined {
     return shares.find((s) => s.groupId === groupId);
@@ -99,12 +145,18 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
   }
 
   async function handleRevoke(shareId: string) {
+    const share = shares.find((s) => s.id === shareId);
+    if (share) {
+      setPendingGroupId(share.groupId);
+    }
     setError(null);
     try {
       await revokeEventShare(apiFetch, eventId, shareId);
       setShares((prev) => prev.filter((s) => s.id !== shareId));
     } catch {
       setError('Failed to revoke share.');
+    } finally {
+      setPendingGroupId(null);
     }
   }
 
@@ -112,7 +164,7 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
 
   return (
     <div className={styles.overlay} role="dialog" aria-label="Share event" aria-modal="true">
-      <div className={styles.dialog}>
+      <div className={styles.dialog} ref={dialogRef}>
         <div className={styles.header}>
           <h2 className={styles.title}>Share event</h2>
           <button

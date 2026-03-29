@@ -96,7 +96,7 @@ export function createEventShareRouter(
         return;
       }
       if (isForbiddenError(err)) {
-        res.status(403).json({ error: (err as Error).message, code: 'FORBIDDEN' });
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       if (isConflictError(err)) {
@@ -130,7 +130,7 @@ export function createEventShareRouter(
         return;
       }
       if (isForbiddenError(err)) {
-        res.status(403).json({ error: (err as Error).message, code: 'FORBIDDEN' });
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
@@ -189,7 +189,7 @@ export function createEventShareRouter(
         return;
       }
       if (isForbiddenError(err)) {
-        res.status(403).json({ error: (err as Error).message, code: 'FORBIDDEN' });
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
@@ -212,18 +212,15 @@ export function createEventShareRouter(
     }
 
     try {
-      // Fetch share before deletion for audit logging
-      const share = await shareRepo.findById(shareId);
-
-      await revokeShare.execute(identity, eventId, shareId);
+      const result = await revokeShare.execute(identity, eventId, shareId);
 
       auditLog
         .record({
           actorId: identity.userId,
           action: 'event_share.revoked',
           resourceType: 'event_share',
-          resourceId: shareId,
-          groupId: share?.groupId ?? null,
+          resourceId: result.shareId,
+          groupId: result.groupId,
           metadata: { eventId },
         })
         .catch((err) => logger.error('Failed to record audit log', err));
@@ -235,7 +232,7 @@ export function createEventShareRouter(
         return;
       }
       if (isForbiddenError(err)) {
-        res.status(403).json({ error: (err as Error).message, code: 'FORBIDDEN' });
+        res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });

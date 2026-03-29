@@ -91,12 +91,14 @@ export function EventDetail() {
       } catch {
         // Invitation list is supplemental — don't fail the whole page.
       }
-      // Load share count for event owners to display sharing indicator.
-      try {
-        const shares = await listEventShares(apiFetch, eventData.id);
-        setShareCount(shares.length);
-      } catch {
-        // Share count is supplemental — don't fail the page if unauthorized.
+      // Load share count only for personal events where the caller is the owner.
+      if (eventData.groupId === null && callerUserId === eventData.ownerId) {
+        try {
+          const shares = await listEventShares(apiFetch, eventData.id);
+          setShareCount(shares.length);
+        } catch {
+          // Share count is supplemental — don't fail the page if unauthorized.
+        }
       }
     } catch {
       setError('Failed to load event. Please try again.');
@@ -172,7 +174,7 @@ export function EventDetail() {
           <h1 className={styles.heading}>{event.title}</h1>
           {event.status === 'cancelled' && <span className={styles.cancelledBadge}>Cancelled</span>}
         </div>
-        {callerUserId === event.createdBy && (
+        {event.groupId === null && callerUserId === event.ownerId && (
           <Button
             variant="secondary"
             size="sm"

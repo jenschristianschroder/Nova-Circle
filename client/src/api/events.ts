@@ -11,7 +11,8 @@ export type InvitationStatus = 'invited' | 'accepted' | 'declined' | 'tentative'
 
 export interface CalendarEvent {
   id: string;
-  groupId: string;
+  groupId: string | null;
+  ownerId: string;
   title: string;
   description: string | null;
   startAt: string;

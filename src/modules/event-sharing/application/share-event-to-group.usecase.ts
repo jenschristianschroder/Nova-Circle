@@ -22,6 +22,13 @@ export class ShareEventToGroupUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
+    // Sharing is only supported for personal events (groupId === null).
+    if (event.groupId !== null) {
+      throw Object.assign(new Error('Only personal events can be shared to groups'), {
+        code: 'FORBIDDEN',
+      });
+    }
+
     if (event.ownerId !== caller.userId) {
       throw Object.assign(new Error('Only the event owner can share events'), {
         code: 'FORBIDDEN',

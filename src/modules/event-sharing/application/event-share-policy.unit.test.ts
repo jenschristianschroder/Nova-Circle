@@ -94,6 +94,19 @@ describe('ShareEventToGroupUseCase', () => {
     });
   });
 
+  it('throws FORBIDDEN when event is a group-scoped event', async () => {
+    const caller = FakeIdentity.random();
+    const event = makeEvent({ ownerId: caller.userId, groupId: 'some-group' });
+    const useCase = new ShareEventToGroupUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
+      makeMemberRepo(),
+      makeShareRepo(),
+    );
+    await expect(useCase.execute(caller, 'event-1', 'group-1', 'title')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
   it('throws FORBIDDEN when caller is not the event owner', async () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: 'someone-else' });
@@ -189,6 +202,18 @@ describe('UpdateEventShareUseCase', () => {
     });
   });
 
+  it('throws FORBIDDEN when event is a group-scoped event', async () => {
+    const caller = FakeIdentity.random();
+    const event = makeEvent({ ownerId: caller.userId, groupId: 'some-group' });
+    const useCase = new UpdateEventShareUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
+      makeShareRepo(),
+    );
+    await expect(useCase.execute(caller, 'event-1', 'share-1', 'busy')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
   it('throws FORBIDDEN when caller is not the event owner', async () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: 'someone-else' });
@@ -255,6 +280,18 @@ describe('RevokeEventShareUseCase', () => {
     });
   });
 
+  it('throws FORBIDDEN when event is a group-scoped event', async () => {
+    const caller = FakeIdentity.random();
+    const event = makeEvent({ ownerId: caller.userId, groupId: 'some-group' });
+    const useCase = new RevokeEventShareUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
+      makeShareRepo(),
+    );
+    await expect(useCase.execute(caller, 'event-1', 'share-1')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
   it('throws FORBIDDEN when caller is not the event owner', async () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: 'someone-else' });
@@ -279,7 +316,7 @@ describe('RevokeEventShareUseCase', () => {
     });
   });
 
-  it('deletes the share when caller is the owner', async () => {
+  it('deletes the share when caller is the owner and returns share info', async () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: caller.userId });
     const share = makeShare({ eventId: 'event-1' });
@@ -288,8 +325,9 @@ describe('RevokeEventShareUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeShareRepo({ findById: vi.fn().mockResolvedValue(share), delete: deleteFn }),
     );
-    await useCase.execute(caller, 'event-1', 'share-1');
+    const result = await useCase.execute(caller, 'event-1', 'share-1');
     expect(deleteFn).toHaveBeenCalledWith('share-1');
+    expect(result).toMatchObject({ shareId: 'share-1', groupId: 'group-1' });
   });
 });
 
@@ -303,6 +341,18 @@ describe('ListEventSharesUseCase', () => {
     const caller = FakeIdentity.random();
     await expect(useCase.execute(caller, 'event-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws FORBIDDEN when event is a group-scoped event', async () => {
+    const caller = FakeIdentity.random();
+    const event = makeEvent({ ownerId: caller.userId, groupId: 'some-group' });
+    const useCase = new ListEventSharesUseCase(
+      makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
+      makeShareRepo(),
+    );
+    await expect(useCase.execute(caller, 'event-1')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
     });
   });
 

@@ -20,6 +20,12 @@ export class UpdateEventShareUseCase {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
 
+    if (event.groupId !== null) {
+      throw Object.assign(new Error('Only personal events can be shared to groups'), {
+        code: 'FORBIDDEN',
+      });
+    }
+
     if (event.ownerId !== caller.userId) {
       throw Object.assign(new Error('Only the event owner can update shares'), {
         code: 'FORBIDDEN',
