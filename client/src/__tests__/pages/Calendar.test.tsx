@@ -5,7 +5,7 @@
  * event rendering by visibility level, and localStorage persistence.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -38,6 +38,10 @@ vi.mock('../../auth/useAuth', () => ({
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+/** Fixed reference date so tests are deterministic and never flake at midnight. */
+const FIXED_NOW = new Date('2026-03-15T10:00:00');
+const FIXED_ISO = FIXED_NOW.toISOString();
+
 const sampleGroups = [
   {
     id: 'g1',
@@ -56,7 +60,7 @@ const samplePersonalEvents = [
     ownerId: 'u1',
     title: 'Personal Lunch',
     description: 'Lunch at noon',
-    startAt: new Date().toISOString(),
+    startAt: FIXED_ISO,
     endAt: null,
     status: 'scheduled',
     createdBy: 'u1',
@@ -72,7 +76,7 @@ const sampleSharedEvents = {
       ownerId: 'u2',
       ownerDisplayName: 'Jane',
       title: 'Team Meeting',
-      startAt: new Date().toISOString(),
+      startAt: FIXED_ISO,
       endAt: null,
       status: 'scheduled',
       visibilityLevel: 'details' as const,
@@ -82,7 +86,7 @@ const sampleSharedEvents = {
       id: 'se2',
       ownerId: 'u3',
       ownerDisplayName: 'Bob',
-      startAt: new Date().toISOString(),
+      startAt: FIXED_ISO,
       endAt: null,
       visibilityLevel: 'busy' as const,
     },
@@ -116,10 +120,16 @@ function renderCalendar() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
   mockApiFetch.mockReset();
   mockNavigate.mockReset();
   localStorage.clear();
   sessionStorage.clear();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -357,7 +367,7 @@ describe('Calendar page', () => {
           ownerId: 'u2',
           ownerDisplayName: 'Jane',
           title: 'Duplicate Event',
-          startAt: new Date().toISOString(),
+          startAt: FIXED_ISO,
           endAt: null,
           status: 'scheduled',
           visibilityLevel: 'details' as const,
@@ -391,7 +401,7 @@ describe('Calendar page', () => {
           ownerId: 'u2',
           ownerDisplayName: 'Jane',
           title: 'Title Only Meeting',
-          startAt: new Date().toISOString(),
+          startAt: FIXED_ISO,
           endAt: null,
           status: 'scheduled',
           visibilityLevel: 'title' as const,
@@ -410,6 +420,7 @@ describe('Calendar page', () => {
   });
 
   it('does not navigate when a busy event is clicked', async () => {
+    const user = userEvent.setup();
     mockAllData();
     renderCalendar();
     await waitFor(() => screen.getByText('Bob — Busy'));
@@ -418,6 +429,10 @@ describe('Calendar page', () => {
     expect(busyBlock).toBeInTheDocument();
     // Busy events should NOT be rendered as buttons
     expect(busyBlock?.tagName).not.toBe('BUTTON');
+
+    // Click the busy block and verify no navigation occurs
+    await user.click(busyBlock!);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('renders group filter panel with group checkboxes', async () => {
@@ -462,7 +477,7 @@ describe('Calendar page', () => {
     });
   });
 
-  it('renders events with start time only (no end time) as 1-hour blocks', async () => {
+  it('renders events with no end time', async () => {
     const noEndEvent = [
       {
         id: 'pe-no-end',
@@ -470,7 +485,7 @@ describe('Calendar page', () => {
         ownerId: 'u1',
         title: 'Quick Reminder',
         description: null,
-        startAt: new Date().toISOString(),
+        startAt: FIXED_ISO,
         endAt: null,
         status: 'scheduled',
         createdBy: 'u1',
@@ -544,7 +559,7 @@ describe('Calendar page', () => {
         ownerId: 'u1',
         title: 'Cancelled Event',
         description: null,
-        startAt: new Date().toISOString(),
+        startAt: FIXED_ISO,
         endAt: null,
         status: 'cancelled',
         createdBy: 'u1',

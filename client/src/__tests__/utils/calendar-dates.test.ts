@@ -5,7 +5,7 @@
  * and format helpers used by the calendar views.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   startOfDay,
   endOfDay,
@@ -392,13 +392,23 @@ describe('formatMonthHeader', () => {
 // ── isToday ────────────────────────────────────────────────────────────────────
 
 describe('isToday', () => {
+  const FIXED_NOW = new Date('2026-03-15T10:00:00');
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FIXED_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('returns true for current date', () => {
-    expect(isToday(new Date())).toBe(true);
+    expect(isToday(new Date('2026-03-15T22:00:00'))).toBe(true);
   });
 
   it('returns false for yesterday', () => {
-    const yesterday = addDays(new Date(), -1);
-    expect(isToday(yesterday)).toBe(false);
+    expect(isToday(new Date('2026-03-14T10:00:00'))).toBe(false);
   });
 });
 
