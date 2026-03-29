@@ -12,11 +12,14 @@ import {
   getEvent,
   rsvpEvent,
   listEventInvitations,
+  listEventShares,
   type CalendarEvent,
   type EventInvitation,
   type InvitationStatus,
+  type EventShareDto,
 } from '../../api/events';
 import { Button } from '../../components/Button';
+import { ShareDialog } from '../../components/ShareDialog';
 import styles from './EventDetail.module.css';
 
 function formatDate(iso: string): string {
@@ -62,6 +65,8 @@ export function EventDetail() {
   const [error, setError] = useState<string | null>(null);
   const [isRsvping, setIsRsvping] = useState(false);
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [shareCount, setShareCount] = useState(0);
 
   const loadData = useCallback(async () => {
     if (!groupId || !eventId) return;
@@ -85,6 +90,13 @@ export function EventDetail() {
         setMyInvitation(mine);
       } catch {
         // Invitation list is supplemental — don't fail the whole page.
+      }
+      // Load share count for event owners to display sharing indicator.
+      try {
+        const shares = await listEventShares(apiFetch, eventData.id);
+        setShareCount(shares.length);
+      } catch {
+        // Share count is supplemental — don't fail the page if unauthorized.
       }
     } catch {
       setError('Failed to load event. Please try again.');
@@ -160,6 +172,16 @@ export function EventDetail() {
           <h1 className={styles.heading}>{event.title}</h1>
           {event.status === 'cancelled' && <span className={styles.cancelledBadge}>Cancelled</span>}
         </div>
+        {callerUserId === event.createdBy && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsShareDialogOpen(true)}
+            aria-label="Share event to groups"
+          >
+            🔗 Share{shareCount > 0 ? ` (${shareCount})` : ''}
+          </Button>
+        )}
       </div>
 
       <div className={styles.meta}>
@@ -271,6 +293,18 @@ export function EventDetail() {
           </ul>
         </section>
       )}
+
+      <ShareDialog
+        eventId={event.id}
+        isOpen={isShareDialogOpen}
+        onClose={() => {
+          setIsShareDialogOpen(false);
+          // Refresh share count when dialog closes
+          void listEventShares(apiFetch, event.id)
+            .then((shares: EventShareDto[]) => setShareCount(shares.length))
+            .catch(() => {});
+        }}
+      />
     </main>
   );
 }

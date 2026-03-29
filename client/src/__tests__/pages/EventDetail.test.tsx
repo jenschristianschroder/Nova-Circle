@@ -100,6 +100,9 @@ beforeEach(() => {
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('EventDetail', () => {
+  /** Mock shares response — supplemental call that follows event + invitations load. */
+  const emptyShares = { shares: [] };
+
   it('shows loading state initially', () => {
     mockApiFetch.mockReturnValue(new Promise(() => {}));
     renderEventDetail();
@@ -107,7 +110,10 @@ describe('EventDetail', () => {
   });
 
   it('renders event title as heading', async () => {
-    mockApiFetch.mockResolvedValueOnce(sampleEvent).mockResolvedValueOnce(sampleInvitations);
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() =>
       expect(screen.getByRole('heading', { name: 'Summer BBQ' })).toBeInTheDocument(),
@@ -115,13 +121,19 @@ describe('EventDetail', () => {
   });
 
   it('renders the event description', async () => {
-    mockApiFetch.mockResolvedValueOnce(sampleEvent).mockResolvedValueOnce(sampleInvitations);
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() => expect(screen.getByText('Come and bring a dish!')).toBeInTheDocument());
   });
 
   it('renders RSVP buttons for scheduled events', async () => {
-    mockApiFetch.mockResolvedValueOnce(sampleEvent).mockResolvedValueOnce(sampleInvitations);
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() => screen.getByRole('heading', { name: 'Summer BBQ' }));
     expect(screen.getByRole('button', { name: 'Going' })).toBeInTheDocument();
@@ -131,7 +143,10 @@ describe('EventDetail', () => {
 
   it('does not render RSVP buttons for cancelled events', async () => {
     const cancelledEvent = { ...sampleEvent, status: 'cancelled' };
-    mockApiFetch.mockResolvedValueOnce(cancelledEvent).mockResolvedValueOnce([]);
+    mockApiFetch
+      .mockResolvedValueOnce(cancelledEvent)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() => screen.getByRole('heading', { name: 'Summer BBQ' }));
     expect(screen.queryByRole('button', { name: /going/i })).not.toBeInTheDocument();
@@ -139,7 +154,10 @@ describe('EventDetail', () => {
 
   it('shows the cancelled badge for cancelled events', async () => {
     const cancelledEvent = { ...sampleEvent, status: 'cancelled' };
-    mockApiFetch.mockResolvedValueOnce(cancelledEvent).mockResolvedValueOnce([]);
+    mockApiFetch
+      .mockResolvedValueOnce(cancelledEvent)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() => screen.getByText('Cancelled'));
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
@@ -151,18 +169,22 @@ describe('EventDetail', () => {
     mockApiFetch
       .mockResolvedValueOnce(sampleEvent)
       .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares)
       .mockResolvedValueOnce(updatedInvitation); // RSVP call
 
     renderEventDetail();
     await waitFor(() => screen.getByRole('button', { name: 'Maybe' }));
     await user.click(screen.getByRole('button', { name: 'Maybe' }));
 
-    // All three API calls: getEvent, listEventInvitations, rsvpEvent
-    await waitFor(() => expect(mockApiFetch).toHaveBeenCalledTimes(3));
+    // All four API calls: getEvent, listEventInvitations, listEventShares, rsvpEvent
+    await waitFor(() => expect(mockApiFetch).toHaveBeenCalledTimes(4));
   });
 
   it('renders attendee list with member identifiers', async () => {
-    mockApiFetch.mockResolvedValueOnce(sampleEvent).mockResolvedValueOnce(sampleInvitations);
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() => screen.getByRole('heading', { name: /attendees/i }));
     // Attendees display as "Member (userId…)" since backend doesn't return displayName
@@ -179,9 +201,48 @@ describe('EventDetail', () => {
   });
 
   it('renders a breadcrumb with links', async () => {
-    mockApiFetch.mockResolvedValueOnce(sampleEvent).mockResolvedValueOnce(sampleInvitations);
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
     renderEventDetail();
     await waitFor(() => screen.getByRole('navigation', { name: /breadcrumb/i }));
     expect(screen.getByRole('link', { name: /groups/i })).toBeInTheDocument();
+  });
+
+  it('renders Share button for event creator', async () => {
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
+    renderEventDetail();
+    await waitFor(() => screen.getByRole('heading', { name: 'Summer BBQ' }));
+    expect(screen.getByRole('button', { name: /share event to groups/i })).toBeInTheDocument();
+  });
+
+  it('does not render Share button for non-creator', async () => {
+    const otherEvent = { ...sampleEvent, createdBy: 'other-user' };
+    mockApiFetch
+      .mockResolvedValueOnce(otherEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(emptyShares);
+    renderEventDetail();
+    await waitFor(() => screen.getByRole('heading', { name: 'Summer BBQ' }));
+    expect(screen.queryByRole('button', { name: /share event to groups/i })).not.toBeInTheDocument();
+  });
+
+  it('shows share count when event has shares', async () => {
+    const sharesResponse = {
+      shares: [
+        { id: 's1', eventId: 'e1', groupId: 'g1', visibilityLevel: 'title', sharedByUserId: 'u1', sharedAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+    };
+    mockApiFetch
+      .mockResolvedValueOnce(sampleEvent)
+      .mockResolvedValueOnce(sampleInvitations)
+      .mockResolvedValueOnce(sharesResponse);
+    renderEventDetail();
+    await waitFor(() => screen.getByRole('heading', { name: 'Summer BBQ' }));
+    expect(screen.getByRole('button', { name: /share event to groups/i })).toHaveTextContent('Share (1)');
   });
 });

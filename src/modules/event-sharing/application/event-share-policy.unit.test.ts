@@ -184,9 +184,9 @@ describe('UpdateEventShareUseCase', () => {
   it('throws NOT_FOUND when event does not exist', async () => {
     const useCase = new UpdateEventShareUseCase(makeEventRepo(), makeShareRepo());
     const caller = FakeIdentity.random();
-    await expect(
-      useCase.execute(caller, 'event-1', 'share-1', 'busy'),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(useCase.execute(caller, 'event-1', 'share-1', 'busy')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('throws FORBIDDEN when caller is not the event owner', async () => {
@@ -196,9 +196,9 @@ describe('UpdateEventShareUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeShareRepo(),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'share-1', 'busy'),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(useCase.execute(caller, 'event-1', 'share-1', 'busy')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('throws NOT_FOUND when share does not exist', async () => {
@@ -208,9 +208,9 @@ describe('UpdateEventShareUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeShareRepo({ findById: vi.fn().mockResolvedValue(null) }),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'share-1', 'busy'),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(useCase.execute(caller, 'event-1', 'share-1', 'busy')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('throws NOT_FOUND when share belongs to different event', async () => {
@@ -221,9 +221,9 @@ describe('UpdateEventShareUseCase', () => {
       makeEventRepo({ findById: vi.fn().mockResolvedValue(event) }),
       makeShareRepo({ findById: vi.fn().mockResolvedValue(share) }),
     );
-    await expect(
-      useCase.execute(caller, 'event-1', 'share-1', 'busy'),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(useCase.execute(caller, 'event-1', 'share-1', 'busy')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('updates visibility level when caller is the owner', async () => {

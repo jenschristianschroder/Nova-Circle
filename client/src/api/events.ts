@@ -91,6 +91,20 @@ export type CaptureResult =
   | { success: true; eventId: string }
   | { success: false; draftId?: string; issues: string[] };
 
+/** Visibility level for event shares. */
+export type VisibilityLevel = 'busy' | 'title' | 'details';
+
+/** Mirrors the backend `EventShare` shape. */
+export interface EventShareDto {
+  id: string;
+  eventId: string;
+  groupId: string;
+  visibilityLevel: VisibilityLevel;
+  sharedByUserId: string;
+  sharedAt: string;
+  updatedAt: string;
+}
+
 /**
  * Calls POST /api/v1/capture/text with { text, groupId }.
  * Returns a discriminated union: success with eventId, or failure with issues.
@@ -113,4 +127,51 @@ export async function captureEventFromText(
     draftId: raw.draft.id,
     issues: raw.issues ?? [],
   };
+}
+
+// ── Event Sharing API ──────────────────────────────────────────────────────────
+
+/** Share an event to a group with a visibility level. */
+export async function shareEventToGroup(
+  apiFetch: ApiFetch,
+  eventId: string,
+  data: { groupId: string; visibilityLevel: VisibilityLevel },
+): Promise<EventShareDto> {
+  return apiFetch<EventShareDto>(`/api/v1/events/${eventId}/shares`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/** List all shares for an event (owner-only). */
+export async function listEventShares(
+  apiFetch: ApiFetch,
+  eventId: string,
+): Promise<EventShareDto[]> {
+  const result = await apiFetch<{ shares: EventShareDto[] }>(`/api/v1/events/${eventId}/shares`);
+  return result.shares;
+}
+
+/** Update the visibility level of an existing share. */
+export async function updateEventShare(
+  apiFetch: ApiFetch,
+  eventId: string,
+  shareId: string,
+  data: { visibilityLevel: VisibilityLevel },
+): Promise<EventShareDto> {
+  return apiFetch<EventShareDto>(`/api/v1/events/${eventId}/shares/${shareId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** Revoke sharing from a group. */
+export async function revokeEventShare(
+  apiFetch: ApiFetch,
+  eventId: string,
+  shareId: string,
+): Promise<void> {
+  await apiFetch<void>(`/api/v1/events/${eventId}/shares/${shareId}`, {
+    method: 'DELETE',
+  });
 }

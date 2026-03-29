@@ -58,9 +58,7 @@ export function createEventShareRouter(
     const visibilityLevel = body['visibilityLevel'];
 
     if (typeof groupId !== 'string' || !isValidUuid(groupId)) {
-      res
-        .status(400)
-        .json({ error: 'groupId must be a valid UUID', code: 'VALIDATION_ERROR' });
+      res.status(400).json({ error: 'groupId must be a valid UUID', code: 'VALIDATION_ERROR' });
       return;
     }
 
