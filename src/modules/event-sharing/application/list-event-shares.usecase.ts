@@ -1,0 +1,26 @@
+import type { IdentityContext } from '../../../shared/auth/identity-context.js';
+import type { EventRepositoryPort } from '../../event-management/domain/event.repository.port.js';
+import type { EventShareRepositoryPort } from '../domain/event-share.repository.port.js';
+import type { EventShare } from '../domain/event-share.js';
+
+export class ListEventSharesUseCase {
+  constructor(
+    private readonly eventRepo: EventRepositoryPort,
+    private readonly shareRepo: EventShareRepositoryPort,
+  ) {}
+
+  async execute(caller: IdentityContext, eventId: string): Promise<EventShare[]> {
+    const event = await this.eventRepo.findById(eventId);
+    if (!event) {
+      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+    }
+
+    if (event.ownerId !== caller.userId) {
+      throw Object.assign(new Error('Only the event owner can list shares'), {
+        code: 'FORBIDDEN',
+      });
+    }
+
+    return this.shareRepo.listByEvent(eventId);
+  }
+}
