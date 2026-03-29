@@ -10,6 +10,7 @@ import {
   startOfDay,
   endOfDay,
   isSameDay,
+  isToday,
   addDays,
   startOfWeek,
   endOfWeek,
@@ -23,6 +24,9 @@ import {
   eventDayPosition,
   daysInRange,
   formatHour,
+  formatTime,
+  formatDayHeader,
+  formatMonthHeader,
 } from '../../utils/calendar-dates';
 
 // ── Day helpers ────────────────────────────────────────────────────────────────
@@ -350,5 +354,102 @@ describe('formatHour', () => {
     const result = formatHour(12);
     expect(typeof result).toBe('string');
     expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Additional format helpers ──────────────────────────────────────────────────
+
+describe('formatTime', () => {
+  it('formats a time as a non-empty string', () => {
+    const result = formatTime(new Date(2026, 2, 15, 14, 30));
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('returns different strings for different times', () => {
+    const morning = formatTime(new Date(2026, 2, 15, 9, 0));
+    const afternoon = formatTime(new Date(2026, 2, 15, 14, 30));
+    expect(morning).not.toBe(afternoon);
+  });
+});
+
+describe('formatDayHeader', () => {
+  it('returns a non-empty string', () => {
+    const result = formatDayHeader(new Date(2026, 2, 15));
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+describe('formatMonthHeader', () => {
+  it('returns a non-empty string', () => {
+    const result = formatMonthHeader(new Date(2026, 2, 15));
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ── isToday ────────────────────────────────────────────────────────────────────
+
+describe('isToday', () => {
+  it('returns true for current date', () => {
+    expect(isToday(new Date())).toBe(true);
+  });
+
+  it('returns false for yesterday', () => {
+    const yesterday = addDays(new Date(), -1);
+    expect(isToday(yesterday)).toBe(false);
+  });
+});
+
+// ── Edge cases for eventDayPosition ────────────────────────────────────────────
+
+describe('eventDayPosition edge cases', () => {
+  it('handles all-day events (midnight to end of day)', () => {
+    const start = new Date(2026, 2, 15, 0, 0, 0, 0);
+    const end = new Date(2026, 2, 15, 23, 59, 59, 999);
+    const day = new Date(2026, 2, 15);
+
+    const pos = eventDayPosition(start, end, day);
+    expect(pos).not.toBeNull();
+    expect(pos!.top).toBe(0);
+    // Should cover nearly 100% of the day
+    expect(pos!.height).toBeGreaterThan(99);
+  });
+
+  it('handles events spanning entire day from midnight to next midnight', () => {
+    const start = new Date(2026, 2, 15, 0, 0);
+    const end = new Date(2026, 2, 16, 0, 0);
+    const day = new Date(2026, 2, 15);
+
+    const pos = eventDayPosition(start, end, day);
+    expect(pos).not.toBeNull();
+    expect(pos!.top).toBe(0);
+    // Clamped to end of day, should cover nearly 100%
+    expect(pos!.height).toBeGreaterThan(99);
+  });
+
+  it('handles event starting before target day and ending after', () => {
+    // 3-day event: spans March 14-16, queried for March 15
+    const start = new Date(2026, 2, 14, 10, 0);
+    const end = new Date(2026, 2, 16, 18, 0);
+    const day = new Date(2026, 2, 15);
+
+    const pos = eventDayPosition(start, end, day);
+    expect(pos).not.toBeNull();
+    expect(pos!.top).toBe(0); // clamped to midnight
+    // Clamped to end of day — should be nearly 100%
+    expect(pos!.height).toBeGreaterThan(99);
+  });
+
+  it('ensures minimum 1% height for very short events', () => {
+    // 1-minute event
+    const start = new Date(2026, 2, 15, 12, 0);
+    const end = new Date(2026, 2, 15, 12, 1);
+    const day = new Date(2026, 2, 15);
+
+    const pos = eventDayPosition(start, end, day);
+    expect(pos).not.toBeNull();
+    expect(pos!.height).toBeGreaterThanOrEqual(1);
   });
 });
