@@ -4,13 +4,14 @@
  * Route structure:
  *  /login                                → Login page (unauthenticated landing)
  *  /signup                               → SignUp page (authenticated, unregistered)
+ *  /calendar                             → Calendar (authenticated + registered, primary view)
  *  /groups                               → GroupsList (authenticated + registered)
  *  /groups/:groupId                      → GroupDetail (authenticated + registered)
  *  /groups/:groupId/events/new           → EventCreate (authenticated + registered)
  *  /groups/:groupId/events/:eventId      → EventDetail (authenticated + registered)
  *  /profile                              → Profile (authenticated + registered)
- *  /                                     → Redirect to /groups
- *  *                                     → Redirect to /groups
+ *  /                                     → Redirect to /calendar
+ *  *                                     → Redirect to /calendar
  *
  * Authenticated routes are wrapped in AppShell (persistent nav bar),
  * ProtectedRoute (redirects unauthenticated users to /login), and
@@ -23,6 +24,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { RegistrationGate } from './components/RegistrationGate';
 import { Login } from './pages/Login';
 import { SignUp } from './pages/SignUp';
+import { Calendar } from './pages/Calendar';
 import { GroupsList } from './pages/GroupsList';
 import { GroupDetail } from './pages/GroupDetail';
 import { EventDetail } from './pages/EventDetail';
@@ -52,13 +54,14 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/groups" replace /> },
+      { index: true, element: <Navigate to="/calendar" replace /> },
+      { path: 'calendar', element: <Calendar /> },
       { path: 'groups', element: <GroupsList /> },
       { path: 'groups/:groupId', element: <GroupDetail /> },
       { path: 'groups/:groupId/events/new', element: <EventCreate /> },
       { path: 'groups/:groupId/events/:eventId', element: <EventDetail /> },
       { path: 'profile', element: <Profile /> },
-      { path: '*', element: <Navigate to="/groups" replace /> },
+      { path: '*', element: <Navigate to="/calendar" replace /> },
     ],
   },
 ]);

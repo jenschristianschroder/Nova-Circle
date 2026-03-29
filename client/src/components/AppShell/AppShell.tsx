@@ -28,6 +28,11 @@ export function AppShell() {
           <nav aria-label="Primary navigation">
             <ul className={styles.navList}>
               <li>
+                <Link to="/calendar" className={styles.navLink}>
+                  Calendar
+                </Link>
+              </li>
+              <li>
                 <Link to="/groups" className={styles.navLink}>
                   Groups
                 </Link>

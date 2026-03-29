@@ -1,0 +1,415 @@
+/* Calendar page styles — uses semantic design tokens only. */
+
+/* ── Page layout ──────────────────────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--nc-space-md);
+  background-color: var(--nc-surface-background);
+  color: var(--nc-content-primary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--nc-space-3xl);
+  color: var(--nc-content-secondary);
+  font-size: var(--nc-font-size-md);
+}
+
+.error {
+  padding: var(--nc-space-sm) var(--nc-space-md);
+  margin-bottom: var(--nc-space-md);
+  background-color: var(--nc-danger-subtle);
+  color: var(--nc-danger-default);
+  border-radius: var(--nc-radius-sm);
+  font-size: var(--nc-font-size-sm);
+}
+
+.viewContainer {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nc-space-md);
+  padding-bottom: var(--nc-space-md);
+  border-bottom: 1px solid var(--nc-border-default);
+  margin-bottom: var(--nc-space-md);
+  flex-wrap: wrap;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-sm);
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-sm);
+  flex-wrap: wrap;
+}
+
+.toolbarTitle {
+  font-size: var(--nc-font-size-lg);
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.navButtons {
+  display: flex;
+  gap: 2px;
+}
+
+.modeSelector {
+  display: flex;
+  background-color: var(--nc-surface-subtle);
+  border-radius: var(--nc-radius-sm);
+  padding: 2px;
+}
+
+.modeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--nc-space-xs) var(--nc-space-sm);
+  font-size: var(--nc-font-size-sm);
+  font-family: inherit;
+  color: var(--nc-content-secondary);
+  border-radius: var(--nc-radius-sm);
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+
+.modeButton:hover {
+  color: var(--nc-content-primary);
+}
+
+.modeButtonActive {
+  background-color: var(--nc-surface-card);
+  color: var(--nc-content-primary);
+  font-weight: 500;
+  box-shadow: var(--nc-shadow-sm);
+}
+
+.modeButton:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 1px;
+}
+
+.datePicker {
+  padding: var(--nc-space-xs) var(--nc-space-sm);
+  font-size: var(--nc-font-size-sm);
+  font-family: inherit;
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-sm);
+  background-color: var(--nc-surface-card);
+  color: var(--nc-content-primary);
+}
+
+.datePicker:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 1px;
+}
+
+.customDaysLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-xs);
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-secondary);
+}
+
+.customDaysText {
+  white-space: nowrap;
+}
+
+.customDaysInput {
+  width: 3.5rem;
+  padding: var(--nc-space-xs);
+  font-size: var(--nc-font-size-sm);
+  font-family: inherit;
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-sm);
+  background-color: var(--nc-surface-card);
+  color: var(--nc-content-primary);
+  text-align: center;
+}
+
+.customDaysInput:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 1px;
+}
+
+/* ── Day / Week view ──────────────────────────────────────────────────────── */
+.dayViewContainer {
+  display: flex;
+  min-height: 0;
+  overflow: auto;
+}
+
+.timeGutter {
+  flex-shrink: 0;
+  width: 3.5rem;
+  border-right: 1px solid var(--nc-border-default);
+}
+
+.timeGutterLabel {
+  height: 3rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: var(--nc-space-xs);
+  font-size: var(--nc-font-size-xs);
+  color: var(--nc-content-secondary);
+  box-sizing: border-box;
+}
+
+.dayColumn {
+  flex: 1;
+  min-width: 6rem;
+  border-right: 1px solid var(--nc-border-default);
+}
+
+.dayColumn:last-child {
+  border-right: none;
+}
+
+.dayColumnToday {
+  background-color: var(--nc-accent-subtle);
+}
+
+.dayColumnHeader {
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--nc-font-size-sm);
+  font-weight: 500;
+  color: var(--nc-content-primary);
+  border-bottom: 1px solid var(--nc-border-default);
+  white-space: nowrap;
+}
+
+.dayColumnBody {
+  position: relative;
+}
+
+.hourSlot {
+  height: 3rem;
+  border-bottom: 1px solid var(--nc-border-default);
+  cursor: pointer;
+  transition: background-color 0.1s;
+  box-sizing: border-box;
+}
+
+.hourSlot:hover {
+  background-color: var(--nc-surface-subtle);
+}
+
+.hourSlot:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: -2px;
+}
+
+/* ── Month view ───────────────────────────────────────────────────────────── */
+.monthGrid {
+  display: flex;
+  flex-direction: column;
+}
+
+.monthWeekdayRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--nc-border-default);
+}
+
+.monthWeekdayCell {
+  padding: var(--nc-space-xs) var(--nc-space-sm);
+  font-size: var(--nc-font-size-sm);
+  font-weight: 500;
+  text-align: center;
+  color: var(--nc-content-secondary);
+}
+
+.monthDayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.monthDayCell {
+  min-height: 5rem;
+  border-bottom: 1px solid var(--nc-border-default);
+  border-right: 1px solid var(--nc-border-default);
+  padding: var(--nc-space-xs);
+  display: flex;
+  flex-direction: column;
+}
+
+.monthDayCell:nth-child(7n) {
+  border-right: none;
+}
+
+.monthDayToday {
+  background-color: var(--nc-accent-subtle);
+}
+
+.monthDayOutside {
+  opacity: 0.4;
+}
+
+.monthDayNumber {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--nc-font-size-sm);
+  font-weight: 500;
+  color: var(--nc-content-primary);
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--nc-radius-full);
+  margin-bottom: var(--nc-space-xs);
+  transition: background-color 0.15s;
+}
+
+.monthDayNumber:hover {
+  background-color: var(--nc-surface-subtle);
+}
+
+.monthDayNumber:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 1px;
+}
+
+.monthDayToday .monthDayNumber {
+  background-color: var(--nc-accent-default);
+  color: var(--nc-content-on-accent);
+}
+
+.monthDayEvents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.monthDayMore {
+  font-size: var(--nc-font-size-xs);
+  color: var(--nc-content-secondary);
+  padding: 1px var(--nc-space-xs);
+}
+
+/* ── Event block ──────────────────────────────────────────────────────────── */
+.eventBlock {
+  border-radius: var(--nc-radius-sm);
+  padding: 2px var(--nc-space-xs);
+  font-size: var(--nc-font-size-xs);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+
+.eventBlock[aria-disabled='false'] {
+  cursor: pointer;
+}
+
+.eventBlock[aria-disabled='false']:hover {
+  opacity: 0.85;
+}
+
+.eventBlock:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 1px;
+}
+
+.eventBusy {
+  background-color: var(--nc-surface-subtle);
+  border: 1px dashed var(--nc-border-default);
+  color: var(--nc-content-secondary);
+}
+
+.eventTitle {
+  background-color: var(--nc-accent-subtle);
+  border-left: 3px solid var(--nc-accent-default);
+  color: var(--nc-content-primary);
+}
+
+.eventDetails {
+  background-color: var(--nc-accent-subtle);
+  border-left: 3px solid var(--nc-accent-default);
+  color: var(--nc-content-primary);
+}
+
+.eventOwner {
+  background-color: var(--nc-success-subtle);
+  border-left: 3px solid var(--nc-success-default);
+  color: var(--nc-content-primary);
+}
+
+.eventCancelled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.eventBlockTitle {
+  font-weight: 500;
+}
+
+.eventBlockTime {
+  margin-left: var(--nc-space-xs);
+  color: var(--nc-content-secondary);
+}
+
+.eventBlockBadge {
+  margin-left: var(--nc-space-xs);
+  font-size: var(--nc-font-size-xs);
+  color: var(--nc-danger-default);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbarLeft,
+  .toolbarRight {
+    justify-content: center;
+  }
+
+  .dayColumn {
+    min-width: 4rem;
+  }
+
+  .monthDayCell {
+    min-height: 3.5rem;
+    padding: 2px;
+  }
+
+  .monthDayNumber {
+    font-size: var(--nc-font-size-xs);
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
