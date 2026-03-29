@@ -198,9 +198,10 @@ describe('Information-disclosure regression tests', () => {
           .set(testAuthHeaders(member.userId, member.displayName));
 
         expect(res.status).toBe(200);
-        expect(Array.isArray(res.body)).toBe(true);
+        const body = res.body as { events: { id: string }[] };
+        expect(Array.isArray(body.events)).toBe(true);
 
-        const ids = (res.body as { id: string }[]).map((e) => e.id);
+        const ids = body.events.map((e) => e.id);
         expect(ids).toContain(sharedId);
         // Hidden event ID must not appear in the list
         expect(ids).not.toContain(hiddenId);
@@ -238,7 +239,8 @@ describe('Information-disclosure regression tests', () => {
           .set(testAuthHeaders(lateJoiner.userId, lateJoiner.displayName));
 
         expect(listRes.status).toBe(200);
-        const ids = (listRes.body as { id: string }[]).map((e) => e.id);
+        const listBody = listRes.body as { events: { id: string }[] };
+        const ids = listBody.events.map((e) => e.id);
         expect(ids).not.toContain(historicId);
 
         // Direct GET also returns 404 for lateJoiner.
@@ -288,7 +290,8 @@ describe('Information-disclosure regression tests', () => {
         const listRes = await request(app)
           .get(`/api/v1/groups/${groupId}/events`)
           .set(testAuthHeaders(member.userId, member.displayName));
-        const ids = (listRes.body as { id: string }[]).map((e) => e.id);
+        const removedListBody = listRes.body as { events: { id: string }[] };
+        const ids = removedListBody.events.map((e) => e.id);
         expect(ids).not.toContain(eventId);
       },
     );
