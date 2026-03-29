@@ -90,6 +90,8 @@ export async function down(knex: Knex): Promise<void> {
   // ── Restore group_id NOT NULL constraint ───────────────────────────────
   // Personal events (group_id IS NULL) cannot satisfy the restored NOT NULL
   // constraint, so remove them before restoring it.
+  // WARNING: This deletion is intentional and irreversible. Back up personal
+  // events before rolling back if recovery is needed.
   await knex('events').whereNull('group_id').delete();
   await knex.raw('ALTER TABLE events ALTER COLUMN group_id SET NOT NULL');
 }
