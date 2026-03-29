@@ -61,27 +61,25 @@ const sampleGroup = {
 const sampleEvents = [
   {
     id: 'e1',
-    groupId: 'g1',
+    ownerId: 'u1',
+    ownerDisplayName: 'Test User',
     title: 'Summer BBQ',
     description: null,
     startAt: '2026-07-04T15:00:00Z',
     endAt: null,
     status: 'scheduled',
-    createdBy: 'u1',
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
+    visibilityLevel: 'details',
   },
   {
     id: 'e2',
-    groupId: 'g1',
+    ownerId: 'u1',
+    ownerDisplayName: 'Test User',
     title: 'Old Party',
     description: null,
     startAt: '2026-06-01T18:00:00Z',
     endAt: null,
     status: 'cancelled',
-    createdBy: 'u1',
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
+    visibilityLevel: 'details',
   },
 ];
 
@@ -104,7 +102,7 @@ function mockLoadData(
 ) {
   mockApiFetch
     .mockResolvedValueOnce(group)
-    .mockResolvedValueOnce(events)
+    .mockResolvedValueOnce({ events, total: events.length, page: 1, limit: 50 })
     .mockResolvedValueOnce(members)
     .mockResolvedValueOnce(profile);
 }
@@ -328,5 +326,68 @@ describe('GroupDetail', () => {
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/failed to delete group/i),
     );
+  });
+
+  // ── Visibility-level rendering ──────────────────────────────────────────────
+
+  it('renders busy events as non-clickable opaque blocks', async () => {
+    const busyEvent = {
+      id: 'e-busy',
+      ownerId: 'u2',
+      ownerDisplayName: 'Jane',
+      startAt: '2026-07-01T10:00:00Z',
+      endAt: '2026-07-01T11:00:00Z',
+      visibilityLevel: 'busy',
+    };
+    mockLoadData(sampleGroup, [busyEvent]);
+    renderGroupDetail();
+    await waitFor(() => screen.getByRole('button', { name: /jane is busy/i }));
+    const btn = screen.getByRole('button', { name: /jane is busy/i });
+    expect(btn).toBeDisabled();
+    expect(screen.getByText(/Jane — Busy/)).toBeInTheDocument();
+    // Title must not be shown for busy events
+    expect(screen.queryByText('Summer BBQ')).not.toBeInTheDocument();
+  });
+
+  it('renders title-level events with limited badge and no click-through', async () => {
+    const titleEvent = {
+      id: 'e-title',
+      ownerId: 'u2',
+      ownerDisplayName: 'Jane',
+      title: 'Team Standup',
+      startAt: '2026-07-02T09:00:00Z',
+      endAt: null,
+      status: 'scheduled',
+      visibilityLevel: 'title',
+    };
+    mockLoadData(sampleGroup, [titleEvent]);
+    renderGroupDetail();
+    await waitFor(() => screen.getByText('Team Standup'));
+    expect(screen.getByText('Team Standup')).toBeInTheDocument();
+    expect(screen.getByText('Limited')).toBeInTheDocument();
+    const btn = screen.getByRole('button', { name: /open event team standup/i });
+    expect(btn).toBeDisabled();
+  });
+
+  it('renders details-level events as clickable cards', async () => {
+    const user = userEvent.setup();
+    const detailsEvent = {
+      id: 'e-detail',
+      ownerId: 'u2',
+      ownerDisplayName: 'Jane',
+      title: 'Team Lunch',
+      description: 'At the park',
+      startAt: '2026-07-03T12:00:00Z',
+      endAt: null,
+      status: 'scheduled',
+      visibilityLevel: 'details',
+    };
+    mockLoadData(sampleGroup, [detailsEvent]);
+    renderGroupDetail();
+    await waitFor(() => screen.getByText('Team Lunch'));
+    const btn = screen.getByRole('button', { name: /open event team lunch/i });
+    expect(btn).not.toBeDisabled();
+    await user.click(btn);
+    expect(mockNavigate).toHaveBeenCalledWith('/groups/g1/events/e-detail');
   });
 });

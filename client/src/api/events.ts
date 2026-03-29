@@ -38,11 +38,56 @@ export interface EventInvitation {
 
 type ApiFetch = <T>(path: string, init?: RequestInit) => Promise<T>;
 
+// ── Shared Group Event types ───────────────────────────────────────────────────
+
+/**
+ * Event as returned by the group events listing endpoint.
+ *
+ * Fields are present or absent depending on the share's `visibilityLevel`:
+ * - `busy`    → id, ownerId, ownerDisplayName, startAt, endAt
+ * - `title`   → above + title, status
+ * - `details` → above + description (full data)
+ */
+export interface SharedGroupEvent {
+  id: string;
+  ownerId: string;
+  ownerDisplayName: string;
+  startAt: string;
+  endAt: string | null;
+  visibilityLevel: VisibilityLevel;
+  title?: string;
+  description?: string | null;
+  status?: EventStatus;
+}
+
+export interface SharedGroupEventsResponse {
+  events: SharedGroupEvent[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ListGroupEventsParams {
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
 export async function listGroupEvents(
   apiFetch: ApiFetch,
   groupId: string,
-): Promise<CalendarEvent[]> {
-  return apiFetch<CalendarEvent[]>(`/api/v1/groups/${groupId}/events`);
+  params?: ListGroupEventsParams,
+): Promise<SharedGroupEventsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.from) searchParams.set('from', params.from);
+  if (params?.to) searchParams.set('to', params.to);
+  if (params?.page) searchParams.set('page', String(params.page));
+  if (params?.limit) searchParams.set('limit', String(params.limit));
+
+  const qs = searchParams.toString();
+  const url = `/api/v1/groups/${groupId}/events${qs ? `?${qs}` : ''}`;
+  return apiFetch<SharedGroupEventsResponse>(url);
 }
 
 export async function getEvent(
