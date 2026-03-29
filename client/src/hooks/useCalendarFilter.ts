@@ -98,7 +98,7 @@ export function useCalendarFilter(allGroupIds: string[]): UseCalendarFilterResul
       // Clean up stale entries: only keep groups in allGroupIds
       const groups: Record<string, boolean> = {};
       for (const gid of allGroupIds) {
-        groups[gid] = gid === groupId ? !current : (state.groups[gid] !== false);
+        groups[gid] = gid === groupId ? !current : state.groups[gid] !== false;
       }
       persist({ ...state, groups });
     },

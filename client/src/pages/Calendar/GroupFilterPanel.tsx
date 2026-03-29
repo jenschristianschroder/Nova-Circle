@@ -41,19 +41,11 @@ export function GroupFilterPanel({
       <div className={styles.filterHeader}>
         <span className={styles.filterHeading}>Filter</span>
         <span className={styles.filterActions}>
-          <button
-            type="button"
-            className={styles.filterActionLink}
-            onClick={onSelectAll}
-          >
+          <button type="button" className={styles.filterActionLink} onClick={onSelectAll}>
             All
           </button>
           <span aria-hidden="true">|</span>
-          <button
-            type="button"
-            className={styles.filterActionLink}
-            onClick={onDeselectAll}
-          >
+          <button type="button" className={styles.filterActionLink} onClick={onDeselectAll}>
             None
           </button>
         </span>
