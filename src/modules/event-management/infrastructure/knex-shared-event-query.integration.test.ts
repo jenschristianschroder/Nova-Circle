@@ -194,7 +194,7 @@ describe('KnexSharedEventQuery integration', () => {
   );
 
   it.skipIf(skipReason !== undefined)(
-    'combines both sources without duplicates (UNION ALL deduplication)',
+    'combines both disjoint sources without duplicates (per SharedEventQueryPort contract)',
     async () => {
       const { events, total } = await query.listByGroup(groupId, MEMBER_ID);
       const ids = events.map((e) => e.eventId);
