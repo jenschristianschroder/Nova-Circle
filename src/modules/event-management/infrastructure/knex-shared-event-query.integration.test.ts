@@ -260,25 +260,20 @@ describe('KnexSharedEventQuery integration', () => {
     },
   );
 
-  it.skipIf(skipReason !== undefined)(
-    'events from another group do not appear',
-    async () => {
-      const { events, total } = await query.listByGroup(otherGroupId, MEMBER_ID);
-      const ids = events.map((e) => e.eventId);
-      expect(ids).not.toContain(sharedPersonalBusyEventId);
-      expect(ids).not.toContain(legacyGroupEventId);
-      expect(total).toBe(0);
-    },
-  );
+  it.skipIf(skipReason !== undefined)('events from another group do not appear', async () => {
+    const { events, total } = await query.listByGroup(otherGroupId, MEMBER_ID);
+    const ids = events.map((e) => e.eventId);
+    expect(ids).not.toContain(sharedPersonalBusyEventId);
+    expect(ids).not.toContain(legacyGroupEventId);
+    expect(total).toBe(0);
+  });
 
   // ── listByGroup: ordering ─────────────────────────────────────────────
 
   it.skipIf(skipReason !== undefined)('results are ordered by start_at ascending', async () => {
     const { events } = await query.listByGroup(groupId, MEMBER_ID);
     for (let i = 1; i < events.length; i++) {
-      expect(events[i]!.startAt.getTime()).toBeGreaterThanOrEqual(
-        events[i - 1]!.startAt.getTime(),
-      );
+      expect(events[i]!.startAt.getTime()).toBeGreaterThanOrEqual(events[i - 1]!.startAt.getTime());
     }
   });
 
@@ -362,23 +357,20 @@ describe('KnexSharedEventQuery integration', () => {
     },
   );
 
-  it.skipIf(skipReason !== undefined)(
-    'paginated pages contain no overlapping events',
-    async () => {
-      const page1 = await query.listByGroup(groupId, MEMBER_ID, undefined, {
-        page: 1,
-        limit: 2,
-      });
-      const page2 = await query.listByGroup(groupId, MEMBER_ID, undefined, {
-        page: 2,
-        limit: 2,
-      });
-      const page1Ids = page1.events.map((e) => e.eventId);
-      const page2Ids = page2.events.map((e) => e.eventId);
-      const overlap = page1Ids.filter((id) => page2Ids.includes(id));
-      expect(overlap).toHaveLength(0);
-    },
-  );
+  it.skipIf(skipReason !== undefined)('paginated pages contain no overlapping events', async () => {
+    const page1 = await query.listByGroup(groupId, MEMBER_ID, undefined, {
+      page: 1,
+      limit: 2,
+    });
+    const page2 = await query.listByGroup(groupId, MEMBER_ID, undefined, {
+      page: 2,
+      limit: 2,
+    });
+    const page1Ids = page1.events.map((e) => e.eventId);
+    const page2Ids = page2.events.map((e) => e.eventId);
+    const overlap = page1Ids.filter((id) => page2Ids.includes(id));
+    expect(overlap).toHaveLength(0);
+  });
 
   // ── listByGroup: record shape ─────────────────────────────────────────
 
