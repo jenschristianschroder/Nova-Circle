@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { CreateEventUseCase } from './create-event.usecase.js';
 import { GetEventUseCase } from './get-event.usecase.js';
 import { ListGroupEventsUseCase } from './list-group-events.usecase.js';
+import { GetSharedGroupEventUseCase } from './get-shared-group-event.usecase.js';
 import { CancelEventUseCase } from './cancel-event.usecase.js';
 import { UpdateEventUseCase } from './update-event.usecase.js';
 import { ListEventInviteesUseCase } from './list-event-invitees.usecase.js';
@@ -441,6 +442,106 @@ describe('ListGroupEventsUseCase', () => {
     await useCase.execute(memberUser, 'group-1', dateRange, pagination);
 
     expect(listByGroup).toHaveBeenCalledWith('group-1', memberUser.userId, dateRange, pagination);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GetSharedGroupEventUseCase
+// ---------------------------------------------------------------------------
+
+describe('GetSharedGroupEventUseCase', () => {
+  it('returns visibility-filtered event for a group member', async () => {
+    const record = makeSharedEventRecord({ visibilityLevel: 'details' });
+    const sharedEventQuery = makeSharedEventQuery({
+      findByGroupAndEvent: vi.fn().mockResolvedValue(record),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new GetSharedGroupEventUseCase(sharedEventQuery, memberRepo);
+
+    const result = await useCase.execute(memberUser, 'group-1', 'event-1');
+    expect(result.id).toBe('event-1');
+    expect(result.visibilityLevel).toBe('details');
+    expect(result.title).toBe('Team Lunch');
+  });
+
+  it('throws NOT_FOUND for non-member (no disclosure of group existence)', async () => {
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(false) });
+    const useCase = new GetSharedGroupEventUseCase(makeSharedEventQuery(), memberRepo);
+
+    await expect(useCase.execute(outsider, 'group-1', 'event-1')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws NOT_FOUND when event is not shared to the group', async () => {
+    const sharedEventQuery = makeSharedEventQuery({
+      findByGroupAndEvent: vi.fn().mockResolvedValue(null),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new GetSharedGroupEventUseCase(sharedEventQuery, memberRepo);
+
+    await expect(useCase.execute(memberUser, 'group-1', 'event-1')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('busy visibility returns only id, owner, times — no title or description', async () => {
+    const record = makeSharedEventRecord({
+      visibilityLevel: 'busy',
+      title: 'Secret Meeting',
+      description: 'Top secret',
+    });
+    const sharedEventQuery = makeSharedEventQuery({
+      findByGroupAndEvent: vi.fn().mockResolvedValue(record),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new GetSharedGroupEventUseCase(sharedEventQuery, memberRepo);
+
+    const dto = await useCase.execute(memberUser, 'group-1', 'event-1');
+    expect(dto.visibilityLevel).toBe('busy');
+    expect(dto.id).toBe('event-1');
+    expect(dto.ownerId).toBe('creator-id');
+    expect(dto).not.toHaveProperty('title');
+    expect(dto).not.toHaveProperty('description');
+    expect(dto).not.toHaveProperty('status');
+  });
+
+  it('title visibility returns title and status but no description', async () => {
+    const record = makeSharedEventRecord({
+      visibilityLevel: 'title',
+      title: 'Team Standup',
+      description: 'Weekly sync',
+    });
+    const sharedEventQuery = makeSharedEventQuery({
+      findByGroupAndEvent: vi.fn().mockResolvedValue(record),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new GetSharedGroupEventUseCase(sharedEventQuery, memberRepo);
+
+    const dto = await useCase.execute(memberUser, 'group-1', 'event-1');
+    expect(dto.visibilityLevel).toBe('title');
+    expect(dto.title).toBe('Team Standup');
+    expect(dto.status).toBe('scheduled');
+    expect(dto).not.toHaveProperty('description');
+  });
+
+  it('details visibility returns full event data including description', async () => {
+    const record = makeSharedEventRecord({
+      visibilityLevel: 'details',
+      title: 'Full Event',
+      description: 'Complete description',
+    });
+    const sharedEventQuery = makeSharedEventQuery({
+      findByGroupAndEvent: vi.fn().mockResolvedValue(record),
+    });
+    const memberRepo = makeMemberRepo({ isMember: vi.fn().mockResolvedValue(true) });
+    const useCase = new GetSharedGroupEventUseCase(sharedEventQuery, memberRepo);
+
+    const dto = await useCase.execute(memberUser, 'group-1', 'event-1');
+    expect(dto.visibilityLevel).toBe('details');
+    expect(dto.title).toBe('Full Event');
+    expect(dto.description).toBe('Complete description');
+    expect(dto.status).toBe('scheduled');
   });
 });
 
