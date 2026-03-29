@@ -210,6 +210,9 @@ export class CapturePipelineService {
 
     // Step 6: Route.
     if (issues.length === 0 && parsedStart) {
+      const hasValidTimeRange = !issues.some((i) => i.code === 'invalid_time_range');
+      const resolvedEndAt = parsedEnd && hasValidTimeRange ? parsedEnd : null;
+
       if (resolvedGroupId) {
         // Group-scoped event – delegate to event-management with invitees.
         const memberList = await this.memberRepo.listByGroup(resolvedGroupId);
@@ -223,8 +226,7 @@ export class CapturePipelineService {
           title: candidates.title!.value.trim(),
           description: candidates.description?.value ?? null,
           startAt: parsedStart,
-          endAt:
-            parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
+          endAt: resolvedEndAt,
           createdBy: caller.userId,
           inviteeIds,
         });
@@ -237,8 +239,7 @@ export class CapturePipelineService {
           title: candidates.title!.value.trim(),
           description: candidates.description?.value ?? null,
           startAt: parsedStart,
-          endAt:
-            parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
+          endAt: resolvedEndAt,
           createdBy: caller.userId,
           inviteeIds: [],
         });
