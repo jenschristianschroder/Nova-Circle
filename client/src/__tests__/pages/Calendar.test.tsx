@@ -617,6 +617,9 @@ describe('Calendar page', () => {
       expect(screen.getByText('Personal Lunch')).toBeInTheDocument();
     });
 
+    // Record call count before toggle
+    const callsBefore = mockApiFetch.mock.calls.length;
+
     // After toggling personal off, re-fetch: groups + group events (no personal)
     mockApiFetch
       .mockResolvedValueOnce(sampleGroups)
@@ -629,6 +632,14 @@ describe('Calendar page', () => {
       // Group events should still be visible
       expect(screen.getByText('Team Meeting')).toBeInTheDocument();
     });
+
+    // Verify a re-fetch occurred with correct endpoints
+    const callsAfter = mockApiFetch.mock.calls.slice(callsBefore);
+    const urls = callsAfter.map((c) => c[0] as string);
+    expect(urls.some((u) => u === '/api/v1/groups')).toBe(true);
+    expect(urls.some((u) => u.startsWith('/api/v1/groups/g1/events'))).toBe(true);
+    // Personal events endpoint should NOT be called when personal is off
+    expect(urls.some((u) => u.startsWith('/api/v1/events'))).toBe(false);
   });
 
   it('hides group events when group toggle is unchecked', async () => {
@@ -639,6 +650,9 @@ describe('Calendar page', () => {
     await waitFor(() => {
       expect(screen.getByText('Team Meeting')).toBeInTheDocument();
     });
+
+    // Record call count before toggle
+    const callsBefore = mockApiFetch.mock.calls.length;
 
     // After toggling g1 off, re-fetch: groups + personal (no group events)
     mockApiFetch
@@ -653,6 +667,14 @@ describe('Calendar page', () => {
       // Personal events should still be visible
       expect(screen.getByText('Personal Lunch')).toBeInTheDocument();
     });
+
+    // Verify a re-fetch occurred with correct endpoints
+    const callsAfter = mockApiFetch.mock.calls.slice(callsBefore);
+    const urls = callsAfter.map((c) => c[0] as string);
+    expect(urls.some((u) => u === '/api/v1/groups')).toBe(true);
+    expect(urls.some((u) => u.startsWith('/api/v1/events'))).toBe(true);
+    // Group events endpoint should NOT be called when the group is hidden
+    expect(urls.some((u) => u.startsWith('/api/v1/groups/g1/events'))).toBe(false);
   });
 
   it('filter state persists across page refresh (remount)', async () => {
@@ -677,8 +699,8 @@ describe('Calendar page', () => {
 
     // Verify persisted state
     const raw = localStorage.getItem('nc-calendar-filter');
-    expect(raw).toBeDefined();
-    const stored = JSON.parse(raw!);
+    expect(raw).not.toBeNull();
+    const stored = JSON.parse(raw as string);
     expect(stored.personal).toBe(false);
 
     // Unmount to simulate leaving the page
@@ -750,6 +772,13 @@ describe('Calendar page', () => {
       expect(screen.getByRole('checkbox', { name: /family/i })).toBeChecked();
       expect(screen.getByRole('checkbox', { name: /friends/i })).toBeChecked();
     });
+
+    // Verify events from the new group were fetched and rendered
+    expect(
+      mockApiFetch.mock.calls.some(
+        (c) => typeof c[0] === 'string' && c[0].startsWith('/api/v1/groups/g2/events'),
+      ),
+    ).toBe(true);
   });
 
   it('handles groups removed from user membership gracefully', async () => {
