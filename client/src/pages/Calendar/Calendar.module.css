@@ -433,4 +433,151 @@
     width: 1.5rem;
     height: 1.5rem;
   }
+
+  /* Mobile: hide inline filter panel */
+  .filterPanel {
+    display: none;
+  }
+}
+
+/* ── Calendar body layout (filter panel + view) ──────────────────────────── */
+.calendarBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: var(--nc-space-md);
+}
+
+/* ── Group filter panel ──────────────────────────────────────────────────── */
+.filterPanel {
+  flex-shrink: 0;
+  width: 14rem;
+  background-color: var(--nc-surface-card);
+  border: 1px solid var(--nc-border-default);
+  border-radius: var(--nc-radius-md);
+  padding: var(--nc-space-sm);
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.filterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--nc-space-xs);
+  border-bottom: 1px solid var(--nc-border-default);
+  margin-bottom: var(--nc-space-xs);
+}
+
+.filterHeading {
+  font-size: var(--nc-font-size-sm);
+  font-weight: 600;
+  color: var(--nc-content-primary);
+}
+
+.filterActions {
+  display: flex;
+  gap: var(--nc-space-xs);
+  align-items: center;
+  font-size: var(--nc-font-size-xs);
+  color: var(--nc-content-secondary);
+}
+
+.filterActionLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--nc-font-size-xs);
+  color: var(--nc-accent-default);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.filterActionLink:hover {
+  text-decoration: underline;
+}
+
+.filterActionLink:focus-visible {
+  outline: 2px solid var(--nc-border-focus);
+  outline-offset: 1px;
+}
+
+.filterList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.filterRow {
+  padding: var(--nc-space-xs) 0;
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--nc-space-xs);
+  cursor: pointer;
+  font-size: var(--nc-font-size-sm);
+  color: var(--nc-content-primary);
+}
+
+.filterCheckbox {
+  accent-color: var(--nc-accent-default);
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.filterSwatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--nc-radius-sm);
+  flex-shrink: 0;
+}
+
+/* ── Mobile filter toggle ────────────────────────────────────────────────── */
+.mobileFilterToggle {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobileFilterToggle {
+    display: inline-flex;
+  }
+
+  .filterOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background-color: var(--nc-surface-overlay);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .filterSheet {
+    width: 100%;
+    max-height: 70vh;
+    background-color: var(--nc-surface-card);
+    border-radius: var(--nc-radius-lg) var(--nc-radius-lg) 0 0;
+    padding: var(--nc-space-md);
+    overflow-y: auto;
+  }
+
+  .filterSheet .filterPanel {
+    display: block;
+    width: 100%;
+    border: none;
+    padding: 0;
+    background: none;
+  }
+
+  .filterSheetClose {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--nc-space-sm);
+  }
 }

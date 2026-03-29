@@ -118,6 +118,26 @@ export const TOKEN_NAMES = {
   shadowSm: '--nc-shadow-sm',
   /** Medium shadow for dropdowns / modals */
   shadowMd: '--nc-shadow-md',
+
+  // ─── Group calendar colours ─────────────────────────────────────────────
+  /** Personal event colour */
+  groupColorPersonal: '--nc-group-color-personal',
+  /** Group slot 0 colour */
+  groupColor0: '--nc-group-color-0',
+  /** Group slot 1 colour */
+  groupColor1: '--nc-group-color-1',
+  /** Group slot 2 colour */
+  groupColor2: '--nc-group-color-2',
+  /** Group slot 3 colour */
+  groupColor3: '--nc-group-color-3',
+  /** Group slot 4 colour */
+  groupColor4: '--nc-group-color-4',
+  /** Group slot 5 colour */
+  groupColor5: '--nc-group-color-5',
+  /** Group slot 6 colour */
+  groupColor6: '--nc-group-color-6',
+  /** Group slot 7 colour */
+  groupColor7: '--nc-group-color-7',
 } as const;
 
 export type TokenName = keyof typeof TOKEN_NAMES;

@@ -4,6 +4,7 @@
  * Displays personal events and shared group events across day, week,
  * month, and custom time-frame views.  Fetches data only for the
  * visible time window and persists the user's preferred view mode.
+ * Supports group filtering with colour-coded events.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -26,7 +27,10 @@ import {
   navigatePrev,
   startOfDay,
 } from '../../utils/calendar-dates';
+import { buildGroupColorMap, groupColorVar, PERSONAL_COLOR_VAR } from '../../utils/group-colors';
+import { useCalendarFilter } from '../../hooks/useCalendarFilter';
 import { CalendarToolbar } from './CalendarToolbar';
+import { GroupFilterPanel } from './GroupFilterPanel';
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
 import { MonthView } from './MonthView';
@@ -44,6 +48,8 @@ export interface CalendarDisplayEvent {
   groupId: string | null;
   status?: string;
   description?: string | null;
+  /** CSS variable for the event's group colour (e.g. `--nc-group-color-0`). */
+  groupColorVar?: string;
 }
 
 const STORAGE_KEY_MODE = 'nc-calendar-view-mode';
@@ -79,6 +85,15 @@ export function Calendar() {
   const [error, setError] = useState<string | null>(null);
   /** Maps shared event id → originating group id for navigation. */
   const [sharedEventGroupMap, setSharedEventGroupMap] = useState<Map<string, string>>(new Map());
+  /** Mobile filter sheet open state. */
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+
+  // Group IDs for filter hook
+  const allGroupIds = useMemo(() => groups.map((g) => g.id), [groups]);
+  const filter = useCalendarFilter(allGroupIds);
+
+  // Stable group colour map
+  const groupColorMap = useMemo(() => buildGroupColorMap(allGroupIds), [allGroupIds]);
 
   // Persist preferences
   useEffect(() => {
@@ -92,7 +107,7 @@ export function Calendar() {
   // Compute visible range
   const range = useMemo(() => viewRange(mode, anchor, customDays), [mode, anchor, customDays]);
 
-  // Fetch data when the visible range changes
+  // Fetch data when the visible range or filter changes
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -104,6 +119,10 @@ export function Calendar() {
       // Always fetch groups list first for the shared events
       const groupsList = await listMyGroups(apiFetch);
       setGroups(groupsList);
+
+      // Determine which groups are currently visible using the filter's
+      // raw state (not visibleGroupIds, which depends on React state)
+      const visibleGroups = groupsList.filter((g) => filter.isGroupVisible(g.id));
 
       // Helper: fetch all pages of group events for a given group
       async function fetchAllGroupEvents(
@@ -134,20 +153,33 @@ export function Calendar() {
         return { ...first, events: allEvents };
       }
 
-      // Fetch personal events and shared events in parallel
-      const [personal, ...groupResults] = await Promise.all([
-        listPersonalEvents(apiFetch, { from, to }),
-        ...groupsList.map((g) => fetchAllGroupEvents(g.id, from, to)),
-      ]);
+      // Fetch personal events only when shown, and shared events only for visible groups
+      const promises: Promise<CalendarEvent[] | SharedGroupEventsResponse>[] = [];
+      if (filter.showPersonal) {
+        promises.push(listPersonalEvents(apiFetch, { from, to }));
+      }
+      promises.push(...visibleGroups.map((g) => fetchAllGroupEvents(g.id, from, to)));
 
-      setPersonalEvents(personal);
+      const results = await Promise.all(promises);
+
+      // Split results — first is personal (if fetched), rest are group results
+      let personalResult: CalendarEvent[] = [];
+      let groupResults: SharedGroupEventsResponse[];
+      if (filter.showPersonal) {
+        personalResult = results[0] as CalendarEvent[];
+        groupResults = results.slice(1) as SharedGroupEventsResponse[];
+      } else {
+        groupResults = results as SharedGroupEventsResponse[];
+      }
+
+      setPersonalEvents(personalResult);
 
       // Merge shared events from all groups, dedup by event id, track group origin
       const allShared: SharedGroupEvent[] = [];
       const seen = new Set<string>();
       const eventGroupMap = new Map<string, string>();
       for (let i = 0; i < groupResults.length; i++) {
-        const groupId = groupsList[i].id;
+        const groupId = visibleGroups[i].id;
         for (const ev of groupResults[i].events) {
           if (!seen.has(ev.id)) {
             seen.add(ev.id);
@@ -163,7 +195,7 @@ export function Calendar() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiFetch, range]);
+  }, [apiFetch, range, filter.showPersonal, filter.isGroupVisible]);
 
   useEffect(() => {
     void fetchData();
@@ -186,6 +218,7 @@ export function Calendar() {
         groupId: ev.groupId,
         status: ev.status,
         description: ev.description,
+        groupColorVar: PERSONAL_COLOR_VAR,
       });
     }
 
@@ -193,6 +226,8 @@ export function Calendar() {
     for (const ev of sharedEvents) {
       if (seenIds.has(ev.id)) continue;
       seenIds.add(ev.id);
+      const originGroupId = sharedEventGroupMap.get(ev.id) ?? null;
+      const slot = originGroupId ? (groupColorMap.get(originGroupId) ?? 0) : 0;
       events.push({
         id: ev.id,
         title:
@@ -203,14 +238,15 @@ export function Calendar() {
         endAt: ev.endAt,
         visibilityLevel: ev.visibilityLevel,
         ownerDisplayName: ev.ownerDisplayName,
-        groupId: sharedEventGroupMap.get(ev.id) ?? null,
+        groupId: originGroupId,
         status: ev.status,
         description: ev.visibilityLevel === 'details' ? ev.description : undefined,
+        groupColorVar: groupColorVar(slot),
       });
     }
 
     return events;
-  }, [personalEvents, sharedEvents, sharedEventGroupMap]);
+  }, [personalEvents, sharedEvents, sharedEventGroupMap, groupColorMap]);
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
@@ -298,6 +334,16 @@ export function Calendar() {
         onToday={handleToday}
         onDateSelect={handleDateSelect}
         onCustomDaysChange={handleCustomDaysChange}
+        filterButton={
+          <button
+            type="button"
+            className={`${styles.mobileFilterToggle}`}
+            onClick={() => setMobileFilterOpen(true)}
+            aria-label="Open calendar filter"
+          >
+            ☰ Filter
+          </button>
+        }
       />
 
       {error && (
@@ -311,7 +357,55 @@ export function Calendar() {
           Loading calendar…
         </div>
       ) : (
-        <div className={styles.viewContainer}>{renderView()}</div>
+        <div className={styles.calendarBody}>
+          <GroupFilterPanel
+            groups={groups}
+            groupColorMap={groupColorMap}
+            showPersonal={filter.showPersonal}
+            isGroupVisible={filter.isGroupVisible}
+            onTogglePersonal={filter.togglePersonal}
+            onToggleGroup={filter.toggleGroup}
+            onSelectAll={filter.selectAll}
+            onDeselectAll={filter.deselectAll}
+          />
+          <div className={styles.viewContainer}>{renderView()}</div>
+        </div>
+      )}
+
+      {/* Mobile filter sheet */}
+      {mobileFilterOpen && (
+        <div
+          className={styles.filterOverlay}
+          onClick={() => setMobileFilterOpen(false)}
+          role="presentation"
+        >
+          <div
+            className={styles.filterSheet}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Calendar filter"
+          >
+            <div className={styles.filterSheetClose}>
+              <button
+                type="button"
+                onClick={() => setMobileFilterOpen(false)}
+                aria-label="Close filter"
+              >
+                ✕
+              </button>
+            </div>
+            <GroupFilterPanel
+              groups={groups}
+              groupColorMap={groupColorMap}
+              showPersonal={filter.showPersonal}
+              isGroupVisible={filter.isGroupVisible}
+              onTogglePersonal={filter.togglePersonal}
+              onToggleGroup={filter.toggleGroup}
+              onSelectAll={filter.selectAll}
+              onDeselectAll={filter.deselectAll}
+            />
+          </div>
+        </div>
       )}
     </main>
   );

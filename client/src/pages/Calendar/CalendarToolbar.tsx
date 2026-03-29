@@ -19,6 +19,8 @@ interface CalendarToolbarProps {
   onToday: () => void;
   onDateSelect: (date: Date) => void;
   onCustomDaysChange: (days: number) => void;
+  /** Optional slot for a mobile filter toggle button. */
+  filterButton?: React.ReactNode;
 }
 
 /** Format YYYY-MM-DD using local date parts (avoids UTC off-by-one). */
@@ -66,6 +68,7 @@ export function CalendarToolbar({
   onToday,
   onDateSelect,
   onCustomDaysChange,
+  filterButton,
 }: CalendarToolbarProps) {
   const title = formatToolbarTitle(mode, anchor, customDays);
 
@@ -157,6 +160,8 @@ export function CalendarToolbar({
             </label>
           ))}
         </div>
+
+        {filterButton}
       </div>
     </div>
   );
