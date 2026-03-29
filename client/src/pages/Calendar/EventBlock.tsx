@@ -38,6 +38,12 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
 
   const cancelledClass = event.status === 'cancelled' ? styles.eventCancelled : '';
 
+  // Apply group colour as a CSS variable-driven left border
+  const colorStyle: React.CSSProperties = { ...style };
+  if (event.groupColorVar && event.visibilityLevel !== 'busy') {
+    colorStyle.borderLeftColor = `var(${event.groupColorVar})`;
+  }
+
   const content = (
     <>
       <span className={styles.eventBlockTitle}>{event.title}</span>
@@ -55,7 +61,7 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
       <button
         type="button"
         className={`${styles.eventBlock} ${styles.eventBlockClickable} ${visClass} ${cancelledClass}`}
-        style={style}
+        style={colorStyle}
         onClick={() => onClick?.(event)}
         aria-label={`Open event: ${event.title}`}
       >
@@ -67,7 +73,7 @@ export function EventBlock({ event, onClick, showTime = true, style }: EventBloc
   return (
     <div
       className={`${styles.eventBlock} ${visClass} ${cancelledClass}`}
-      style={style}
+      style={colorStyle}
       aria-label={
         event.visibilityLevel === 'busy'
           ? `${event.ownerDisplayName ?? 'Someone'} is busy`

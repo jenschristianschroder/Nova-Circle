@@ -135,6 +135,19 @@ export function buildTokenValues(
     [TOKEN_NAMES.shadowMd]: isLight
       ? '0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.10)'
       : '0 4px 6px -1px rgba(0,0,0,0.40), 0 2px 4px -2px rgba(0,0,0,0.40)',
+
+    // ─── Group calendar colours ───────────────────────────────────────────
+    // Each pair is tuned so that default body text (neutral[7] light / neutral[0] dark)
+    // has ≥ 3:1 contrast against the swatch and the subtle event-block background.
+    [TOKEN_NAMES.groupColorPersonal]: isLight ? '#16a34a' : '#4ade80',
+    [TOKEN_NAMES.groupColor0]: isLight ? '#4f46e5' : '#a5b4fc',
+    [TOKEN_NAMES.groupColor1]: isLight ? '#0891b2' : '#67e8f9',
+    [TOKEN_NAMES.groupColor2]: isLight ? '#c026d3' : '#e879f9',
+    [TOKEN_NAMES.groupColor3]: isLight ? '#d97706' : '#fbbf24',
+    [TOKEN_NAMES.groupColor4]: isLight ? '#dc2626' : '#f87171',
+    [TOKEN_NAMES.groupColor5]: isLight ? '#059669' : '#34d399',
+    [TOKEN_NAMES.groupColor6]: isLight ? '#7c3aed' : '#c4b5fd',
+    [TOKEN_NAMES.groupColor7]: isLight ? '#be185d' : '#fb7185',
   };
 }
 
