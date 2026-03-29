@@ -140,24 +140,21 @@ describe('Personal event ownership migration', () => {
     expect(exists).toBe(true);
   });
 
-  it.skipIf(skipReason !== undefined)(
-    'event_shares table has expected columns',
-    async () => {
-      const columns = [
-        'id',
-        'event_id',
-        'group_id',
-        'visibility_level',
-        'shared_by_user_id',
-        'shared_at',
-        'updated_at',
-      ];
-      for (const col of columns) {
-        const hasCol = await db.schema.hasColumn('event_shares', col);
-        expect(hasCol, `event_shares should have column '${col}'`).toBe(true);
-      }
-    },
-  );
+  it.skipIf(skipReason !== undefined)('event_shares table has expected columns', async () => {
+    const columns = [
+      'id',
+      'event_id',
+      'group_id',
+      'visibility_level',
+      'shared_by_user_id',
+      'shared_at',
+      'updated_at',
+    ];
+    for (const col of columns) {
+      const hasCol = await db.schema.hasColumn('event_shares', col);
+      expect(hasCol, `event_shares should have column '${col}'`).toBe(true);
+    }
+  });
 
   it.skipIf(skipReason !== undefined)(
     'event_shares has unique constraint on (event_id, group_id)',
