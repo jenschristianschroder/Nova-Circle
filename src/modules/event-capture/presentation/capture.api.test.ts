@@ -69,6 +69,11 @@ describe('Capture API', () => {
     groupId = (groupRes.body as { id: string }).id;
   });
 
+  afterEach(() => {
+    fakeExtractor.setFields({});
+    fakeImageAdapter.setCandidate({ extractedText: null, fields: {} });
+  });
+
   afterAll(async () => {
     if (db) await db.destroy();
   });
@@ -146,7 +151,6 @@ describe('Capture API', () => {
           .set(testAuthHeaders(owner.userId, owner.displayName))
           .send({ text: 'Team lunch tomorrow at noon' });
 
-        fakeExtractor.setFields({});
         expect(res.status).toBe(201);
         const body = res.body as CaptureResponseBody;
         expect(body.type).toBe('event');
@@ -305,7 +309,6 @@ describe('Capture API', () => {
             contentType: 'image/jpeg',
           });
 
-        fakeImageAdapter.setCandidate({ extractedText: null, fields: {} });
         expect(res.status).toBe(201);
         const body = res.body as CaptureResponseBody;
         expect(body.type).toBe('event');
