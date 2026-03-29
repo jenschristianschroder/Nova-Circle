@@ -39,6 +39,7 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
+  const [selectedLevels, setSelectedLevels] = useState<Record<string, VisibilityLevel>>({});
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -184,10 +185,15 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
                       <>
                         <select
                           className={styles.visibilitySelect}
-                          defaultValue="title"
+                          value={selectedLevels[group.id] ?? 'title'}
                           disabled={isPending}
                           aria-label={`Visibility level for ${group.name}`}
-                          data-group-id={group.id}
+                          onChange={(e) =>
+                            setSelectedLevels((prev) => ({
+                              ...prev,
+                              [group.id]: e.target.value as VisibilityLevel,
+                            }))
+                          }
                         >
                           {VISIBILITY_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -200,10 +206,7 @@ export function ShareDialog({ eventId, isOpen, onClose }: ShareDialogProps) {
                           size="sm"
                           disabled={isPending}
                           onClick={() => {
-                            const select = document.querySelector(
-                              `select[data-group-id="${group.id}"]`,
-                            ) as HTMLSelectElement | null;
-                            const level = (select?.value ?? 'title') as VisibilityLevel;
+                            const level = selectedLevels[group.id] ?? 'title';
                             void handleShare(group.id, level);
                           }}
                         >
