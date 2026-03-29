@@ -38,10 +38,9 @@ export class PromoteDraftUseCase {
       });
     }
     if (!draft.candidateTitle || !draft.candidateStartAt) {
-      throw Object.assign(
-        new Error('Draft is missing required fields (title or startAt)'),
-        { code: 'CONFLICT' },
-      );
+      throw Object.assign(new Error('Draft is missing required fields (title or startAt)'), {
+        code: 'CONFLICT',
+      });
     }
 
     if (draft.groupId) {

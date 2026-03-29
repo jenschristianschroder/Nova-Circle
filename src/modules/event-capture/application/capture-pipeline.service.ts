@@ -223,7 +223,8 @@ export class CapturePipelineService {
           title: candidates.title!.value.trim(),
           description: candidates.description?.value ?? null,
           startAt: parsedStart,
-          endAt: parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
+          endAt:
+            parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
           createdBy: caller.userId,
           inviteeIds,
         });
@@ -236,7 +237,8 @@ export class CapturePipelineService {
           title: candidates.title!.value.trim(),
           description: candidates.description?.value ?? null,
           startAt: parsedStart,
-          endAt: parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
+          endAt:
+            parsedEnd && !issues.some((i) => i.code === 'invalid_time_range') ? parsedEnd : null,
           createdBy: caller.userId,
           inviteeIds: [],
         });

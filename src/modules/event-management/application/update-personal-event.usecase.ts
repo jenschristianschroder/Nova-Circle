@@ -5,11 +5,7 @@ import type { Event, UpdateEventData } from '../domain/event.js';
 export class UpdatePersonalEventUseCase {
   constructor(private readonly eventRepo: EventRepositoryPort) {}
 
-  async execute(
-    caller: IdentityContext,
-    eventId: string,
-    data: UpdateEventData,
-  ): Promise<Event> {
+  async execute(caller: IdentityContext, eventId: string, data: UpdateEventData): Promise<Event> {
     const event = await this.eventRepo.findById(eventId);
     if (!event) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
