@@ -128,8 +128,11 @@ export function CalendarToolbar({
           type="date"
           value={toLocalDateString(anchor)}
           onChange={(e) => {
-            const d = new Date(e.target.value + 'T00:00:00');
-            if (!isNaN(d.getTime())) onDateSelect(d);
+            const parts = e.target.value.split('-').map(Number);
+            if (parts.length === 3) {
+              const d = new Date(parts[0], parts[1] - 1, parts[2]);
+              if (!isNaN(d.getTime())) onDateSelect(d);
+            }
           }}
           className={styles.datePicker}
           aria-label="Jump to date"

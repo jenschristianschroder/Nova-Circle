@@ -119,13 +119,15 @@ export function Calendar() {
         });
         const allEvents = [...first.events];
         let page = 2;
-        while (allEvents.length < first.total) {
+        const maxPages = 20; // safety limit to prevent infinite loops
+        while (allEvents.length < first.total && page <= maxPages) {
           const next = await listGroupEvents(apiFetch, groupId, {
             from: dateFrom,
             to: dateTo,
             limit: 100,
             page,
           });
+          if (next.events.length === 0) break; // no more results
           allEvents.push(...next.events);
           page++;
         }
