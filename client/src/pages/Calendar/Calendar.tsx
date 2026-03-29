@@ -76,6 +76,8 @@ export function Calendar() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Maps shared event id → originating group id for navigation. */
+  const [sharedEventGroupMap, setSharedEventGroupMap] = useState<Map<string, string>>(new Map());
 
   // Persist preferences
   useEffect(() => {
@@ -112,18 +114,22 @@ export function Calendar() {
 
       setPersonalEvents(personal);
 
-      // Merge shared events from all groups, dedup by event id
+      // Merge shared events from all groups, dedup by event id, track group origin
       const allShared: SharedGroupEvent[] = [];
       const seen = new Set<string>();
-      for (const result of groupResults) {
-        for (const ev of result.events) {
+      const eventGroupMap = new Map<string, string>();
+      for (let i = 0; i < groupResults.length; i++) {
+        const groupId = groupsList[i].id;
+        for (const ev of groupResults[i].events) {
           if (!seen.has(ev.id)) {
             seen.add(ev.id);
             allShared.push(ev);
+            eventGroupMap.set(ev.id, groupId);
           }
         }
       }
       setSharedEvents(allShared);
+      setSharedEventGroupMap(eventGroupMap);
     } catch {
       setError('Failed to load calendar events. Please try again.');
     } finally {
@@ -169,14 +175,14 @@ export function Calendar() {
         endAt: ev.endAt,
         visibilityLevel: ev.visibilityLevel,
         ownerDisplayName: ev.ownerDisplayName,
-        groupId: null, // shared events are shown at calendar level
+        groupId: sharedEventGroupMap.get(ev.id) ?? null,
         status: ev.status,
         description: ev.visibilityLevel === 'details' ? ev.description : undefined,
       });
     }
 
     return events;
-  }, [personalEvents, sharedEvents]);
+  }, [personalEvents, sharedEvents, sharedEventGroupMap]);
 
   // Navigation handlers
   const handlePrev = useCallback(() => {
@@ -208,19 +214,12 @@ export function Calendar() {
     (event: CalendarDisplayEvent) => {
       if (event.visibilityLevel === 'busy' || event.visibilityLevel === 'title') return;
 
-      // For personal events, navigate to the personal event (when route exists)
-      // For shared events in a group, navigate to group event detail
-      // For now, find the group containing this event
-      if (event.visibilityLevel === 'owner' && event.groupId) {
+      // Navigate to group event detail using the event's associated group
+      if (event.groupId) {
         navigate(`/groups/${event.groupId}/events/${event.id}`);
-      } else if (event.visibilityLevel === 'details') {
-        // Navigate to the first group's event detail for shared events
-        if (groups.length > 0) {
-          navigate(`/groups/${groups[0].id}/events/${event.id}`);
-        }
       }
     },
-    [navigate, groups],
+    [navigate],
   );
 
   // Time slot click — navigate to event creation
