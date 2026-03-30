@@ -3,6 +3,7 @@ import type { EventRepositoryPort } from '../../event-management/domain/event.re
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { EventShareRepositoryPort } from '../domain/event-share.repository.port.js';
 import type { EventShare, VisibilityLevel } from '../domain/event-share.js';
+import { EventSharePolicy } from '../domain/event-share-policy.js';
 
 export class ShareEventToGroupUseCase {
   constructor(
@@ -18,29 +19,11 @@ export class ShareEventToGroupUseCase {
     visibilityLevel: VisibilityLevel,
   ): Promise<EventShare> {
     const event = await this.eventRepo.findById(eventId);
-    if (!event) {
-      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
-    }
 
-    // Sharing is only supported for personal events (groupId === null).
-    if (event.groupId !== null) {
-      throw Object.assign(new Error('Only personal events can be shared to groups'), {
-        code: 'FORBIDDEN',
-      });
-    }
-
-    if (event.ownerId !== caller.userId) {
-      throw Object.assign(new Error('Only the event owner can share events'), {
-        code: 'FORBIDDEN',
-      });
-    }
+    EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'share events');
 
     const isMember = await this.memberRepo.isMember(groupId, caller.userId);
-    if (!isMember) {
-      throw Object.assign(new Error('You must be a member of the target group'), {
-        code: 'FORBIDDEN',
-      });
-    }
+    EventSharePolicy.assertGroupMembership(isMember);
 
     const existing = await this.shareRepo.findByEventAndGroup(eventId, groupId);
     if (existing) {
