@@ -1,10 +1,10 @@
 export type VisibilityLevel = 'busy' | 'title' | 'details';
 
-const VALID_VISIBILITY_LEVELS: ReadonlySet<string> = new Set(['busy', 'title', 'details']);
+const VALID_VISIBILITY_LEVELS: ReadonlySet<VisibilityLevel> = new Set<VisibilityLevel>(['busy', 'title', 'details']);
 
 /** Type guard: returns true when the value is a recognised VisibilityLevel. */
 export function isValidVisibilityLevel(value: unknown): value is VisibilityLevel {
-  return typeof value === 'string' && VALID_VISIBILITY_LEVELS.has(value);
+  return typeof value === 'string' && VALID_VISIBILITY_LEVELS.has(value as VisibilityLevel);
 }
 
 export interface EventShare {

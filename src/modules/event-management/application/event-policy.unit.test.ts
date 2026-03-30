@@ -559,6 +559,7 @@ describe('applyVisibilityFilter — fail-closed behaviour', () => {
     });
 
     const dto = applyVisibilityFilter(record);
+    expect(dto.visibilityLevel).toBe('busy');
     expect(dto.id).toBe('event-1');
     expect(dto.ownerId).toBe('creator-id');
     expect(dto.ownerDisplayName).toBe('Test User');
@@ -575,6 +576,7 @@ describe('applyVisibilityFilter — fail-closed behaviour', () => {
     });
 
     const dto = applyVisibilityFilter(record);
+    expect(dto.visibilityLevel).toBe('busy');
     expect(dto).not.toHaveProperty('title');
     expect(dto).not.toHaveProperty('description');
     expect(dto).not.toHaveProperty('status');

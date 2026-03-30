@@ -35,16 +35,25 @@ export interface SharedGroupEventDto {
  * as 'busy' (most restrictive) to prevent accidental data exposure.
  */
 export function applyVisibilityFilter(record: SharedEventRecord): SharedGroupEventDto {
+  const { visibilityLevel } = record;
+
+  // Normalize upfront: unrecognised or corrupted values are coerced to the
+  // most restrictive level so both the DTO field and field-stripping agree.
+  const safeLevel: VisibilityLevel =
+    visibilityLevel === 'details' || visibilityLevel === 'title' || visibilityLevel === 'busy'
+      ? visibilityLevel
+      : 'busy';
+
   const base: SharedGroupEventDto = {
     id: record.eventId,
     ownerId: record.ownerId,
     ownerDisplayName: record.ownerDisplayName,
     startAt: record.startAt.toISOString(),
     endAt: record.endAt ? record.endAt.toISOString() : null,
-    visibilityLevel: record.visibilityLevel,
+    visibilityLevel: safeLevel,
   };
 
-  switch (record.visibilityLevel) {
+  switch (safeLevel) {
     case 'details':
       return {
         ...base,
