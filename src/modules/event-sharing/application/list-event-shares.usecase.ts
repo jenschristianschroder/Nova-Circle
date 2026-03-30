@@ -2,6 +2,7 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../../event-management/domain/event.repository.port.js';
 import type { EventShareRepositoryPort } from '../domain/event-share.repository.port.js';
 import type { EventShare } from '../domain/event-share.js';
+import { EventSharePolicy } from '../domain/event-share-policy.js';
 
 export class ListEventSharesUseCase {
   constructor(
@@ -11,21 +12,8 @@ export class ListEventSharesUseCase {
 
   async execute(caller: IdentityContext, eventId: string): Promise<EventShare[]> {
     const event = await this.eventRepo.findById(eventId);
-    if (!event) {
-      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
-    }
 
-    if (event.groupId !== null) {
-      throw Object.assign(new Error('Only personal events can be shared to groups'), {
-        code: 'FORBIDDEN',
-      });
-    }
-
-    if (event.ownerId !== caller.userId) {
-      throw Object.assign(new Error('Only the event owner can list shares'), {
-        code: 'FORBIDDEN',
-      });
-    }
+    EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'list shares');
 
     return this.shareRepo.listByEvent(eventId);
   }

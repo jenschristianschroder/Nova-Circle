@@ -78,16 +78,18 @@ export function createEventShareRouter(
         visibilityLevel as VisibilityLevel,
       );
 
-      auditLog
-        .record({
+      try {
+        await auditLog.record({
           actorId: identity.userId,
           action: 'event_share.created',
           resourceType: 'event_share',
           resourceId: share.id,
           groupId,
           metadata: { eventId, visibilityLevel },
-        })
-        .catch((err) => logger.error('Failed to record audit log', err));
+        });
+      } catch (auditErr) {
+        logger.error('Audit log failed for event_share.created', auditErr);
+      }
 
       res.status(201).json(share);
     } catch (err: unknown) {
@@ -171,16 +173,18 @@ export function createEventShareRouter(
         visibilityLevel as VisibilityLevel,
       );
 
-      auditLog
-        .record({
+      try {
+        await auditLog.record({
           actorId: identity.userId,
           action: 'event_share.updated',
           resourceType: 'event_share',
           resourceId: share.id,
           groupId: share.groupId,
           metadata: { eventId, visibilityLevel },
-        })
-        .catch((err) => logger.error('Failed to record audit log', err));
+        });
+      } catch (auditErr) {
+        logger.error('Audit log failed for event_share.updated', auditErr);
+      }
 
       res.json(share);
     } catch (err: unknown) {
@@ -214,16 +218,18 @@ export function createEventShareRouter(
     try {
       const result = await revokeShare.execute(identity, eventId, shareId);
 
-      auditLog
-        .record({
+      try {
+        await auditLog.record({
           actorId: identity.userId,
           action: 'event_share.revoked',
           resourceType: 'event_share',
           resourceId: result.shareId,
           groupId: result.groupId,
           metadata: { eventId },
-        })
-        .catch((err) => logger.error('Failed to record audit log', err));
+        });
+      } catch (auditErr) {
+        logger.error('Audit log failed for event_share.revoked', auditErr);
+      }
 
       res.status(204).send();
     } catch (err: unknown) {
