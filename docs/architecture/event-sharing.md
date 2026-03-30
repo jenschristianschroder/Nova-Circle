@@ -6,7 +6,7 @@ The `event-sharing` module enables a user to share their **personal** events (ev
 
 This module does **not**:
 
-- Allow sharing of group-scoped events (those already belong to a group).
+- Allow sharing of group-scoped events (those that already belong to a group).
 - Allow non-owners to manage shares.
 - Derive event access from group membership alone.
 
@@ -29,7 +29,7 @@ One `EventShare` record per (event, group) pair.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID | Primary key |
-| `eventId` | UUID | References `Event.id`; must be a personal event (`Event.groupId IS NULL`) |
+| `eventId` | UUID | References `Event.id`; the application layer (`EventSharePolicy`) enforces that new shares target personal events only, but legacy rows may reference group-scoped events (back-filled by migration `20260328000010`) |
 | `groupId` | UUID | References `Group.id`; the target group for sharing |
 | `visibilityLevel` | enum | `busy`, `title`, or `details` — controls how much event data group members see |
 | `sharedByUserId` | UUID | References `UserProfile.id`; who created the share |

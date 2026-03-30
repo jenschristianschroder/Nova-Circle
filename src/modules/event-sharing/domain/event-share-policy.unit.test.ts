@@ -27,52 +27,55 @@ function makeEvent(overrides?: Partial<Event>): Event {
 describe('EventSharePolicy.assertOwnerOfPersonalEvent', () => {
   it('throws NOT_FOUND when event is null', () => {
     const caller = FakeIdentity.random();
-    expect(() =>
-      EventSharePolicy.assertOwnerOfPersonalEvent(null, caller, 'share events'),
-    ).toThrow();
+    let caughtError: (Error & { code?: string }) | undefined;
     try {
       EventSharePolicy.assertOwnerOfPersonalEvent(null, caller, 'share events');
     } catch (err: unknown) {
-      expect((err as Error & { code: string }).code).toBe('NOT_FOUND');
+      caughtError = err as Error & { code?: string };
     }
+    expect(caughtError).toBeDefined();
+    expect(caughtError!.code).toBe('NOT_FOUND');
   });
 
   it('throws FORBIDDEN when event is group-scoped', () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: caller.userId, groupId: 'some-group' });
-    expect(() =>
-      EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'share events'),
-    ).toThrow();
+    let caughtError: (Error & { code?: string }) | undefined;
     try {
       EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'share events');
     } catch (err: unknown) {
-      expect((err as Error & { code: string }).code).toBe('FORBIDDEN');
-      expect((err as Error).message).toBe('Only personal events can be shared to groups');
+      caughtError = err as Error & { code?: string };
     }
+    expect(caughtError).toBeDefined();
+    expect(caughtError!.code).toBe('FORBIDDEN');
+    expect(caughtError!.message).toBe('Only personal events can be shared to groups');
   });
 
   it('throws FORBIDDEN when caller is not the event owner', () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: 'someone-else' });
-    expect(() =>
-      EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'share events'),
-    ).toThrow();
+    let caughtError: (Error & { code?: string }) | undefined;
     try {
       EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'share events');
     } catch (err: unknown) {
-      expect((err as Error & { code: string }).code).toBe('FORBIDDEN');
-      expect((err as Error).message).toBe('Only the event owner can share events');
+      caughtError = err as Error & { code?: string };
     }
+    expect(caughtError).toBeDefined();
+    expect(caughtError!.code).toBe('FORBIDDEN');
+    expect(caughtError!.message).toBe('Only the event owner can share events');
   });
 
   it('includes the action verb in the FORBIDDEN message', () => {
     const caller = FakeIdentity.random();
     const event = makeEvent({ ownerId: 'someone-else' });
+    let caughtError: Error | undefined;
     try {
       EventSharePolicy.assertOwnerOfPersonalEvent(event, caller, 'revoke shares');
     } catch (err: unknown) {
-      expect((err as Error).message).toBe('Only the event owner can revoke shares');
+      caughtError = err as Error;
     }
+    expect(caughtError).toBeDefined();
+    expect(caughtError!.message).toBe('Only the event owner can revoke shares');
   });
 
   it('does not throw when caller is the owner of a personal event', () => {
@@ -98,13 +101,15 @@ describe('EventSharePolicy.assertOwnerOfPersonalEvent', () => {
 
 describe('EventSharePolicy.assertGroupMembership', () => {
   it('throws FORBIDDEN when isMember is false', () => {
-    expect(() => EventSharePolicy.assertGroupMembership(false)).toThrow();
+    let caughtError: (Error & { code?: string }) | undefined;
     try {
       EventSharePolicy.assertGroupMembership(false);
     } catch (err: unknown) {
-      expect((err as Error & { code: string }).code).toBe('FORBIDDEN');
-      expect((err as Error).message).toBe('You must be a member of the target group');
+      caughtError = err as Error & { code?: string };
     }
+    expect(caughtError).toBeDefined();
+    expect(caughtError!.code).toBe('FORBIDDEN');
+    expect(caughtError!.message).toBe('You must be a member of the target group');
   });
 
   it('does not throw when isMember is true', () => {
