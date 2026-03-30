@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CreateEventUseCase } from './create-event.usecase.js';
 import { GetEventUseCase } from './get-event.usecase.js';
-import { ListGroupEventsUseCase } from './list-group-events.usecase.js';
+import { ListGroupEventsUseCase, applyVisibilityFilter } from './list-group-events.usecase.js';
 import { GetSharedGroupEventUseCase } from './get-shared-group-event.usecase.js';
 import { CancelEventUseCase } from './cancel-event.usecase.js';
 import { UpdateEventUseCase } from './update-event.usecase.js';
@@ -17,6 +17,7 @@ import type { Event } from '../domain/event.js';
 import type { EventInvitation } from '../domain/event-invitation.js';
 import type { GroupMember } from '../../group-membership/domain/group-member.js';
 import type { SharedEventQueryPort, SharedEventRecord } from '../domain/shared-event-query.port.js';
+import { isValidVisibilityLevel } from '../../event-sharing/domain/event-share.js';
 import { FakeIdentity } from '../../../shared/test-helpers/fake-identity.js';
 
 function makeEvent(overrides?: Partial<Event>): Event {
@@ -542,6 +543,66 @@ describe('GetSharedGroupEventUseCase', () => {
     expect(dto.title).toBe('Full Event');
     expect(dto.description).toBe('Complete description');
     expect(dto.status).toBe('scheduled');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyVisibilityFilter — fail-closed behaviour
+// ---------------------------------------------------------------------------
+
+describe('applyVisibilityFilter — fail-closed behaviour', () => {
+  it('unknown visibility level is treated as busy (no title, description, or status)', () => {
+    const record = makeSharedEventRecord({
+      visibilityLevel: 'unknown_level' as SharedEventRecord['visibilityLevel'],
+      title: 'Secret Title',
+      description: 'Secret description',
+    });
+
+    const dto = applyVisibilityFilter(record);
+    expect(dto.id).toBe('event-1');
+    expect(dto.ownerId).toBe('creator-id');
+    expect(dto.ownerDisplayName).toBe('Test User');
+    expect(dto).not.toHaveProperty('title');
+    expect(dto).not.toHaveProperty('description');
+    expect(dto).not.toHaveProperty('status');
+  });
+
+  it('empty string visibility level is treated as busy', () => {
+    const record = makeSharedEventRecord({
+      visibilityLevel: '' as SharedEventRecord['visibilityLevel'],
+      title: 'Should Be Hidden',
+      description: 'Also hidden',
+    });
+
+    const dto = applyVisibilityFilter(record);
+    expect(dto).not.toHaveProperty('title');
+    expect(dto).not.toHaveProperty('description');
+    expect(dto).not.toHaveProperty('status');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isValidVisibilityLevel guard
+// ---------------------------------------------------------------------------
+
+describe('isValidVisibilityLevel', () => {
+  it.each(['busy', 'title', 'details'])('returns true for valid level "%s"', (level) => {
+    expect(isValidVisibilityLevel(level)).toBe(true);
+  });
+
+  it.each([
+    'unknown',
+    '',
+    'BUSY',
+    'Title',
+    'DETAILS',
+    null,
+    undefined,
+    42,
+    true,
+    {},
+  ])('returns false for invalid value %j', (value) => {
+    expect(isValidVisibilityLevel(value)).toBe(false);
   });
 });
 

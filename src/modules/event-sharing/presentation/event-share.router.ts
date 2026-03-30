@@ -4,15 +4,13 @@ import type { EventRepositoryPort } from '../../event-management/domain/event.re
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { EventShareRepositoryPort } from '../domain/event-share.repository.port.js';
 import type { AuditLogPort } from '../../audit-security/domain/audit-log.port.js';
-import type { VisibilityLevel } from '../domain/event-share.js';
+import { isValidVisibilityLevel } from '../domain/event-share.js';
 import { ShareEventToGroupUseCase } from '../application/share-event-to-group.usecase.js';
 import { UpdateEventShareUseCase } from '../application/update-event-share.usecase.js';
 import { RevokeEventShareUseCase } from '../application/revoke-event-share.usecase.js';
 import { ListEventSharesUseCase } from '../application/list-event-shares.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 import { logger } from '../../../shared/logger/logger.js';
-
-const VALID_VISIBILITY_LEVELS: ReadonlySet<string> = new Set(['busy', 'title', 'details']);
 
 function isNotFoundError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'NOT_FOUND';
@@ -62,7 +60,7 @@ export function createEventShareRouter(
       return;
     }
 
-    if (typeof visibilityLevel !== 'string' || !VALID_VISIBILITY_LEVELS.has(visibilityLevel)) {
+    if (!isValidVisibilityLevel(visibilityLevel)) {
       res.status(400).json({
         error: 'visibilityLevel must be one of: busy, title, details',
         code: 'VALIDATION_ERROR',
@@ -75,7 +73,7 @@ export function createEventShareRouter(
         identity,
         eventId,
         groupId,
-        visibilityLevel as VisibilityLevel,
+        visibilityLevel,
       );
 
       try {
@@ -157,7 +155,7 @@ export function createEventShareRouter(
     const body = req.body as Record<string, unknown>;
     const visibilityLevel = body['visibilityLevel'];
 
-    if (typeof visibilityLevel !== 'string' || !VALID_VISIBILITY_LEVELS.has(visibilityLevel)) {
+    if (!isValidVisibilityLevel(visibilityLevel)) {
       res.status(400).json({
         error: 'visibilityLevel must be one of: busy, title, details',
         code: 'VALIDATION_ERROR',
@@ -170,7 +168,7 @@ export function createEventShareRouter(
         identity,
         eventId,
         shareId,
-        visibilityLevel as VisibilityLevel,
+        visibilityLevel,
       );
 
       try {

@@ -28,7 +28,12 @@ export interface SharedGroupEventDto {
   readonly status?: SharedEventRecord['status'];
 }
 
-/** Apply visibility-level filtering to a raw shared-event record. */
+/**
+ * Apply visibility-level filtering to a raw shared-event record.
+ *
+ * This function is **fail-closed**: unrecognised visibility levels are treated
+ * as 'busy' (most restrictive) to prevent accidental data exposure.
+ */
 export function applyVisibilityFilter(record: SharedEventRecord): SharedGroupEventDto {
   const base: SharedGroupEventDto = {
     id: record.eventId,
@@ -39,21 +44,24 @@ export function applyVisibilityFilter(record: SharedEventRecord): SharedGroupEve
     visibilityLevel: record.visibilityLevel,
   };
 
-  if (record.visibilityLevel === 'busy') {
-    return base;
-  }
+  switch (record.visibilityLevel) {
+    case 'details':
+      return {
+        ...base,
+        title: record.title,
+        description: record.description,
+        status: record.status,
+      };
 
-  if (record.visibilityLevel === 'title') {
-    return { ...base, title: record.title, status: record.status };
-  }
+    case 'title':
+      return { ...base, title: record.title, status: record.status };
 
-  // 'details' — full data
-  return {
-    ...base,
-    title: record.title,
-    description: record.description,
-    status: record.status,
-  };
+    case 'busy':
+    default:
+      // Fail-closed: unknown or corrupted visibility levels fall through to
+      // the most restrictive level to avoid overexposure of event data.
+      return base;
+  }
 }
 
 export interface ListGroupEventsResult {
