@@ -69,12 +69,7 @@ export function createEventShareRouter(
     }
 
     try {
-      const share = await shareEvent.execute(
-        identity,
-        eventId,
-        groupId,
-        visibilityLevel,
-      );
+      const share = await shareEvent.execute(identity, eventId, groupId, visibilityLevel);
 
       try {
         await auditLog.record({
@@ -164,12 +159,7 @@ export function createEventShareRouter(
     }
 
     try {
-      const share = await updateShare.execute(
-        identity,
-        eventId,
-        shareId,
-        visibilityLevel,
-      );
+      const share = await updateShare.execute(identity, eventId, shareId, visibilityLevel);
 
       try {
         await auditLog.record({

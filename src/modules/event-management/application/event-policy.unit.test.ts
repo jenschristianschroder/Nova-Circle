@@ -592,20 +592,12 @@ describe('isValidVisibilityLevel', () => {
     expect(isValidVisibilityLevel(level)).toBe(true);
   });
 
-  it.each([
-    'unknown',
-    '',
-    'BUSY',
-    'Title',
-    'DETAILS',
-    null,
-    undefined,
-    42,
-    true,
-    {},
-  ])('returns false for invalid value %j', (value) => {
-    expect(isValidVisibilityLevel(value)).toBe(false);
-  });
+  it.each(['unknown', '', 'BUSY', 'Title', 'DETAILS', null, undefined, 42, true, {}])(
+    'returns false for invalid value %j',
+    (value) => {
+      expect(isValidVisibilityLevel(value)).toBe(false);
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
