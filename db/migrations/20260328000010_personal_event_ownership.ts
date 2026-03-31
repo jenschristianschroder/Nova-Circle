@@ -21,9 +21,9 @@ export async function up(knex: Knex): Promise<void> {
   // deferred until after the back-fill; adding it will fail if any row
   // still holds the placeholder, providing an automatic integrity check.
   const placeholderUuid = '00000000-0000-0000-0000-000000000000';
-  await knex.raw(`ALTER TABLE events ADD COLUMN owner_id UUID NOT NULL DEFAULT ?`, [
-    placeholderUuid,
-  ]);
+  await knex.raw(
+    `ALTER TABLE events ADD COLUMN owner_id UUID NOT NULL DEFAULT '${placeholderUuid}'`,
+  );
 
   // Back-fill owner_id from created_by for all existing events.
   await knex.raw('UPDATE events SET owner_id = created_by');
