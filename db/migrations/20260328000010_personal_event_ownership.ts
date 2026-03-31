@@ -15,21 +15,27 @@ import type { Knex } from 'knex';
  * 5. Adds performance indexes on the new columns/tables.
  */
 export async function up(knex: Knex): Promise<void> {
-  // ── 1. Add owner_id to events (nullable first, then back-fill) ─────────
-  await knex.schema.alterTable('events', (table) => {
-    table
-      .uuid('owner_id')
-      .nullable()
-      .references('id')
-      .inTable('user_profiles')
-      .onDelete('RESTRICT');
-  });
+  // ── 1. Add owner_id to events (NOT NULL with temporary default) ────────
+  // The column is added as NOT NULL with a placeholder default so there is
+  // never a window where NULL values are accepted. The FK constraint is
+  // deferred until after the back-fill; adding it will fail if any row
+  // still holds the placeholder, providing an automatic integrity check.
+  const placeholderUuid = '00000000-0000-0000-0000-000000000000';
+  await knex.raw(`ALTER TABLE events ADD COLUMN owner_id UUID NOT NULL DEFAULT ?`, [
+    placeholderUuid,
+  ]);
 
   // Back-fill owner_id from created_by for all existing events.
-  await knex.raw('UPDATE events SET owner_id = created_by WHERE owner_id IS NULL');
+  await knex.raw('UPDATE events SET owner_id = created_by');
 
-  // Now enforce NOT NULL.
-  await knex.raw('ALTER TABLE events ALTER COLUMN owner_id SET NOT NULL');
+  // Remove the temporary default now that all rows have real values.
+  await knex.raw('ALTER TABLE events ALTER COLUMN owner_id DROP DEFAULT');
+
+  // Add the FK constraint to user_profiles.
+  await knex.raw(
+    `ALTER TABLE events ADD CONSTRAINT events_owner_id_foreign
+     FOREIGN KEY (owner_id) REFERENCES user_profiles(id) ON DELETE RESTRICT`,
+  );
 
   // ── 2. Make group_id nullable ──────────────────────────────────────────
   await knex.raw('ALTER TABLE events ALTER COLUMN group_id DROP NOT NULL');
