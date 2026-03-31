@@ -7,6 +7,9 @@ import type {
   SharedEventPagination,
 } from '../domain/shared-event-query.port.js';
 import type { VisibilityLevel } from '../../event-sharing/domain/event-share.js';
+import {
+  EventVisibilityPolicy,
+} from '../domain/event-visibility-policy.js';
 
 /**
  * Visibility-filtered event as returned to clients.
@@ -15,6 +18,8 @@ import type { VisibilityLevel } from '../../event-sharing/domain/event-share.js'
  * - `busy`    → id, ownerId, ownerDisplayName, startAt, endAt, visibilityLevel
  * - `title`   → above + title, status
  * - `details` → above + description
+ *
+ * Filtering rules are enforced by {@link EventVisibilityPolicy}.
  */
 export interface SharedGroupEventDto {
   readonly id: string;
@@ -31,46 +36,12 @@ export interface SharedGroupEventDto {
 /**
  * Apply visibility-level filtering to a raw shared-event record.
  *
- * This function is **fail-closed**: unrecognised visibility levels are treated
- * as 'busy' (most restrictive) to prevent accidental data exposure.
+ * Delegates to {@link EventVisibilityPolicy.filterRecord} which is
+ * **fail-closed**: unrecognised visibility levels are treated as `busy`
+ * (most restrictive) to prevent accidental data exposure.
  */
 export function applyVisibilityFilter(record: SharedEventRecord): SharedGroupEventDto {
-  const { visibilityLevel } = record;
-
-  // Normalize upfront: unrecognised or corrupted values are coerced to the
-  // most restrictive level so both the DTO field and field-stripping agree.
-  const safeLevel: VisibilityLevel =
-    visibilityLevel === 'details' || visibilityLevel === 'title' || visibilityLevel === 'busy'
-      ? visibilityLevel
-      : 'busy';
-
-  const base: SharedGroupEventDto = {
-    id: record.eventId,
-    ownerId: record.ownerId,
-    ownerDisplayName: record.ownerDisplayName,
-    startAt: record.startAt.toISOString(),
-    endAt: record.endAt ? record.endAt.toISOString() : null,
-    visibilityLevel: safeLevel,
-  };
-
-  switch (safeLevel) {
-    case 'details':
-      return {
-        ...base,
-        title: record.title,
-        description: record.description,
-        status: record.status,
-      };
-
-    case 'title':
-      return { ...base, title: record.title, status: record.status };
-
-    case 'busy':
-    default:
-      // Fail-closed: unknown or corrupted visibility levels fall through to
-      // the most restrictive level to avoid overexposure of event data.
-      return base;
-  }
+  return EventVisibilityPolicy.filterRecord(record) as SharedGroupEventDto;
 }
 
 export interface ListGroupEventsResult {

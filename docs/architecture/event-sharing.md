@@ -46,6 +46,25 @@ Unique constraint: `(eventId, groupId)` — an event can be shared to a given gr
 | `title` | Title and status (no description) |
 | `details` | Title, description, status, and other event detail |
 
+### Visibility Enforcement (`EventVisibilityPolicy`)
+
+The `EventVisibilityPolicy` domain class (`src/modules/event-management/domain/event-visibility-policy.ts`) enforces field-level data protection based on the share's `visibilityLevel`. All code paths that return shared event data to group members **must** apply this policy before serialising the response.
+
+**Privacy guarantees per level:**
+
+| Level | `id` | `ownerId` | `ownerDisplayName` | `startAt` | `endAt` | `title` | `status` | `description` |
+|---|---|---|---|---|---|---|---|---|
+| `busy` | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `title` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| `details` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**Fail-closed rule:** Unrecognised or corrupted `visibilityLevel` values are coerced to `busy` (the most restrictive level). This prevents accidental data exposure from data-at-rest corruption or future level additions.
+
+**Enforcement points:**
+
+- `ListGroupEventsUseCase` — applies `EventVisibilityPolicy.filterRecord()` to every record before returning the paginated list.
+- `GetSharedGroupEventUseCase` — applies `EventVisibilityPolicy.filterRecord()` to the single record before returning.
+
 ---
 
 ## Authorization
@@ -165,6 +184,18 @@ Each audit record includes: `actorId`, `resourceType: 'event_share'`, `resourceI
 - `assertOwnerOfPersonalEvent` does not throw when caller is owner of a personal event.
 - `assertGroupMembership` throws `FORBIDDEN` when membership is false.
 - `assertGroupMembership` does not throw when membership is true.
+
+### Unit Tests (EventVisibilityPolicy)
+
+- `sanitizeLevel` returns recognised levels unchanged.
+- `sanitizeLevel` coerces unrecognised values to `busy`.
+- `filterRecord` with `busy` exposes only base fields (id, owner, times).
+- `filterRecord` with `busy` does NOT expose title, description, or status.
+- `filterRecord` with `title` exposes title and status but NOT description.
+- `filterRecord` with `details` exposes all fields including description.
+- `filterRecord` with unknown level is fail-closed to `busy`.
+- Privacy guarantee: `busy` output object contains no sensitive keys.
+- Privacy guarantee: `title` output object contains no description key.
 
 ### Unit Tests (Use Cases)
 
