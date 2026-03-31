@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  EventVisibilityPolicy,
-  type VisibilityInput,
-} from './event-visibility-policy.js';
+import { EventVisibilityPolicy, type VisibilityInput } from './event-visibility-policy.js';
 import type { VisibilityLevel } from '../../event-sharing/domain/event-share.js';
 
 // ---------------------------------------------------------------------------
