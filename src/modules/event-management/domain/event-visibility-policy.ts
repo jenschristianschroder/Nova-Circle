@@ -56,11 +56,11 @@ export interface VisibilityFilteredEvent extends VisibilityBaseFields {
  *
  * ## Visibility Levels
  *
- * | Level     | Exposed fields                                              |
- * |-----------|-------------------------------------------------------------|
- * | `busy`    | id, ownerId, ownerDisplayName, startAt, endAt               |
- * | `title`   | above + title, status                                       |
- * | `details` | above + description                                         |
+ * | Level     | Exposed fields                                                                 |
+ * |-----------|--------------------------------------------------------------------------------|
+ * | `busy`    | id, ownerId, ownerDisplayName, startAt, endAt, visibilityLevel                |
+ * | `title`   | above + title, status                                                          |
+ * | `details` | id, ownerId, ownerDisplayName, startAt, endAt, visibilityLevel, title, description, status |
  *
  * ## Privacy Guarantees
  *

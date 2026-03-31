@@ -17,7 +17,7 @@ import {
  * Fields are present or absent depending on the share's `visibilityLevel`:
  * - `busy`    → id, ownerId, ownerDisplayName, startAt, endAt, visibilityLevel
  * - `title`   → above + title, status
- * - `details` → above + description
+ * - `details` → above + title, status, description
  *
  * Filtering rules are enforced by {@link EventVisibilityPolicy}.
  */
