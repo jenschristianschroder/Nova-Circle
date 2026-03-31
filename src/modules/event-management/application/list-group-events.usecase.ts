@@ -28,32 +28,49 @@ export interface SharedGroupEventDto {
   readonly status?: SharedEventRecord['status'];
 }
 
-/** Apply visibility-level filtering to a raw shared-event record. */
+/**
+ * Apply visibility-level filtering to a raw shared-event record.
+ *
+ * This function is **fail-closed**: unrecognised visibility levels are treated
+ * as 'busy' (most restrictive) to prevent accidental data exposure.
+ */
 export function applyVisibilityFilter(record: SharedEventRecord): SharedGroupEventDto {
+  const { visibilityLevel } = record;
+
+  // Normalize upfront: unrecognised or corrupted values are coerced to the
+  // most restrictive level so both the DTO field and field-stripping agree.
+  const safeLevel: VisibilityLevel =
+    visibilityLevel === 'details' || visibilityLevel === 'title' || visibilityLevel === 'busy'
+      ? visibilityLevel
+      : 'busy';
+
   const base: SharedGroupEventDto = {
     id: record.eventId,
     ownerId: record.ownerId,
     ownerDisplayName: record.ownerDisplayName,
     startAt: record.startAt.toISOString(),
     endAt: record.endAt ? record.endAt.toISOString() : null,
-    visibilityLevel: record.visibilityLevel,
+    visibilityLevel: safeLevel,
   };
 
-  if (record.visibilityLevel === 'busy') {
-    return base;
-  }
+  switch (safeLevel) {
+    case 'details':
+      return {
+        ...base,
+        title: record.title,
+        description: record.description,
+        status: record.status,
+      };
 
-  if (record.visibilityLevel === 'title') {
-    return { ...base, title: record.title, status: record.status };
-  }
+    case 'title':
+      return { ...base, title: record.title, status: record.status };
 
-  // 'details' — full data
-  return {
-    ...base,
-    title: record.title,
-    description: record.description,
-    status: record.status,
-  };
+    case 'busy':
+    default:
+      // Fail-closed: unknown or corrupted visibility levels fall through to
+      // the most restrictive level to avoid overexposure of event data.
+      return base;
+  }
 }
 
 export interface ListGroupEventsResult {

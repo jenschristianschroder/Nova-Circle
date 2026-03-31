@@ -6,4 +6,5 @@
  */
 
 export type { EventShare, VisibilityLevel, ShareEventData } from './domain/event-share.js';
+export { isValidVisibilityLevel } from './domain/event-share.js';
 export type { EventShareRepositoryPort } from './domain/event-share.repository.port.js';
