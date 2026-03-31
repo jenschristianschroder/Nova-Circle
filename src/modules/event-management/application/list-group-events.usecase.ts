@@ -6,9 +6,9 @@ import type {
   SharedEventDateRange,
   SharedEventPagination,
 } from '../domain/shared-event-query.port.js';
-import type { VisibilityLevel } from '../../event-sharing/domain/event-share.js';
 import {
   EventVisibilityPolicy,
+  type VisibilityFilteredEvent,
 } from '../domain/event-visibility-policy.js';
 
 /**
@@ -21,17 +21,7 @@ import {
  *
  * Filtering rules are enforced by {@link EventVisibilityPolicy}.
  */
-export interface SharedGroupEventDto {
-  readonly id: string;
-  readonly ownerId: string;
-  readonly ownerDisplayName: string;
-  readonly startAt: string;
-  readonly endAt: string | null;
-  readonly visibilityLevel: VisibilityLevel;
-  readonly title?: string;
-  readonly description?: string | null;
-  readonly status?: SharedEventRecord['status'];
-}
+export type SharedGroupEventDto = VisibilityFilteredEvent;
 
 /**
  * Apply visibility-level filtering to a raw shared-event record.
@@ -41,7 +31,7 @@ export interface SharedGroupEventDto {
  * (most restrictive) to prevent accidental data exposure.
  */
 export function applyVisibilityFilter(record: SharedEventRecord): SharedGroupEventDto {
-  return EventVisibilityPolicy.filterRecord(record) as SharedGroupEventDto;
+  return EventVisibilityPolicy.filterRecord(record);
 }
 
 export interface ListGroupEventsResult {

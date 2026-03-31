@@ -1,4 +1,5 @@
 import type { VisibilityLevel } from '../../event-sharing/domain/event-share.js';
+import type { EventStatus } from './event.js';
 
 /**
  * Fields that are always visible regardless of visibility level.
@@ -20,6 +21,10 @@ export interface VisibilityBaseFields {
  *
  * This is intentionally decoupled from persistence types so the policy
  * can be tested without infrastructure dependencies.
+ *
+ * Note: `eventId` maps to `id` in the output (VisibilityFilteredEvent)
+ * because input records use the persistence naming convention (`eventId`)
+ * while API outputs use the client-facing name (`id`).
  */
 export interface VisibilityInput {
   readonly eventId: string;
@@ -29,7 +34,7 @@ export interface VisibilityInput {
   readonly description: string | null;
   readonly startAt: Date;
   readonly endAt: Date | null;
-  readonly status: string;
+  readonly status: EventStatus;
   readonly visibilityLevel: VisibilityLevel;
 }
 
@@ -42,7 +47,7 @@ export interface VisibilityInput {
 export interface VisibilityFilteredEvent extends VisibilityBaseFields {
   readonly title?: string;
   readonly description?: string | null;
-  readonly status?: string;
+  readonly status?: EventStatus;
 }
 
 /**
