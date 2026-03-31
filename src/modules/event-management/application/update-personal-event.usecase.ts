@@ -1,20 +1,16 @@
 import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { Event, UpdateEventData } from '../domain/event.js';
+import { EventOwnershipPolicy } from '../domain/event-ownership-policy.js';
 
 export class UpdatePersonalEventUseCase {
   constructor(private readonly eventRepo: EventRepositoryPort) {}
 
   async execute(caller: IdentityContext, eventId: string, data: UpdateEventData): Promise<Event> {
     const event = await this.eventRepo.findById(eventId);
-    if (!event) {
-      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
-    }
 
-    // Only the owner can update their personal event.
-    if (event.ownerId !== caller.userId) {
-      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
-    }
+    // Explicit ownership authorization via centralised policy.
+    EventOwnershipPolicy.assertCallerIsOwner(event, caller);
 
     // This use case is for personal (non-group) events only.
     if (event.groupId !== null) {
@@ -47,10 +43,11 @@ export class UpdatePersonalEventUseCase {
       });
     }
 
-    const patchData: UpdateEventData = {
+    // Sanitize update data to prevent ownership changes at runtime.
+    const patchData: UpdateEventData = EventOwnershipPolicy.sanitizeUpdateData({
       ...data,
       ...(data.title !== undefined ? { title: data.title.trim() } : {}),
-    };
+    });
 
     const updated = await this.eventRepo.update(eventId, patchData);
     if (!updated) {
