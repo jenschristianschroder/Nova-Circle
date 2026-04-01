@@ -62,5 +62,5 @@ export async function down(knex: Knex): Promise<void> {
   `);
 
   // 3. Drop the ENUM type
-  await knex.raw('DROP TYPE visibility_level_enum');
+  await knex.raw('DROP TYPE IF EXISTS visibility_level_enum');
 }
