@@ -136,59 +136,56 @@ describe('Visibility level enum migration', () => {
     },
   );
 
-  it.skipIf(skipReason !== undefined)(
-    'ENUM rejects invalid visibility_level values',
-    async () => {
-      const { db, cleanup } = await createIsolatedTestDb();
-      cleanups.push(cleanup);
-      try {
-        await migrateToBaseline(db);
-        await db.migrate.up({ name: '20260401000011_visibility_level_enum.ts' });
+  it.skipIf(skipReason !== undefined)('ENUM rejects invalid visibility_level values', async () => {
+    const { db, cleanup } = await createIsolatedTestDb();
+    cleanups.push(cleanup);
+    try {
+      await migrateToBaseline(db);
+      await db.migrate.up({ name: '20260401000011_visibility_level_enum.ts' });
 
-        // Insert test data to set up a valid share target
-        const userId = 'eeeeeeee-0000-4000-8000-000000000001';
-        await db('user_profiles').insert({ id: userId, display_name: 'Enum Test User' });
-        const groups = await db<IdRow>('groups')
-          .insert({ name: 'Enum Test Group', owner_id: userId })
-          .returning('id');
-        const events = await db<IdRow>('events')
+      // Insert test data to set up a valid share target
+      const userId = 'eeeeeeee-0000-4000-8000-000000000001';
+      await db('user_profiles').insert({ id: userId, display_name: 'Enum Test User' });
+      const groups = await db<IdRow>('groups')
+        .insert({ name: 'Enum Test Group', owner_id: userId })
+        .returning('id');
+      const events = await db<IdRow>('events')
+        .insert({
+          group_id: null,
+          title: 'Enum Test Event',
+          start_at: new Date('2026-06-01T12:00:00Z'),
+          created_by: userId,
+          owner_id: userId,
+        })
+        .returning('id');
+
+      // Valid values should succeed
+      for (const level of ['busy', 'title', 'details']) {
+        await db('event_shares')
           .insert({
-            group_id: null,
-            title: 'Enum Test Event',
-            start_at: new Date('2026-06-01T12:00:00Z'),
-            created_by: userId,
-            owner_id: userId,
-          })
-          .returning('id');
-
-        // Valid values should succeed
-        for (const level of ['busy', 'title', 'details']) {
-          await db('event_shares')
-            .insert({
-              event_id: events[0]!.id,
-              group_id: groups[0]!.id,
-              visibility_level: level,
-              shared_by_user_id: userId,
-            })
-            .onConflict(['event_id', 'group_id'])
-            .merge();
-        }
-
-        // Invalid value should be rejected by the ENUM type
-        await expect(
-          db('event_shares').insert({
             event_id: events[0]!.id,
             group_id: groups[0]!.id,
-            visibility_level: 'invalid_value',
+            visibility_level: level,
             shared_by_user_id: userId,
-          }),
-        ).rejects.toThrow();
-      } finally {
-        await cleanup();
-        cleanups.pop();
+          })
+          .onConflict(['event_id', 'group_id'])
+          .merge();
       }
-    },
-  );
+
+      // Invalid value should be rejected by the ENUM type
+      await expect(
+        db('event_shares').insert({
+          event_id: events[0]!.id,
+          group_id: groups[0]!.id,
+          visibility_level: 'invalid_value',
+          shared_by_user_id: userId,
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await cleanup();
+      cleanups.pop();
+    }
+  });
 
   // ── Down migration tests ────────────────────────────────────────────────
 
@@ -238,19 +235,20 @@ describe('Visibility level enum migration', () => {
         expect(colInfo.rows[0]!.data_type).toBe('character varying');
         expect(colInfo.rows[0]!.column_default).toContain('title');
 
-        // Verify CHECK constraint is restored
+        // Verify the named CHECK constraint created by our down migration exists
         const checks = await db.raw<{ rows: CheckConstraintRow[] }>(
-          `SELECT tc.constraint_name, cc.check_clause
-           FROM information_schema.table_constraints tc
-           JOIN information_schema.check_constraints cc
-             ON tc.constraint_name = cc.constraint_name
-            AND tc.constraint_schema = cc.constraint_schema
-           WHERE tc.table_schema = current_schema()
-             AND tc.table_name = 'event_shares'
-             AND tc.constraint_type = 'CHECK'
-             AND cc.check_clause LIKE '%visibility_level%'`,
+          `SELECT con.conname AS constraint_name,
+                  pg_get_constraintdef(con.oid) AS check_clause
+           FROM pg_constraint con
+           JOIN pg_class rel ON rel.oid = con.conrelid
+           JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+           WHERE nsp.nspname = current_schema()
+             AND rel.relname = 'event_shares'
+             AND con.contype = 'c'
+             AND con.conname = 'event_shares_visibility_level_check'`,
         );
         expect(checks.rows.length).toBe(1);
+        expect(checks.rows[0]!.check_clause).toContain('visibility_level');
 
         // Verify ENUM type no longer exists in the current schema
         const enumCheck = await db.raw<{ rows: Array<{ count: string }> }>(
@@ -268,6 +266,16 @@ describe('Visibility level enum migration', () => {
         });
         expect(shares.length).toBe(1);
         expect(shares[0]!.visibility_level).toBe('details');
+
+        // Verify the restored CHECK constraint rejects invalid values
+        await expect(
+          db('event_shares').insert({
+            event_id: events[0]!.id,
+            group_id: groups[0]!.id,
+            visibility_level: 'invalid_after_rollback',
+            shared_by_user_id: userId,
+          }),
+        ).rejects.toThrow();
       } finally {
         await cleanup();
         cleanups.pop();
