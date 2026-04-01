@@ -3,6 +3,7 @@ import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventInvitationRepositoryPort } from '../domain/event-invitation.repository.port.js';
 import type { GroupMemberRepositoryPort } from '../../group-membership/domain/group-member.repository.port.js';
 import type { Event, UpdateEventData } from '../domain/event.js';
+import { EventOwnershipPolicy } from '../domain/event-ownership-policy.js';
 
 export class UpdateEventUseCase {
   constructor(
@@ -68,11 +69,11 @@ export class UpdateEventUseCase {
       });
     }
 
-    // Normalise title in the persisted data.
-    const patchData: UpdateEventData = {
+    // Sanitize update data to prevent ownership changes at runtime.
+    const patchData: UpdateEventData = EventOwnershipPolicy.sanitizeUpdateData({
       ...data,
       ...(data.title !== undefined ? { title: data.title.trim() } : {}),
-    };
+    });
 
     const updated = await this.eventRepo.update(eventId, patchData);
     if (!updated) {
