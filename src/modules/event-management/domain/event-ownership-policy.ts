@@ -18,10 +18,7 @@ export class EventOwnershipPolicy {
    * - `NOT_FOUND` – event does not exist (avoids disclosing existence)
    * - `NOT_FOUND` – caller is not the owner (avoids disclosing existence)
    */
-  static assertCallerIsOwner(
-    event: Event | null,
-    caller: IdentityContext,
-  ): asserts event is Event {
+  static assertCallerIsOwner(event: Event | null, caller: IdentityContext): asserts event is Event {
     if (!event) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
