@@ -22,6 +22,7 @@ import { SkipLink } from './components/SkipLink';
 import { ConfigError } from './components/ConfigError';
 import { msalConfig, msalConfigured } from './auth/msal-config';
 import { router } from './router';
+import './tailwind.css';
 import './design-system/global.css';
 
 /** Singleton MSAL instance — must be created once outside render. */

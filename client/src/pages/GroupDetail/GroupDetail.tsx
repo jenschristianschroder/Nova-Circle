@@ -2,11 +2,7 @@
  * Group detail page — shows group info, the event list filtered to events
  * the user can access, and navigation to each event.
  *
- * Owners and admins can edit the group name/description inline.
- * Only the owner can delete the group.
- *
- * The server enforces the event-access filter; this component simply
- * renders the events it receives without attempting to guess at hidden ones.
+ * Mobile-first minimalist layout with card-based events and breadcrumbs.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -23,7 +19,8 @@ import {
 import { listGroupEvents, type SharedGroupEvent } from '../../api/events';
 import { getMyProfile, type UserProfile } from '../../api/profile';
 import { Button } from '../../components/Button';
-import styles from './GroupDetail.module.css';
+import { Card, Input, Label, Badge, EmptyState } from '../../components/ui';
+import { ChevronRight, CalendarPlus, Pencil, Trash2, CalendarDays, Ban, Lock } from 'lucide-react';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -49,14 +46,12 @@ export function GroupDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Edit state
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Delete state
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -151,13 +146,12 @@ export function GroupDetail() {
 
   const canEdit =
     myProfile !== null && (myMembership?.role === 'owner' || myMembership?.role === 'admin');
-
   const canDelete = myProfile !== null && group?.ownerId === myProfile.id;
 
   if (isLoading) {
     return (
-      <main id="main-content" className={styles.page}>
-        <p className={styles.statusText} aria-live="polite">
+      <main id="main-content" className="mx-auto max-w-2xl px-nc-md py-nc-2xl">
+        <p className="text-nc-sm text-nc-content-secondary" aria-live="polite">
           Loading group…
         </p>
       </main>
@@ -166,57 +160,49 @@ export function GroupDetail() {
 
   if (error) {
     return (
-      <main id="main-content" className={styles.page}>
-        <p className={styles.errorText} role="alert">
-          {error}
-        </p>
-        <Button variant="secondary" onClick={() => navigate('/groups')}>
-          Back to groups
-        </Button>
+      <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-2xl">
+        <p className="text-nc-sm text-nc-danger-default" role="alert">{error}</p>
+        <Button variant="secondary" onClick={() => navigate('/groups')}>Back to groups</Button>
       </main>
     );
   }
 
   return (
-    <main id="main-content" className={styles.page}>
-      <nav aria-label="Breadcrumb" className={styles.breadcrumb}>
-        <Link to="/groups" className={styles.breadcrumbLink}>
-          Groups
-        </Link>
-        <span aria-hidden="true" className={styles.breadcrumbSep}>
-          ›
-        </span>
+    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+      {/* Breadcrumb */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary">
+        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">Groups</Link>
+        <span aria-hidden="true">›</span>
         <span aria-current="page">{group?.name}</span>
       </nav>
 
-      <div className={styles.groupHeader}>
+      {/* Group header */}
+      <div className="flex flex-wrap items-start justify-between gap-nc-md">
         <div>
-          <h1 className={styles.heading}>{group?.name}</h1>
+          <h1 className="text-nc-2xl font-bold">{group?.name}</h1>
           {group?.description && !isEditing && (
-            <p className={styles.description}>{group.description}</p>
+            <p className="mt-nc-xs text-nc-content-secondary">{group.description}</p>
           )}
         </div>
         {!isEditing && !isConfirmingDelete && (
-          <div className={styles.groupActions}>
+          <div className="flex flex-wrap items-center gap-nc-sm">
             <Button
               variant="primary"
               size="md"
               onClick={() => navigate(`/groups/${groupId}/events/new`)}
             >
-              + New Event
+              <CalendarPlus size={18} aria-hidden="true" />
+              New Event
             </Button>
             {canEdit && (
               <Button variant="secondary" size="md" onClick={startEditing} aria-label="Edit group">
+                <Pencil size={16} aria-hidden="true" />
                 Edit
               </Button>
             )}
             {canDelete && (
-              <Button
-                variant="danger"
-                size="md"
-                onClick={startConfirmDelete}
-                aria-label="Delete group"
-              >
+              <Button variant="danger" size="md" onClick={startConfirmDelete} aria-label="Delete group">
+                <Trash2 size={16} aria-hidden="true" />
                 Delete
               </Button>
             )}
@@ -224,95 +210,63 @@ export function GroupDetail() {
         )}
       </div>
 
+      {/* Edit form */}
       {isEditing && (
-        <section className={styles.editForm} aria-labelledby="edit-group-heading">
-          <h2 id="edit-group-heading" className={styles.subheading}>
-            Edit group
-          </h2>
+        <Card>
+          <h2 id="edit-group-heading" className="mb-nc-md text-nc-lg font-semibold">Edit group</h2>
           <form onSubmit={(e) => void handleSaveEdit(e)} noValidate>
-            <div className={styles.field}>
-              <label htmlFor="edit-group-name" className={styles.label}>
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="edit-group-name">
                 Name <span aria-hidden="true">*</span>
-              </label>
-              <input
-                id="edit-group-name"
-                type="text"
-                className={styles.input}
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
-                aria-required="true"
-              />
+              </Label>
+              <Input id="edit-group-name" type="text" value={editName} onChange={(e) => setEditName(e.target.value)} required aria-required="true" />
             </div>
-            <div className={styles.field}>
-              <label htmlFor="edit-group-description" className={styles.label}>
-                Description
-              </label>
-              <input
-                id="edit-group-description"
-                type="text"
-                className={styles.input}
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Optional description"
-              />
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="edit-group-description">Description</Label>
+              <Input id="edit-group-description" type="text" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Optional description" />
             </div>
-            {saveError && (
-              <p className={styles.errorText} role="alert">
-                {saveError}
-              </p>
-            )}
-            <div className={styles.formActions}>
-              <Button type="button" variant="secondary" onClick={cancelEditing} disabled={isSaving}>
-                Cancel
-              </Button>
+            {saveError && <p className="text-nc-sm text-nc-danger-default" role="alert">{saveError}</p>}
+            <div className="mt-nc-md flex justify-end gap-nc-sm">
+              <Button type="button" variant="secondary" onClick={cancelEditing} disabled={isSaving}>Cancel</Button>
               <Button type="submit" variant="primary" disabled={isSaving || !editName.trim()}>
                 {isSaving ? 'Saving…' : 'Save changes'}
               </Button>
             </div>
           </form>
-        </section>
+        </Card>
       )}
 
+      {/* Delete confirmation */}
       {isConfirmingDelete && (
-        <section className={styles.deleteConfirm} aria-labelledby="delete-confirm-heading">
-          <h2 id="delete-confirm-heading" className={styles.subheading}>
+        <Card className="border-nc-danger-default">
+          <h2 id="delete-confirm-heading" className="mb-nc-sm text-nc-lg font-semibold">
             Delete &ldquo;{group?.name}&rdquo;?
           </h2>
-          <p className={styles.deleteWarning}>
-            This action cannot be undone. All events, memberships, and data for this group will be
-            permanently deleted.
+          <p className="text-nc-sm text-nc-content-secondary">
+            This action cannot be undone. All events, memberships, and data for this group will be permanently deleted.
           </p>
-          {deleteError && (
-            <p className={styles.errorText} role="alert">
-              {deleteError}
-            </p>
-          )}
-          <div className={styles.formActions}>
-            <Button type="button" variant="secondary" onClick={cancelDelete} disabled={isDeleting}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => void handleDelete()}
-              disabled={isDeleting}
-            >
+          {deleteError && <p className="mt-nc-sm text-nc-sm text-nc-danger-default" role="alert">{deleteError}</p>}
+          <div className="mt-nc-md flex justify-end gap-nc-sm">
+            <Button type="button" variant="secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</Button>
+            <Button type="button" variant="danger" onClick={() => void handleDelete()} disabled={isDeleting}>
               {isDeleting ? 'Deleting…' : 'Delete group'}
             </Button>
           </div>
-        </section>
+        </Card>
       )}
 
+      {/* Events list */}
       <section aria-labelledby="events-heading">
-        <h2 id="events-heading" className={styles.subheading}>
-          Events
-        </h2>
+        <h2 id="events-heading" className="mb-nc-md text-nc-lg font-semibold">Events</h2>
 
         {events.length === 0 ? (
-          <p className={styles.emptyText}>No events yet. Create one to get started.</p>
+          <EmptyState
+            icon={<CalendarDays size={40} />}
+            title="No events yet"
+            description="Create one to get started."
+          />
         ) : (
-          <ul className={styles.list} role="list" aria-label="Group events">
+          <ul className="flex flex-col gap-nc-sm" role="list" aria-label="Group events">
             {events.map((event) => {
               const isBusy = event.visibilityLevel === 'busy';
               const isClickable = event.visibilityLevel === 'details';
@@ -322,17 +276,14 @@ export function GroupDetail() {
                   <button
                     type="button"
                     className={[
-                      styles.eventCard,
-                      event.status === 'cancelled' ? styles.eventCardCancelled : '',
-                      isBusy ? styles.eventCardBusy : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={
-                      isClickable
-                        ? () => navigate(`/groups/${groupId}/events/${event.id}`)
-                        : undefined
-                    }
+                      'flex w-full items-center gap-nc-md rounded-nc-md border bg-nc-surface-card p-nc-md text-left transition-all duration-150',
+                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus',
+                      event.status === 'cancelled' ? 'opacity-60' : '',
+                      isBusy
+                        ? 'cursor-default border-dashed border-nc-border-default opacity-80'
+                        : 'cursor-pointer border-nc-border-default hover:border-nc-accent-default hover:shadow-nc-sm',
+                    ].join(' ')}
+                    onClick={isClickable ? () => navigate(`/groups/${groupId}/events/${event.id}`) : undefined}
                     disabled={!isClickable}
                     aria-disabled={!isClickable}
                     aria-label={
@@ -343,34 +294,34 @@ export function GroupDetail() {
                           : `Open event ${event.title ?? UNTITLED_EVENT_LABEL}`
                     }
                   >
-                    <div className={styles.eventCardContent}>
-                      <span className={styles.eventIcon} aria-hidden="true">
-                        {isBusy ? '⬛' : event.status === 'cancelled' ? '🚫' : '🗓'}
-                      </span>
-                      <div className={styles.eventInfo}>
-                        {isBusy ? (
-                          <span className={styles.eventTitle}>{event.ownerDisplayName} — Busy</span>
-                        ) : (
-                          <span className={styles.eventTitle}>
-                            {event.title ?? UNTITLED_EVENT_LABEL}
-                          </span>
-                        )}
-                        <span className={styles.eventDate}>{formatDate(event.startAt)}</span>
-                        {!isBusy && event.ownerDisplayName && (
-                          <span className={styles.eventOwner}>{event.ownerDisplayName}</span>
-                        )}
-                        {event.status === 'cancelled' && (
-                          <span className={styles.cancelledBadge}>Cancelled</span>
-                        )}
-                        {event.visibilityLevel === 'title' && (
-                          <span className={styles.limitedBadge}>Limited</span>
-                        )}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-nc-md bg-nc-surface-subtle">
+                      {isBusy ? (
+                        <Lock size={18} className="text-nc-content-disabled" aria-hidden="true" />
+                      ) : event.status === 'cancelled' ? (
+                        <Ban size={18} className="text-nc-danger-default" aria-hidden="true" />
+                      ) : (
+                        <CalendarDays size={18} className="text-nc-accent-default" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      {isBusy ? (
+                        <span className="block font-semibold">{event.ownerDisplayName} — Busy</span>
+                      ) : (
+                        <span className="block truncate font-semibold">
+                          {event.title ?? UNTITLED_EVENT_LABEL}
+                        </span>
+                      )}
+                      <span className="block text-nc-sm text-nc-content-secondary">{formatDate(event.startAt)}</span>
+                      {!isBusy && event.ownerDisplayName && (
+                        <span className="block text-nc-xs text-nc-content-secondary">{event.ownerDisplayName}</span>
+                      )}
+                      <div className="mt-nc-xs flex gap-nc-xs">
+                        {event.status === 'cancelled' && <Badge variant="danger">Cancelled</Badge>}
+                        {event.visibilityLevel === 'title' && <Badge>Limited</Badge>}
                       </div>
                     </div>
                     {isClickable && (
-                      <span className={styles.eventChevron} aria-hidden="true">
-                        ›
-                      </span>
+                      <ChevronRight size={20} className="shrink-0 text-nc-content-secondary" aria-hidden="true" />
                     )}
                   </button>
                 </li>

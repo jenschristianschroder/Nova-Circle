@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/*
+ * Nova-Circle Tailwind theme layer.
+ *
+ * Maps existing CSS custom properties (set at runtime by ThemeProvider)
+ * into Tailwind's utility-class namespace so we can write e.g.
+ *   className="bg-nc-surface-background text-nc-content-primary"
+ *
+ * Design tokens remain the single source of truth — they are applied
+ * to <html> by ThemeProvider and consumed here as var() references.
+ */
+
+@theme {
+  /* ── Colours — surfaces ─────────────────────────────────────────── */
+  --color-nc-surface-background: var(--nc-surface-background);
+  --color-nc-surface-card: var(--nc-surface-card);
+  --color-nc-surface-subtle: var(--nc-surface-subtle);
+  --color-nc-surface-overlay: var(--nc-surface-overlay);
+
+  /* ── Colours — content ──────────────────────────────────────────── */
+  --color-nc-content-primary: var(--nc-content-primary);
+  --color-nc-content-secondary: var(--nc-content-secondary);
+  --color-nc-content-disabled: var(--nc-content-disabled);
+  --color-nc-content-on-accent: var(--nc-content-on-accent);
+  --color-nc-content-on-danger: var(--nc-content-on-danger);
+
+  /* ── Colours — border ───────────────────────────────────────────── */
+  --color-nc-border-default: var(--nc-border-default);
+  --color-nc-border-interactive: var(--nc-border-interactive);
+  --color-nc-border-focus: var(--nc-border-focus);
+
+  /* ── Colours — accent ───────────────────────────────────────────── */
+  --color-nc-accent-default: var(--nc-accent-default);
+  --color-nc-accent-hover: var(--nc-accent-hover);
+  --color-nc-accent-active: var(--nc-accent-active);
+  --color-nc-accent-subtle: var(--nc-accent-subtle);
+
+  /* ── Colours — danger ───────────────────────────────────────────── */
+  --color-nc-danger-default: var(--nc-danger-default);
+  --color-nc-danger-hover: var(--nc-danger-hover);
+  --color-nc-danger-subtle: var(--nc-danger-subtle);
+
+  /* ── Colours — success ──────────────────────────────────────────── */
+  --color-nc-success-default: var(--nc-success-default);
+  --color-nc-success-subtle: var(--nc-success-subtle);
+
+  /* ── Colours — group calendar ───────────────────────────────────── */
+  --color-nc-group-personal: var(--nc-group-color-personal);
+  --color-nc-group-0: var(--nc-group-color-0);
+  --color-nc-group-1: var(--nc-group-color-1);
+  --color-nc-group-2: var(--nc-group-color-2);
+  --color-nc-group-3: var(--nc-group-color-3);
+  --color-nc-group-4: var(--nc-group-color-4);
+  --color-nc-group-5: var(--nc-group-color-5);
+  --color-nc-group-6: var(--nc-group-color-6);
+  --color-nc-group-7: var(--nc-group-color-7);
+
+  /* ── Font families ──────────────────────────────────────────────── */
+  --font-body: var(--nc-font-family-body);
+  --font-heading: var(--nc-font-family-heading);
+  --font-mono: var(--nc-font-family-mono);
+
+  /* ── Font sizes ─────────────────────────────────────────────────── */
+  --font-size-nc-xs: var(--nc-font-size-xs);
+  --font-size-nc-sm: var(--nc-font-size-sm);
+  --font-size-nc-md: var(--nc-font-size-md);
+  --font-size-nc-lg: var(--nc-font-size-lg);
+  --font-size-nc-xl: var(--nc-font-size-xl);
+  --font-size-nc-2xl: var(--nc-font-size-2xl);
+
+  /* ── Spacing (extends default) ──────────────────────────────────── */
+  --spacing-nc-xs: var(--nc-space-xs);
+  --spacing-nc-sm: var(--nc-space-sm);
+  --spacing-nc-md: var(--nc-space-md);
+  --spacing-nc-lg: var(--nc-space-lg);
+  --spacing-nc-xl: var(--nc-space-xl);
+  --spacing-nc-2xl: var(--nc-space-2xl);
+  --spacing-nc-3xl: var(--nc-space-3xl);
+
+  /* ── Border radius ──────────────────────────────────────────────── */
+  --radius-nc-sm: var(--nc-radius-sm);
+  --radius-nc-md: var(--nc-radius-md);
+  --radius-nc-lg: var(--nc-radius-lg);
+  --radius-nc-full: var(--nc-radius-full);
+
+  /* ── Shadows ────────────────────────────────────────────────────── */
+  --shadow-nc-sm: var(--nc-shadow-sm);
+  --shadow-nc-md: var(--nc-shadow-md);
+}

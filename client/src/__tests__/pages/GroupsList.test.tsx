@@ -126,12 +126,12 @@ describe('GroupsList', () => {
     );
   });
 
-  it('shows the create form when "+ New Group" is clicked', async () => {
+  it('shows the create form when "New Group" is clicked', async () => {
     const user = userEvent.setup();
     mockApiFetch.mockResolvedValue(sampleGroups);
     renderGroupsList();
     await waitFor(() => screen.getByRole('heading', { name: /my groups/i }));
-    await user.click(screen.getByRole('button', { name: /\+ new group/i }));
+    await user.click(screen.getByRole('button', { name: /new group/i }));
     expect(screen.getByRole('heading', { name: /create a new group/i })).toBeInTheDocument();
   });
 
@@ -161,7 +161,7 @@ describe('GroupsList', () => {
     renderGroupsList();
     await waitFor(() => screen.getByRole('heading', { name: /my groups/i }));
 
-    await user.click(screen.getByRole('button', { name: /\+ new group/i }));
+    await user.click(screen.getByRole('button', { name: /new group/i }));
     await user.type(screen.getByLabelText(/name/i), 'New Group');
     await user.click(screen.getByRole('button', { name: /^create group$/i }));
 

@@ -1,6 +1,8 @@
 /**
  * Groups list page — shows all groups the authenticated user belongs to
  * and allows creating a new group.
+ *
+ * Mobile-first card-based list with Lucide icons.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +11,8 @@ import { useApiClient, ApiError } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { listMyGroups, createGroup, type Group } from '../../api/groups';
 import { Button } from '../../components/Button';
-import styles from './GroupsList.module.css';
+import { Card, Input, Label, EmptyState } from '../../components/ui';
+import { Users, ChevronRight, Plus } from 'lucide-react';
 
 export function GroupsList() {
   const { apiFetch } = useApiClient();
@@ -34,8 +37,6 @@ export function GroupsList() {
       const data = await listMyGroups(apiFetch);
       setGroups(data);
     } catch (err: unknown) {
-      // Surface specific diagnostics so infrastructure issues are easier to
-      // identify.  The generic message is kept as a fallback.
       if (err instanceof ApiError) {
         if (err.status === 401) {
           setError('Failed to load groups: authentication error. Please sign in again.');
@@ -48,9 +49,6 @@ export function GroupsList() {
           setError(`Failed to load groups (${err.status}). Please try again.`);
         }
       } else if (err instanceof Error) {
-        // Generic unexpected errors (network issues, parsing errors, etc.)
-        // surface here as plain Error instances. Surface the message to aid
-        // diagnosis, but do not assume this is an authentication failure.
         const msg = err.message || 'Unknown error';
         setError(`Failed to load groups: ${msg}`);
       } else {
@@ -97,28 +95,40 @@ export function GroupsList() {
   }
 
   return (
-    <main id="main-content" className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.heading}>My Groups</h1>
-        <Button variant="primary" size="md" onClick={() => setShowCreateForm((v) => !v)}>
-          {showCreateForm ? 'Cancel' : '+ New Group'}
+    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-nc-md">
+        <h1 className="text-nc-2xl font-bold">My Groups</h1>
+        <Button
+          variant="primary"
+          size="md"
+          onClick={() => setShowCreateForm((v) => !v)}
+        >
+          {showCreateForm ? (
+            'Cancel'
+          ) : (
+            <>
+              <Plus size={18} aria-hidden="true" />
+              New Group
+            </>
+          )}
         </Button>
       </div>
 
+      {/* Create form */}
       {showCreateForm && (
-        <section className={styles.createForm} aria-labelledby="create-group-heading">
-          <h2 id="create-group-heading" className={styles.subheading}>
+        <Card>
+          <h2 id="create-group-heading" className="mb-nc-md text-nc-lg font-semibold">
             Create a new group
           </h2>
           <form onSubmit={(e) => void handleCreateGroup(e)} noValidate>
-            <div className={styles.field}>
-              <label htmlFor="group-name" className={styles.label}>
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="group-name">
                 Name <span aria-hidden="true">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="group-name"
                 type="text"
-                className={styles.input}
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
                 placeholder="e.g. Family BBQ crew"
@@ -126,46 +136,45 @@ export function GroupsList() {
                 aria-required="true"
               />
             </div>
-            <div className={styles.field}>
-              <label htmlFor="group-description" className={styles.label}>
-                Description
-              </label>
-              <input
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="group-description">Description</Label>
+              <Input
                 id="group-description"
                 type="text"
-                className={styles.input}
                 value={newGroupDescription}
                 onChange={(e) => setNewGroupDescription(e.target.value)}
                 placeholder="Optional description"
               />
             </div>
             {createError && (
-              <p className={styles.errorText} role="alert">
+              <p className="text-nc-sm text-nc-danger-default" role="alert">
                 {createError}
               </p>
             )}
-            <div className={styles.formActions}>
+            <div className="mt-nc-md flex justify-end">
               <Button type="submit" variant="primary" disabled={isCreating || !newGroupName.trim()}>
                 {isCreating ? 'Creating…' : 'Create group'}
               </Button>
             </div>
           </form>
-        </section>
+        </Card>
       )}
 
+      {/* Loading */}
       {isLoading && (
-        <p className={styles.statusText} aria-live="polite">
+        <p className="text-nc-sm text-nc-content-secondary" aria-live="polite">
           Loading groups…
         </p>
       )}
 
+      {/* Error */}
       {error && !isLoading && (
         <div>
-          <p className={styles.errorText} role="alert">
+          <p className="text-nc-sm text-nc-danger-default" role="alert">
             {error}
           </p>
           {isAuthError && (
-            <div className={styles.formActions}>
+            <div className="mt-nc-md flex justify-end">
               <Button
                 variant="primary"
                 size="md"
@@ -182,36 +191,38 @@ export function GroupsList() {
         </div>
       )}
 
+      {/* Empty state */}
       {!isLoading && !error && groups.length === 0 && (
-        <p className={styles.emptyText}>
-          You are not a member of any groups yet. Create one to get started.
-        </p>
+        <EmptyState
+          icon={<Users size={40} />}
+          title="No groups yet"
+          description="You are not a member of any groups yet. Create one to get started."
+        />
       )}
 
+      {/* Group list */}
       {!isLoading && groups.length > 0 && (
-        <ul className={styles.list} role="list" aria-label="Your groups">
+        <ul className="flex flex-col gap-nc-sm" role="list" aria-label="Your groups">
           {groups.map((group) => (
             <li key={group.id}>
               <button
                 type="button"
-                className={styles.groupCard}
+                className="flex w-full items-center gap-nc-md rounded-nc-md border border-nc-border-default bg-nc-surface-card p-nc-md text-left text-nc-content-primary transition-all duration-150 hover:border-nc-accent-default hover:shadow-nc-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus md:p-nc-lg"
                 onClick={() => navigate(`/groups/${group.id}`)}
                 aria-label={`Open group ${group.name}`}
               >
-                <div className={styles.groupCardContent}>
-                  <span className={styles.groupIcon} aria-hidden="true">
-                    👥
-                  </span>
-                  <div className={styles.groupInfo}>
-                    <span className={styles.groupName}>{group.name}</span>
-                    {group.description && (
-                      <span className={styles.groupDescription}>{group.description}</span>
-                    )}
-                  </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-nc-full bg-nc-accent-subtle">
+                  <Users size={20} className="text-nc-accent-default" aria-hidden="true" />
                 </div>
-                <span className={styles.groupChevron} aria-hidden="true">
-                  ›
-                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{group.name}</span>
+                  {group.description && (
+                    <span className="block truncate text-nc-sm text-nc-content-secondary">
+                      {group.description}
+                    </span>
+                  )}
+                </div>
+                <ChevronRight size={20} className="shrink-0 text-nc-content-secondary" aria-hidden="true" />
               </button>
             </li>
           ))}

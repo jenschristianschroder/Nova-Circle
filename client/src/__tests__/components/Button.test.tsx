@@ -23,19 +23,19 @@ describe('Button', () => {
   it('applies primary variant by default', () => {
     render(<Button>Primary</Button>);
     const btn = screen.getByRole('button');
-    expect(btn.className).toMatch(/primary/);
+    expect(btn.className).toContain('bg-nc-accent-default');
   });
 
   it('applies secondary variant', () => {
     render(<Button variant="secondary">Secondary</Button>);
     const btn = screen.getByRole('button');
-    expect(btn.className).toMatch(/secondary/);
+    expect(btn.className).toContain('border-nc-border-interactive');
   });
 
   it('applies danger variant', () => {
     render(<Button variant="danger">Danger</Button>);
     const btn = screen.getByRole('button');
-    expect(btn.className).toMatch(/danger/);
+    expect(btn.className).toContain('bg-nc-danger-default');
   });
 
   it('is disabled when disabled prop is set', () => {
@@ -88,7 +88,7 @@ describe('Button', () => {
 
   it('applies fullWidth class when fullWidth prop is set', () => {
     render(<Button fullWidth>Full width</Button>);
-    expect(screen.getByRole('button').className).toMatch(/fullWidth/);
+    expect(screen.getByRole('button').className).toContain('w-full');
   });
 
   it('forwards ref to the button element', () => {
