@@ -289,9 +289,7 @@ export function createPersonalEventRouter(
 
     const { newOwnerId } = req.body as { newOwnerId?: unknown };
     if (typeof newOwnerId !== 'string' || !isValidUuid(newOwnerId)) {
-      res
-        .status(400)
-        .json({ error: 'newOwnerId must be a valid UUID', code: 'VALIDATION_ERROR' });
+      res.status(400).json({ error: 'newOwnerId must be a valid UUID', code: 'VALIDATION_ERROR' });
       return;
     }
 

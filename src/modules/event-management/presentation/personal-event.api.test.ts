@@ -691,22 +691,19 @@ describe('Personal Events API', () => {
       },
     );
 
-    it.skipIf(skipReason !== undefined)(
-      'returns 404 for non-owner',
-      async () => {
-        const createRes = await request(app)
-          .post('/api/v1/events')
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ title: 'Not Yours', startAt: '2026-11-01T10:00:00Z' });
-        const eventId = (createRes.body as EventBody).id;
+    it.skipIf(skipReason !== undefined)('returns 404 for non-owner', async () => {
+      const createRes = await request(app)
+        .post('/api/v1/events')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ title: 'Not Yours', startAt: '2026-11-01T10:00:00Z' });
+      const eventId = (createRes.body as EventBody).id;
 
-        const transferRes = await request(app)
-          .post(`/api/v1/events/${eventId}/transfer-ownership`)
-          .set(testAuthHeaders(otherUser.userId, otherUser.displayName))
-          .send({ newOwnerId: otherUser.userId });
-        expect(transferRes.status).toBe(404);
-      },
-    );
+      const transferRes = await request(app)
+        .post(`/api/v1/events/${eventId}/transfer-ownership`)
+        .set(testAuthHeaders(otherUser.userId, otherUser.displayName))
+        .send({ newOwnerId: otherUser.userId });
+      expect(transferRes.status).toBe(404);
+    });
 
     it.skipIf(skipReason !== undefined)(
       'returns 400 when newOwnerId is missing or invalid',
@@ -750,28 +747,22 @@ describe('Personal Events API', () => {
       },
     );
 
-    it.skipIf(skipReason !== undefined)(
-      'returns 404 for non-existent event',
-      async () => {
-        const fakeId = '00000000-0000-4000-8000-000000000099';
-        const transferRes = await request(app)
-          .post(`/api/v1/events/${fakeId}/transfer-ownership`)
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ newOwnerId: otherUser.userId });
-        expect(transferRes.status).toBe(404);
-      },
-    );
+    it.skipIf(skipReason !== undefined)('returns 404 for non-existent event', async () => {
+      const fakeId = '00000000-0000-4000-8000-000000000099';
+      const transferRes = await request(app)
+        .post(`/api/v1/events/${fakeId}/transfer-ownership`)
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ newOwnerId: otherUser.userId });
+      expect(transferRes.status).toBe(404);
+    });
 
-    it.skipIf(skipReason !== undefined)(
-      'returns 404 for invalid UUID in path',
-      async () => {
-        const transferRes = await request(app)
-          .post('/api/v1/events/not-a-uuid/transfer-ownership')
-          .set(testAuthHeaders(owner.userId, owner.displayName))
-          .send({ newOwnerId: otherUser.userId });
-        expect(transferRes.status).toBe(404);
-      },
-    );
+    it.skipIf(skipReason !== undefined)('returns 404 for invalid UUID in path', async () => {
+      const transferRes = await request(app)
+        .post('/api/v1/events/not-a-uuid/transfer-ownership')
+        .set(testAuthHeaders(owner.userId, owner.displayName))
+        .send({ newOwnerId: otherUser.userId });
+      expect(transferRes.status).toBe(404);
+    });
 
     it.skipIf(skipReason !== undefined)(
       'returns 400 when newOwnerId does not exist in user_profiles',

@@ -432,9 +432,9 @@ describe('TransferEventOwnershipUseCase', () => {
   it('throws NOT_FOUND when event does not exist', async () => {
     const useCase = new TransferEventOwnershipUseCase(makeEventRepo());
 
-    await expect(
-      useCase.execute(owner, 'non-existent', newOwnerId),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(useCase.execute(owner, 'non-existent', newOwnerId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('throws NOT_FOUND for non-owner (no existence disclosure)', async () => {
@@ -442,9 +442,9 @@ describe('TransferEventOwnershipUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
-    await expect(
-      useCase.execute(otherUser, 'personal-event-1', newOwnerId),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(useCase.execute(otherUser, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('throws NOT_FOUND for group-scoped events', async () => {
@@ -452,9 +452,9 @@ describe('TransferEventOwnershipUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(groupEvent) });
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
-    await expect(
-      useCase.execute(owner, 'group-event-1', newOwnerId),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(useCase.execute(owner, 'group-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 
   it('throws CONFLICT for cancelled events', async () => {
@@ -462,9 +462,9 @@ describe('TransferEventOwnershipUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
-    await expect(
-      useCase.execute(owner, 'personal-event-1', newOwnerId),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(useCase.execute(owner, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
   });
 
   it('throws VALIDATION_ERROR when new owner is the same as current owner', async () => {
@@ -472,9 +472,9 @@ describe('TransferEventOwnershipUseCase', () => {
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
-    await expect(
-      useCase.execute(owner, 'personal-event-1', owner.userId),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    await expect(useCase.execute(owner, 'personal-event-1', owner.userId)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
   });
 
   it('throws CONFLICT when ownership changed concurrently (0 rows updated)', async () => {
@@ -485,9 +485,9 @@ describe('TransferEventOwnershipUseCase', () => {
     });
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
-    await expect(
-      useCase.execute(owner, 'personal-event-1', newOwnerId),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(useCase.execute(owner, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
   });
 
   it('throws VALIDATION_ERROR when new owner does not exist (FK violation)', async () => {
@@ -499,8 +499,8 @@ describe('TransferEventOwnershipUseCase', () => {
     });
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
-    await expect(
-      useCase.execute(owner, 'personal-event-1', newOwnerId),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    await expect(useCase.execute(owner, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
   });
 });
