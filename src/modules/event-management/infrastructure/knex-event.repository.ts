@@ -73,6 +73,20 @@ export class KnexEventRepository implements EventRepositoryPort {
     return row ? toEvent(row) : null;
   }
 
+  async transferOwnership(
+    eventId: string,
+    newOwnerId: string,
+    expectedOwnerId: string,
+  ): Promise<Event | null> {
+    const rows = await this.db<EventRow>('events')
+      .where({ id: eventId, owner_id: expectedOwnerId })
+      .update({ owner_id: newOwnerId, updated_at: new Date() })
+      .returning('*');
+
+    const row = rows[0];
+    return row ? toEvent(row) : null;
+  }
+
   async cancel(eventId: string): Promise<void> {
     await this.db('events')
       .where({ id: eventId })

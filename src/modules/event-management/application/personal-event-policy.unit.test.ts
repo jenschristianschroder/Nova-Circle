@@ -4,6 +4,7 @@ import { GetPersonalEventUseCase } from './get-personal-event.usecase.js';
 import { ListMyEventsUseCase } from './list-my-events.usecase.js';
 import { UpdatePersonalEventUseCase } from './update-personal-event.usecase.js';
 import { DeletePersonalEventUseCase } from './delete-personal-event.usecase.js';
+import { TransferEventOwnershipUseCase } from './transfer-event-ownership.usecase.js';
 import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { EventShareRepositoryPort } from '../../event-sharing/domain/event-share.repository.port.js';
@@ -54,6 +55,7 @@ function makeEventRepo(overrides?: Partial<EventRepositoryPort>): EventRepositor
     listByGroupForUser: vi.fn().mockResolvedValue([]),
     listByOwner: vi.fn().mockResolvedValue([]),
     update: vi.fn().mockResolvedValue(makePersonalEvent()),
+    transferOwnership: vi.fn().mockResolvedValue(makePersonalEvent()),
     cancel: vi.fn().mockResolvedValue(undefined),
     deleteEvent: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -401,5 +403,104 @@ describe('DeletePersonalEventUseCase', () => {
     const useCase = new DeletePersonalEventUseCase(eventRepo, makeShareRepo({ deleteByEvent }));
 
     await expect(useCase.execute(owner, 'personal-event-1')).rejects.toThrow('DB connection lost');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TransferEventOwnershipUseCase
+// ---------------------------------------------------------------------------
+
+describe('TransferEventOwnershipUseCase', () => {
+  const newOwnerId = 'new-owner-uuid-0001';
+
+  it('transfers ownership when called by the current owner', async () => {
+    const event = makePersonalEvent();
+    const transferred = { ...event, ownerId: newOwnerId };
+    const transferOwnership = vi.fn().mockResolvedValue(transferred);
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      transferOwnership,
+    });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    const result = await useCase.execute(owner, 'personal-event-1', newOwnerId);
+    expect(result.event.ownerId).toBe(newOwnerId);
+    expect(result.previousOwnerId).toBe(owner.userId);
+    expect(transferOwnership).toHaveBeenCalledWith('personal-event-1', newOwnerId, owner.userId);
+  });
+
+  it('throws NOT_FOUND when event does not exist', async () => {
+    const useCase = new TransferEventOwnershipUseCase(makeEventRepo());
+
+    await expect(useCase.execute(owner, 'non-existent', newOwnerId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws NOT_FOUND for non-owner (no existence disclosure)', async () => {
+    const event = makePersonalEvent();
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(useCase.execute(otherUser, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws NOT_FOUND for group-scoped events', async () => {
+    const groupEvent = makeGroupEvent();
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(groupEvent) });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(useCase.execute(owner, 'group-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('throws CONFLICT for cancelled events', async () => {
+    const event = makePersonalEvent({ status: 'cancelled' });
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(useCase.execute(owner, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+  });
+
+  it('throws VALIDATION_ERROR when new owner is the same as current owner', async () => {
+    const event = makePersonalEvent();
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(useCase.execute(owner, 'personal-event-1', owner.userId)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
+  it('throws CONFLICT when ownership changed concurrently (0 rows updated)', async () => {
+    const event = makePersonalEvent();
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      transferOwnership: vi.fn().mockResolvedValue(null),
+    });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(useCase.execute(owner, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+  });
+
+  it('throws VALIDATION_ERROR when new owner does not exist (FK violation)', async () => {
+    const event = makePersonalEvent();
+    const fkError = Object.assign(new Error('violates foreign key constraint'), { code: '23503' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      transferOwnership: vi.fn().mockRejectedValue(fkError),
+    });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(useCase.execute(owner, 'personal-event-1', newOwnerId)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
   });
 });

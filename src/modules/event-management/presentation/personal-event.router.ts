@@ -10,6 +10,7 @@ import { ListMyEventsUseCase } from '../application/list-my-events.usecase.js';
 import { GetPersonalEventUseCase } from '../application/get-personal-event.usecase.js';
 import { UpdatePersonalEventUseCase } from '../application/update-personal-event.usecase.js';
 import { DeletePersonalEventUseCase } from '../application/delete-personal-event.usecase.js';
+import { TransferEventOwnershipUseCase } from '../application/transfer-event-ownership.usecase.js';
 import { isValidUuid } from '../../../shared/validation/uuid.js';
 import { logger } from '../../../shared/logger/logger.js';
 
@@ -38,6 +39,7 @@ export function createPersonalEventRouter(
   const getPersonalEvent = new GetPersonalEventUseCase(eventRepo);
   const updatePersonalEvent = new UpdatePersonalEventUseCase(eventRepo);
   const deletePersonalEvent = new DeletePersonalEventUseCase(eventRepo, shareRepo);
+  const transferOwnership = new TransferEventOwnershipUseCase(eventRepo);
 
   // POST /api/v1/events
   router.post('/', async (req: Request, res: Response) => {
@@ -265,6 +267,57 @@ export function createPersonalEventRouter(
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
+    }
+  });
+
+  // POST /api/v1/events/:eventId/transfer-ownership
+  router.post('/:eventId/transfer-ownership', async (req: Request, res: Response) => {
+    const identity = req.identity;
+    if (!identity) {
+      res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+      return;
+    }
+
+    const eventId = req.params['eventId'] as string;
+    if (!isValidUuid(eventId)) {
+      res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const { newOwnerId } = req.body as { newOwnerId?: unknown };
+    if (typeof newOwnerId !== 'string' || !isValidUuid(newOwnerId)) {
+      res.status(400).json({ error: 'newOwnerId must be a valid UUID', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    try {
+      const result = await transferOwnership.execute(identity, eventId, newOwnerId);
+      try {
+        await auditLog.record({
+          actorId: identity.userId,
+          action: 'event.ownership_transferred',
+          resourceType: 'event',
+          resourceId: eventId,
+          metadata: { previousOwnerId: result.previousOwnerId, newOwnerId },
+        });
+      } catch (auditErr) {
+        logger.error('Audit log failed for event.ownership_transferred', auditErr);
+      }
+      res.json(result.event);
+    } catch (err: unknown) {
+      if (isNotFoundError(err)) {
+        res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });
+        return;
+      }
+      if (isValidationError(err)) {
+        res.status(400).json({ error: (err as Error).message, code: 'VALIDATION_ERROR' });
+        return;
+      }
+      if (isConflictError(err)) {
+        res.status(409).json({ error: (err as Error).message, code: 'CONFLICT' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });
