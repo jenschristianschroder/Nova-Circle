@@ -426,7 +426,7 @@ describe('TransferEventOwnershipUseCase', () => {
     const result = await useCase.execute(owner, 'personal-event-1', newOwnerId);
     expect(result.event.ownerId).toBe(newOwnerId);
     expect(result.previousOwnerId).toBe(owner.userId);
-    expect(transferOwnership).toHaveBeenCalledWith('personal-event-1', newOwnerId);
+    expect(transferOwnership).toHaveBeenCalledWith('personal-event-1', newOwnerId, owner.userId);
   });
 
   it('throws NOT_FOUND when event does not exist', async () => {
@@ -474,6 +474,33 @@ describe('TransferEventOwnershipUseCase', () => {
 
     await expect(
       useCase.execute(owner, 'personal-event-1', owner.userId),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
+
+  it('throws CONFLICT when ownership changed concurrently (0 rows updated)', async () => {
+    const event = makePersonalEvent();
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      transferOwnership: vi.fn().mockResolvedValue(null),
+    });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(
+      useCase.execute(owner, 'personal-event-1', newOwnerId),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('throws VALIDATION_ERROR when new owner does not exist (FK violation)', async () => {
+    const event = makePersonalEvent();
+    const fkError = Object.assign(new Error('violates foreign key constraint'), { code: '23503' });
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      transferOwnership: vi.fn().mockRejectedValue(fkError),
+    });
+    const useCase = new TransferEventOwnershipUseCase(eventRepo);
+
+    await expect(
+      useCase.execute(owner, 'personal-event-1', newOwnerId),
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 });

@@ -772,5 +772,24 @@ describe('Personal Events API', () => {
         expect(transferRes.status).toBe(404);
       },
     );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 when newOwnerId does not exist in user_profiles',
+      async () => {
+        const createRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'FK Test', startAt: '2026-11-01T10:00:00Z' });
+        const eventId = (createRes.body as EventBody).id;
+
+        const nonExistentUserId = '00000000-0000-4000-8000-ffffffffffff';
+        const transferRes = await request(app)
+          .post(`/api/v1/events/${eventId}/transfer-ownership`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ newOwnerId: nonExistentUserId });
+        expect(transferRes.status).toBe(400);
+        expect((transferRes.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+      },
+    );
   });
 });

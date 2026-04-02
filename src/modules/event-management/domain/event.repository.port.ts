@@ -10,7 +10,11 @@ export interface EventRepositoryPort {
   listByGroupForUser(groupId: string, userId: string): Promise<Event[]>;
   listByOwner(userId: string, dateRange?: DateRangeFilter): Promise<Event[]>;
   update(eventId: string, data: UpdateEventData): Promise<Event | null>;
-  transferOwnership(eventId: string, newOwnerId: string): Promise<Event | null>;
+  transferOwnership(
+    eventId: string,
+    newOwnerId: string,
+    expectedOwnerId: string,
+  ): Promise<Event | null>;
   cancel(eventId: string): Promise<void>;
   deleteEvent(eventId: string): Promise<void>;
 }

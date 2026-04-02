@@ -2,6 +2,7 @@ import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { Event } from '../domain/event.js';
 import { EventOwnershipPolicy } from '../domain/event-ownership-policy.js';
+import { isForeignKeyViolation } from '../../../shared/database/pg-errors.js';
 
 export interface TransferOwnershipResult {
   readonly event: Event;
@@ -40,9 +41,23 @@ export class TransferEventOwnershipUseCase {
 
     const previousOwnerId = event.ownerId;
 
-    const updated = await this.eventRepo.transferOwnership(eventId, newOwnerId);
+    let updated: Event | null;
+    try {
+      updated = await this.eventRepo.transferOwnership(eventId, newOwnerId, previousOwnerId);
+    } catch (error: unknown) {
+      if (isForeignKeyViolation(error)) {
+        throw Object.assign(new Error('New owner does not exist'), {
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      throw error;
+    }
     if (!updated) {
-      throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
+      // 0 rows updated → concurrent transfer changed the owner between our
+      // read and the conditional update (TOCTOU). Surface as CONFLICT.
+      throw Object.assign(new Error('Event ownership has changed concurrently'), {
+        code: 'CONFLICT',
+      });
     }
     return { event: updated, previousOwnerId };
   }
