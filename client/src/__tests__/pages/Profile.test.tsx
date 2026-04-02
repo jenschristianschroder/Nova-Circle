@@ -2,7 +2,8 @@
  * Tests for the Profile page.
  *
  * Verifies that the user's profile is displayed, editing works correctly,
- * and sign-out triggers the logout flow.
+ * appearance settings (theme switcher) are present, and sign-out triggers
+ * the logout flow.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -61,10 +62,26 @@ function renderProfile() {
   );
 }
 
+const mockMatchMedia = (matches: boolean) =>
+  vi.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
 beforeEach(() => {
   mockApiFetch.mockReset();
   mockLogout.mockClear();
   localStorage.clear();
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: mockMatchMedia(false),
+  });
 });
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -147,5 +164,35 @@ describe('Profile', () => {
     await waitFor(() => screen.getByRole('button', { name: /sign out/i }));
     await user.click(screen.getByRole('button', { name: /sign out/i }));
     expect(mockLogout).toHaveBeenCalledOnce();
+  });
+
+  it('renders the Appearance section with theme controls', async () => {
+    mockApiFetch.mockResolvedValue(sampleProfile);
+    renderProfile();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /appearance/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('group', { name: /appearance settings/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /light/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /dark/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /system/i })).toBeInTheDocument();
+  });
+
+  it('allows changing colour mode from the profile page', async () => {
+    const user = userEvent.setup();
+    mockApiFetch.mockResolvedValue(sampleProfile);
+    renderProfile();
+    await waitFor(() => screen.getByRole('radio', { name: /dark/i }));
+    await user.click(screen.getByRole('radio', { name: /dark/i }));
+    expect(screen.getByRole('radio', { name: /dark/i })).toBeChecked();
+  });
+
+  it('allows changing colour palette from the profile page', async () => {
+    const user = userEvent.setup();
+    mockApiFetch.mockResolvedValue(sampleProfile);
+    renderProfile();
+    await waitFor(() => screen.getByRole('radio', { name: /ocean palette/i }));
+    await user.click(screen.getByRole('radio', { name: /ocean palette/i }));
+    expect(screen.getByRole('radio', { name: /ocean palette/i })).toBeChecked();
   });
 });

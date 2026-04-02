@@ -1,19 +1,14 @@
 /**
  * AppShell — persistent navigation chrome rendered around authenticated routes.
  *
- * Contains the primary nav bar with links to Groups and Profile.
+ * Contains the primary nav bar with links to Calendar, Groups, and Profile.
  * The main content area is rendered via <Outlet />.
  */
 
-import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { ThemeSwitcher } from '../ThemeSwitcher';
-import { useAuth } from '../../auth/useAuth';
+import { Link, Outlet } from 'react-router-dom';
 import styles from './AppShell.module.css';
 
 export function AppShell() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
   return (
     <div className={styles.shell}>
       <header className={styles.header} role="banner">
@@ -44,20 +39,6 @@ export function AppShell() {
               </li>
             </ul>
           </nav>
-
-          <div className={styles.headerActions}>
-            <ThemeSwitcher />
-            <button
-              type="button"
-              className={styles.signOutButton}
-              onClick={() => {
-                void logout().catch(() => navigate('/login'));
-              }}
-              aria-label="Sign out"
-            >
-              Sign out
-            </button>
-          </div>
         </div>
       </header>
 
