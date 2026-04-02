@@ -89,7 +89,10 @@ export function Profile() {
   }
 
   return (
-    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+    <main
+      id="main-content"
+      className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl"
+    >
       <h1 className="text-nc-2xl font-bold">Profile</h1>
 
       {/* Profile details */}
@@ -109,11 +112,7 @@ export function Profile() {
 
         {!isEditing ? (
           <div className="flex flex-wrap items-center gap-nc-lg">
-            <Avatar
-              src={profile?.avatarUrl}
-              fallback="👤"
-              size="lg"
-            />
+            <Avatar src={profile?.avatarUrl} fallback="👤" size="lg" />
             <div className="min-w-0 flex-1">
               <p className="text-nc-lg font-semibold">{profile?.displayName}</p>
               {profile?.avatarUrl && (

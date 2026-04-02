@@ -110,7 +110,8 @@ exports[`Home page snapshot > renders correctly in dark mode 1`] = `
               dark
                mode
             </strong>
-             with 
+             with
+             
             <strong>
               default
                palette
@@ -647,7 +648,8 @@ exports[`Home page snapshot > renders correctly in light mode 1`] = `
               light
                mode
             </strong>
-             with 
+             with
+             
             <strong>
               default
                palette

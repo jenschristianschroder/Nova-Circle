@@ -160,18 +160,33 @@ export function GroupDetail() {
 
   if (error) {
     return (
-      <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-2xl">
-        <p className="text-nc-sm text-nc-danger-default" role="alert">{error}</p>
-        <Button variant="secondary" onClick={() => navigate('/groups')}>Back to groups</Button>
+      <main
+        id="main-content"
+        className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-2xl"
+      >
+        <p className="text-nc-sm text-nc-danger-default" role="alert">
+          {error}
+        </p>
+        <Button variant="secondary" onClick={() => navigate('/groups')}>
+          Back to groups
+        </Button>
       </main>
     );
   }
 
   return (
-    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+    <main
+      id="main-content"
+      className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl"
+    >
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary">
-        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">Groups</Link>
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary"
+      >
+        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">
+          Groups
+        </Link>
         <span aria-hidden="true">›</span>
         <span aria-current="page">{group?.name}</span>
       </nav>
@@ -201,7 +216,12 @@ export function GroupDetail() {
               </Button>
             )}
             {canDelete && (
-              <Button variant="danger" size="md" onClick={startConfirmDelete} aria-label="Delete group">
+              <Button
+                variant="danger"
+                size="md"
+                onClick={startConfirmDelete}
+                aria-label="Delete group"
+              >
                 <Trash2 size={16} aria-hidden="true" />
                 Delete
               </Button>
@@ -213,21 +233,42 @@ export function GroupDetail() {
       {/* Edit form */}
       {isEditing && (
         <Card>
-          <h2 id="edit-group-heading" className="mb-nc-md text-nc-lg font-semibold">Edit group</h2>
+          <h2 id="edit-group-heading" className="mb-nc-md text-nc-lg font-semibold">
+            Edit group
+          </h2>
           <form onSubmit={(e) => void handleSaveEdit(e)} noValidate>
             <div className="mb-nc-md flex flex-col gap-nc-xs">
               <Label htmlFor="edit-group-name">
                 Name <span aria-hidden="true">*</span>
               </Label>
-              <Input id="edit-group-name" type="text" value={editName} onChange={(e) => setEditName(e.target.value)} required aria-required="true" />
+              <Input
+                id="edit-group-name"
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+                aria-required="true"
+              />
             </div>
             <div className="mb-nc-md flex flex-col gap-nc-xs">
               <Label htmlFor="edit-group-description">Description</Label>
-              <Input id="edit-group-description" type="text" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Optional description" />
+              <Input
+                id="edit-group-description"
+                type="text"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Optional description"
+              />
             </div>
-            {saveError && <p className="text-nc-sm text-nc-danger-default" role="alert">{saveError}</p>}
+            {saveError && (
+              <p className="text-nc-sm text-nc-danger-default" role="alert">
+                {saveError}
+              </p>
+            )}
             <div className="mt-nc-md flex justify-end gap-nc-sm">
-              <Button type="button" variant="secondary" onClick={cancelEditing} disabled={isSaving}>Cancel</Button>
+              <Button type="button" variant="secondary" onClick={cancelEditing} disabled={isSaving}>
+                Cancel
+              </Button>
               <Button type="submit" variant="primary" disabled={isSaving || !editName.trim()}>
                 {isSaving ? 'Saving…' : 'Save changes'}
               </Button>
@@ -243,12 +284,24 @@ export function GroupDetail() {
             Delete &ldquo;{group?.name}&rdquo;?
           </h2>
           <p className="text-nc-sm text-nc-content-secondary">
-            This action cannot be undone. All events, memberships, and data for this group will be permanently deleted.
+            This action cannot be undone. All events, memberships, and data for this group will be
+            permanently deleted.
           </p>
-          {deleteError && <p className="mt-nc-sm text-nc-sm text-nc-danger-default" role="alert">{deleteError}</p>}
+          {deleteError && (
+            <p className="mt-nc-sm text-nc-sm text-nc-danger-default" role="alert">
+              {deleteError}
+            </p>
+          )}
           <div className="mt-nc-md flex justify-end gap-nc-sm">
-            <Button type="button" variant="secondary" onClick={cancelDelete} disabled={isDeleting}>Cancel</Button>
-            <Button type="button" variant="danger" onClick={() => void handleDelete()} disabled={isDeleting}>
+            <Button type="button" variant="secondary" onClick={cancelDelete} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => void handleDelete()}
+              disabled={isDeleting}
+            >
               {isDeleting ? 'Deleting…' : 'Delete group'}
             </Button>
           </div>
@@ -257,7 +310,9 @@ export function GroupDetail() {
 
       {/* Events list */}
       <section aria-labelledby="events-heading">
-        <h2 id="events-heading" className="mb-nc-md text-nc-lg font-semibold">Events</h2>
+        <h2 id="events-heading" className="mb-nc-md text-nc-lg font-semibold">
+          Events
+        </h2>
 
         {events.length === 0 ? (
           <EmptyState
@@ -283,7 +338,11 @@ export function GroupDetail() {
                         ? 'cursor-default border-dashed border-nc-border-default opacity-80'
                         : 'cursor-pointer border-nc-border-default hover:border-nc-accent-default hover:shadow-nc-sm',
                     ].join(' ')}
-                    onClick={isClickable ? () => navigate(`/groups/${groupId}/events/${event.id}`) : undefined}
+                    onClick={
+                      isClickable
+                        ? () => navigate(`/groups/${groupId}/events/${event.id}`)
+                        : undefined
+                    }
                     disabled={!isClickable}
                     aria-disabled={!isClickable}
                     aria-label={
@@ -300,7 +359,11 @@ export function GroupDetail() {
                       ) : event.status === 'cancelled' ? (
                         <Ban size={18} className="text-nc-danger-default" aria-hidden="true" />
                       ) : (
-                        <CalendarDays size={18} className="text-nc-accent-default" aria-hidden="true" />
+                        <CalendarDays
+                          size={18}
+                          className="text-nc-accent-default"
+                          aria-hidden="true"
+                        />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -311,9 +374,13 @@ export function GroupDetail() {
                           {event.title ?? UNTITLED_EVENT_LABEL}
                         </span>
                       )}
-                      <span className="block text-nc-sm text-nc-content-secondary">{formatDate(event.startAt)}</span>
+                      <span className="block text-nc-sm text-nc-content-secondary">
+                        {formatDate(event.startAt)}
+                      </span>
                       {!isBusy && event.ownerDisplayName && (
-                        <span className="block text-nc-xs text-nc-content-secondary">{event.ownerDisplayName}</span>
+                        <span className="block text-nc-xs text-nc-content-secondary">
+                          {event.ownerDisplayName}
+                        </span>
                       )}
                       <div className="mt-nc-xs flex gap-nc-xs">
                         {event.status === 'cancelled' && <Badge variant="danger">Cancelled</Badge>}
@@ -321,7 +388,11 @@ export function GroupDetail() {
                       </div>
                     </div>
                     {isClickable && (
-                      <ChevronRight size={20} className="shrink-0 text-nc-content-secondary" aria-hidden="true" />
+                      <ChevronRight
+                        size={20}
+                        className="shrink-0 text-nc-content-secondary"
+                        aria-hidden="true"
+                      />
                     )}
                   </button>
                 </li>

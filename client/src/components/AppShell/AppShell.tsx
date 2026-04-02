@@ -109,9 +109,7 @@ export function AppShell() {
                 className={cn(
                   'flex flex-col items-center justify-center gap-0.5 py-nc-sm no-underline',
                   'min-h-[3.5rem] text-[0.6875rem] font-medium transition-colors duration-150',
-                  isActive(item.to)
-                    ? 'text-nc-accent-default'
-                    : 'text-nc-content-secondary',
+                  isActive(item.to) ? 'text-nc-accent-default' : 'text-nc-content-secondary',
                 )}
                 aria-current={isActive(item.to) ? 'page' : undefined}
               >

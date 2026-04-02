@@ -123,27 +123,49 @@ export function EventDetail() {
   if (isLoading) {
     return (
       <main id="main-content" className="mx-auto max-w-2xl px-nc-md py-nc-2xl">
-        <p className="text-nc-sm text-nc-content-secondary" aria-live="polite">Loading event…</p>
+        <p className="text-nc-sm text-nc-content-secondary" aria-live="polite">
+          Loading event…
+        </p>
       </main>
     );
   }
 
   if (error || !event) {
     return (
-      <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-2xl">
-        <p className="text-nc-sm text-nc-danger-default" role="alert">{error ?? 'Event not found.'}</p>
-        <Button variant="secondary" onClick={() => navigate(-1)}>Go back</Button>
+      <main
+        id="main-content"
+        className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-2xl"
+      >
+        <p className="text-nc-sm text-nc-danger-default" role="alert">
+          {error ?? 'Event not found.'}
+        </p>
+        <Button variant="secondary" onClick={() => navigate(-1)}>
+          Go back
+        </Button>
       </main>
     );
   }
 
   return (
-    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+    <main
+      id="main-content"
+      className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl"
+    >
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary">
-        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">Groups</Link>
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary"
+      >
+        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">
+          Groups
+        </Link>
         <span aria-hidden="true">›</span>
-        <Link to={`/groups/${event.groupId}`} className="text-nc-accent-default no-underline hover:underline">Group</Link>
+        <Link
+          to={`/groups/${event.groupId}`}
+          className="text-nc-accent-default no-underline hover:underline"
+        >
+          Group
+        </Link>
         <span aria-hidden="true">›</span>
         <span aria-current="page">{event.title}</span>
       </nav>
@@ -153,7 +175,9 @@ export function EventDetail() {
         <div className="flex-1">
           <h1 className="text-nc-2xl font-bold">{event.title}</h1>
           {event.status === 'cancelled' && (
-            <Badge variant="danger" className="mt-nc-xs">Cancelled</Badge>
+            <Badge variant="danger" className="mt-nc-xs">
+              Cancelled
+            </Badge>
           )}
         </div>
         {event.groupId === null && callerUserId === event.ownerId && (
@@ -173,26 +197,44 @@ export function EventDetail() {
       <Card>
         <div className="flex flex-col gap-nc-md">
           <div className="flex items-start gap-nc-md">
-            <CalendarDays size={20} className="mt-0.5 shrink-0 text-nc-accent-default" aria-hidden="true" />
+            <CalendarDays
+              size={20}
+              className="mt-0.5 shrink-0 text-nc-accent-default"
+              aria-hidden="true"
+            />
             <div>
-              <strong className="block text-nc-sm font-medium text-nc-content-secondary">Starts</strong>
+              <strong className="block text-nc-sm font-medium text-nc-content-secondary">
+                Starts
+              </strong>
               <p className="mt-nc-xs">{formatDate(event.startAt)}</p>
             </div>
           </div>
           {event.endAt && (
             <div className="flex items-start gap-nc-md">
-              <Flag size={20} className="mt-0.5 shrink-0 text-nc-accent-default" aria-hidden="true" />
+              <Flag
+                size={20}
+                className="mt-0.5 shrink-0 text-nc-accent-default"
+                aria-hidden="true"
+              />
               <div>
-                <strong className="block text-nc-sm font-medium text-nc-content-secondary">Ends</strong>
+                <strong className="block text-nc-sm font-medium text-nc-content-secondary">
+                  Ends
+                </strong>
                 <p className="mt-nc-xs">{formatDate(event.endAt)}</p>
               </div>
             </div>
           )}
           {event.description && (
             <div className="flex items-start gap-nc-md">
-              <FileText size={20} className="mt-0.5 shrink-0 text-nc-accent-default" aria-hidden="true" />
+              <FileText
+                size={20}
+                className="mt-0.5 shrink-0 text-nc-accent-default"
+                aria-hidden="true"
+              />
               <div>
-                <strong className="block text-nc-sm font-medium text-nc-content-secondary">Description</strong>
+                <strong className="block text-nc-sm font-medium text-nc-content-secondary">
+                  Description
+                </strong>
                 <p className="mt-nc-xs">{event.description}</p>
               </div>
             </div>
@@ -203,13 +245,20 @@ export function EventDetail() {
       {/* RSVP */}
       {event.status !== 'cancelled' && (
         <Card>
-          <h2 id="rsvp-heading" className="mb-nc-md text-nc-lg font-semibold">Your RSVP</h2>
+          <h2 id="rsvp-heading" className="mb-nc-md text-nc-lg font-semibold">
+            Your RSVP
+          </h2>
           {myInvitation && (
             <p className="mb-nc-md text-nc-sm text-nc-content-secondary">
-              Current status: <strong>{RSVP_LABELS[myInvitation.status] ?? myInvitation.status}</strong>
+              Current status:{' '}
+              <strong>{RSVP_LABELS[myInvitation.status] ?? myInvitation.status}</strong>
             </p>
           )}
-          {rsvpError && <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">{rsvpError}</p>}
+          {rsvpError && (
+            <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">
+              {rsvpError}
+            </p>
+          )}
           <div className="flex flex-wrap gap-nc-sm">
             <Button
               variant="primary"
@@ -249,8 +298,15 @@ export function EventDetail() {
             {invitations
               .filter((i) => i.status !== 'removed')
               .map((inv) => (
-                <li key={inv.userId} className="flex items-center gap-nc-md border-b border-nc-border-default py-nc-sm last:border-b-0">
-                  <UserCircle size={24} className="shrink-0 text-nc-content-secondary" aria-hidden="true" />
+                <li
+                  key={inv.userId}
+                  className="flex items-center gap-nc-md border-b border-nc-border-default py-nc-sm last:border-b-0"
+                >
+                  <UserCircle
+                    size={24}
+                    className="shrink-0 text-nc-content-secondary"
+                    aria-hidden="true"
+                  />
                   <span className="flex-1 font-medium" title={inv.userId}>
                     Member ({inv.userId.slice(0, 8)}…)
                   </span>

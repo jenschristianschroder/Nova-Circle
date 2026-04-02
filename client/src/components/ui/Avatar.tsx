@@ -32,9 +32,7 @@ export function Avatar({ src, alt = '', fallback, size = 'md', className }: Avat
         className,
       )}
     >
-      {src && (
-        <AvatarPrimitive.Image src={src} alt={alt} className="h-full w-full object-cover" />
-      )}
+      {src && <AvatarPrimitive.Image src={src} alt={alt} className="h-full w-full object-cover" />}
       <AvatarPrimitive.Fallback
         className="flex h-full w-full items-center justify-center font-medium text-nc-content-secondary"
         delayMs={src ? 600 : 0}
