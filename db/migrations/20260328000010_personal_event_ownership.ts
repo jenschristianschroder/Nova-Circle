@@ -65,16 +65,20 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   // ── 4. Back-fill event_shares for existing group-scoped events ─────────
-  await knex('event_shares').insert(
-    knex('events')
-      .select({
-        event_id: 'id',
-        group_id: 'group_id',
-        shared_by_user_id: 'created_by',
-      })
-      .select(knex.raw("'details' as visibility_level"))
-      .whereNotNull('group_id'),
-  );
+  const groupEvents = await knex('events')
+    .select('id', 'group_id', 'created_by')
+    .whereNotNull('group_id');
+
+  if (groupEvents.length > 0) {
+    await knex('event_shares').insert(
+      groupEvents.map((e: { id: string; group_id: string; created_by: string }) => ({
+        event_id: e.id,
+        group_id: e.group_id,
+        visibility_level: 'details',
+        shared_by_user_id: e.created_by,
+      })),
+    );
+  }
 
   // ── 5. Add performance indexes ─────────────────────────────────────────
   await knex.schema.alterTable('events', (table) => {
