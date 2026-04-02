@@ -2,39 +2,40 @@
 
 exports[`Home page snapshot > renders correctly in dark mode 1`] = `
 <div
-  class="_page_650bde"
+  class="flex min-h-dvh flex-col bg-nc-surface-background text-nc-content-primary"
 >
   <header
-    class="_header_650bde"
+    class="border-b border-nc-border-default bg-nc-surface-card"
     role="banner"
   >
     <div
-      class="_headerInner_650bde"
+      class="mx-auto flex max-w-5xl items-center px-nc-md py-nc-sm md:px-nc-lg"
     >
       <div
-        class="_brand_650bde"
+        class="flex items-center gap-nc-sm"
       >
         <span
           aria-hidden="true"
-          class="_brandIcon_650bde"
+          class="text-2xl text-nc-accent-default"
         >
           ◎
         </span>
         <span
-          class="_brandName_650bde"
+          class="text-nc-lg font-semibold tracking-tight"
         >
           Nova-Circle
         </span>
       </div>
       <nav
         aria-label="Primary navigation"
+        class="ml-auto"
       >
         <ul
-          class="_navList_650bde"
+          class="flex gap-nc-md"
         >
           <li>
             <a
-              class="_navLink_650bde"
+              class="text-nc-sm font-medium text-nc-content-secondary no-underline hover:text-nc-content-primary"
               href="#groups"
             >
               Groups
@@ -42,7 +43,7 @@ exports[`Home page snapshot > renders correctly in dark mode 1`] = `
           </li>
           <li>
             <a
-              class="_navLink_650bde"
+              class="text-nc-sm font-medium text-nc-content-secondary no-underline hover:text-nc-content-primary"
               href="#events"
             >
               Events
@@ -53,476 +54,482 @@ exports[`Home page snapshot > renders correctly in dark mode 1`] = `
     </div>
   </header>
   <main
-    class="_main_650bde"
+    class="mx-auto w-full max-w-5xl flex-1 px-nc-md py-nc-2xl md:px-nc-lg"
     id="main-content"
   >
-    <section
-      aria-labelledby="hero-heading"
-      class="_hero_650bde"
+    <div
+      class="flex flex-col gap-nc-2xl"
     >
-      <h1
-        class="_heroTitle_650bde"
-        id="hero-heading"
+      <section
+        aria-labelledby="hero-heading"
+        class="flex flex-col items-center gap-nc-lg py-nc-3xl text-center"
       >
-        Your private group calendar
-      </h1>
-      <p
-        class="_heroSubtitle_650bde"
-      >
-        Organise events with friends and family. Privacy-first, no tracking.
-      </p>
-      <div
-        class="_heroActions_650bde"
-      >
-        <button
-          class="_button_0829c1 _primary_0829c1 _lg_0829c1"
+        <h1
+          class="max-w-[28ch] text-[clamp(2rem,5vw,3.5rem)] font-bold leading-[1.15] tracking-tight"
+          id="hero-heading"
         >
-          Get started
-        </button>
-        <button
-          class="_button_0829c1 _secondary_0829c1 _lg_0829c1"
-        >
-          Learn more
-        </button>
-      </div>
-    </section>
-    <section
-      aria-labelledby="appearance-heading"
-      class="_section_650bde"
-    >
-      <div
-        class="_card_650bde"
-      >
-        <h2
-          class="_sectionTitle_650bde"
-          id="appearance-heading"
-        >
-          Appearance
-        </h2>
+          Your private group calendar
+        </h1>
         <p
-          class="_sectionSubtitle_650bde"
+          class="max-w-[44ch] text-lg leading-relaxed text-nc-content-secondary"
         >
-          Currently: 
-          <strong>
-            dark
-             mode
-          </strong>
-           with
-           
-          <strong>
-            default
-             palette
-          </strong>
+          Organise events with friends and family. Privacy-first, no tracking.
         </p>
         <div
-          aria-label="Appearance settings"
-          class="_container_e7ffc6"
-          role="group"
+          class="flex flex-wrap justify-center gap-nc-md"
         >
-          <fieldset
-            class="_fieldset_e7ffc6"
+          <button
+            class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-nc-md px-nc-lg py-nc-sm min-h-[3rem]"
           >
-            <legend
-              class="_legend_e7ffc6"
-            >
-              Colour mode
-            </legend>
-            <div
-              aria-label="Colour mode"
-              class="_modeButtons_e7ffc6"
-              role="radiogroup"
-            >
-              <label
-                class="_modeLabel_e7ffc6"
-              >
-                <input
-                  class="_hiddenRadio_e7ffc6"
-                  name="theme-mode"
-                  type="radio"
-                  value="light"
-                />
-                <span
-                  class="_modeButton_e7ffc6"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="_modeIcon_e7ffc6"
-                  >
-                    ☀️
-                  </span>
-                  <span>
-                    Light
-                  </span>
-                </span>
-              </label>
-              <label
-                class="_modeLabel_e7ffc6"
-              >
-                <input
-                  checked=""
-                  class="_hiddenRadio_e7ffc6"
-                  name="theme-mode"
-                  type="radio"
-                  value="dark"
-                />
-                <span
-                  class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="_modeIcon_e7ffc6"
-                  >
-                    🌙
-                  </span>
-                  <span>
-                    Dark
-                  </span>
-                </span>
-              </label>
-              <label
-                class="_modeLabel_e7ffc6"
-              >
-                <input
-                  class="_hiddenRadio_e7ffc6"
-                  name="theme-mode"
-                  type="radio"
-                  value="system"
-                />
-                <span
-                  class="_modeButton_e7ffc6"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="_modeIcon_e7ffc6"
-                  >
-                    💻
-                  </span>
-                  <span>
-                    System
-                  </span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-          <fieldset
-            class="_fieldset_e7ffc6"
+            Get started
+          </button>
+          <button
+            class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-transparent border-nc-border-interactive text-nc-content-primary hover:bg-nc-surface-subtle active:bg-nc-surface-subtle active:border-nc-accent-default text-nc-md px-nc-lg py-nc-sm min-h-[3rem]"
           >
-            <legend
-              class="_legend_e7ffc6"
-            >
-              Colour palette
-            </legend>
-            <div
-              aria-label="Colour palette"
-              class="_paletteSwatches_e7ffc6"
-              role="radiogroup"
-            >
-              <label
-                title="Default – Calm indigo/violet tones"
-              >
-                <input
-                  aria-label="Default palette – Calm indigo/violet tones"
-                  checked=""
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="default"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
-                  style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
-                />
-              </label>
-              <label
-                title="Ocean – Cool teal and cyan tones"
-              >
-                <input
-                  aria-label="Ocean palette – Cool teal and cyan tones"
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="ocean"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6"
-                  style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
-                />
-              </label>
-              <label
-                title="Forest – Warm green and emerald tones"
-              >
-                <input
-                  aria-label="Forest palette – Warm green and emerald tones"
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="forest"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6"
-                  style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
-                />
-              </label>
-              <label
-                title="Sunset – Warm amber and orange tones"
-              >
-                <input
-                  aria-label="Sunset palette – Warm amber and orange tones"
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="sunset"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6"
-                  style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
-                />
-              </label>
-            </div>
-          </fieldset>
+            Learn more
+          </button>
         </div>
-      </div>
-    </section>
-    <section
-      aria-labelledby="components-heading"
-      class="_section_650bde"
-    >
-      <h2
-        class="_sectionTitle_650bde"
-        id="components-heading"
+      </section>
+      <section
+        aria-labelledby="appearance-heading"
       >
-        Component showcase
-      </h2>
-      <div
-        class="_card_650bde"
-      >
-        <h3
-          class="_cardTitle_650bde"
-        >
-          Buttons
-        </h3>
         <div
-          class="_showcase_650bde"
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
         >
-          <div
-            class="_showcaseRow_650bde"
+          <h2
+            class="text-nc-xl font-semibold"
+            id="appearance-heading"
           >
-            <button
-              class="_button_0829c1 _primary_0829c1 _sm_0829c1"
-            >
-              Small
-            </button>
-            <button
-              class="_button_0829c1 _primary_0829c1 _md_0829c1"
-            >
-              Medium
-            </button>
-            <button
-              class="_button_0829c1 _primary_0829c1 _lg_0829c1"
-            >
-              Large
-            </button>
-          </div>
-          <div
-            class="_showcaseRow_650bde"
-          >
-            <button
-              class="_button_0829c1 _secondary_0829c1 _md_0829c1"
-            >
-              Secondary
-            </button>
-            <button
-              class="_button_0829c1 _danger_0829c1 _md_0829c1"
-            >
-              Danger
-            </button>
-            <button
-              class="_button_0829c1 _primary_0829c1 _md_0829c1"
-              disabled=""
-            >
-              Disabled
-            </button>
-          </div>
-        </div>
-      </div>
-      <div
-        class="_card_650bde"
-      >
-        <h3
-          class="_cardTitle_650bde"
-        >
-          Typography
-        </h3>
-        <div
-          class="_typographyShowcase_650bde"
-        >
-          <h1>
-            Heading 1 — 2rem
-          </h1>
-          <h2>
-            Heading 2 — 1.563rem
+            Appearance
           </h2>
-          <h3>
-            Heading 3 — 1.25rem
-          </h3>
-          <h4>
-            Heading 4 — 1rem
-          </h4>
-          <p>
-            Body text — system-ui. Nova-Circle keeps your events and group activity private. Only explicitly invited members can see event details.
+          <p
+            class="mt-nc-xs text-nc-content-secondary"
+          >
+            Currently: 
+            <strong>
+              dark
+               mode
+            </strong>
+             with 
+            <strong>
+              default
+               palette
+            </strong>
           </p>
-          <small>
-            Small text — secondary colour
-          </small>
+          <div
+            class="mt-nc-md"
+          >
+            <div
+              aria-label="Appearance settings"
+              class="_container_e7ffc6"
+              role="group"
+            >
+              <fieldset
+                class="_fieldset_e7ffc6"
+              >
+                <legend
+                  class="_legend_e7ffc6"
+                >
+                  Colour mode
+                </legend>
+                <div
+                  aria-label="Colour mode"
+                  class="_modeButtons_e7ffc6"
+                  role="radiogroup"
+                >
+                  <label
+                    class="_modeLabel_e7ffc6"
+                  >
+                    <input
+                      class="_hiddenRadio_e7ffc6"
+                      name="theme-mode"
+                      type="radio"
+                      value="light"
+                    />
+                    <span
+                      class="_modeButton_e7ffc6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="_modeIcon_e7ffc6"
+                      >
+                        ☀️
+                      </span>
+                      <span>
+                        Light
+                      </span>
+                    </span>
+                  </label>
+                  <label
+                    class="_modeLabel_e7ffc6"
+                  >
+                    <input
+                      checked=""
+                      class="_hiddenRadio_e7ffc6"
+                      name="theme-mode"
+                      type="radio"
+                      value="dark"
+                    />
+                    <span
+                      class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="_modeIcon_e7ffc6"
+                      >
+                        🌙
+                      </span>
+                      <span>
+                        Dark
+                      </span>
+                    </span>
+                  </label>
+                  <label
+                    class="_modeLabel_e7ffc6"
+                  >
+                    <input
+                      class="_hiddenRadio_e7ffc6"
+                      name="theme-mode"
+                      type="radio"
+                      value="system"
+                    />
+                    <span
+                      class="_modeButton_e7ffc6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="_modeIcon_e7ffc6"
+                      >
+                        💻
+                      </span>
+                      <span>
+                        System
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+              <fieldset
+                class="_fieldset_e7ffc6"
+              >
+                <legend
+                  class="_legend_e7ffc6"
+                >
+                  Colour palette
+                </legend>
+                <div
+                  aria-label="Colour palette"
+                  class="_paletteSwatches_e7ffc6"
+                  role="radiogroup"
+                >
+                  <label
+                    title="Default – Calm indigo/violet tones"
+                  >
+                    <input
+                      aria-label="Default palette – Calm indigo/violet tones"
+                      checked=""
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="default"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
+                      style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
+                    />
+                  </label>
+                  <label
+                    title="Ocean – Cool teal and cyan tones"
+                  >
+                    <input
+                      aria-label="Ocean palette – Cool teal and cyan tones"
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="ocean"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6"
+                      style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
+                    />
+                  </label>
+                  <label
+                    title="Forest – Warm green and emerald tones"
+                  >
+                    <input
+                      aria-label="Forest palette – Warm green and emerald tones"
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="forest"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6"
+                      style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
+                    />
+                  </label>
+                  <label
+                    title="Sunset – Warm amber and orange tones"
+                  >
+                    <input
+                      aria-label="Sunset palette – Warm amber and orange tones"
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="sunset"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6"
+                      style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
+                    />
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+          </div>
         </div>
-      </div>
-      <div
-        class="_card_650bde"
+      </section>
+      <section
+        aria-labelledby="components-heading"
+        class="flex flex-col gap-nc-lg"
       >
-        <h3
-          class="_cardTitle_650bde"
+        <h2
+          class="text-nc-xl font-semibold"
+          id="components-heading"
         >
-          Semantic colour tokens
-        </h3>
+          Component showcase
+        </h2>
         <div
-          aria-label="Colour token swatches"
-          class="_tokenGrid_650bde"
-          role="list"
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
         >
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
+          <h3
+            class="mb-nc-md text-nc-lg font-semibold"
           >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-surface-background);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              surface.background
-            </span>
-          </div>
+            Buttons
+          </h3>
           <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
+            class="flex flex-col gap-nc-md"
           >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-surface-card);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
+            <div
+              class="flex flex-wrap items-center gap-nc-sm"
             >
-              surface.card
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-surface-subtle);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.8125rem] px-nc-sm py-nc-xs min-h-[2rem]"
+              >
+                Small
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+              >
+                Medium
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-nc-md px-nc-lg py-nc-sm min-h-[3rem]"
+              >
+                Large
+              </button>
+            </div>
+            <div
+              class="flex flex-wrap items-center gap-nc-sm"
             >
-              surface.subtle
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-accent-default);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              accent.default
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-accent-hover);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              accent.hover
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-accent-subtle);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              accent.subtle
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-danger-default);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              danger.default
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-success-default);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              success.default
-            </span>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-transparent border-nc-border-interactive text-nc-content-primary hover:bg-nc-surface-subtle active:bg-nc-surface-subtle active:border-nc-accent-default text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+              >
+                Secondary
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-danger-default border-nc-danger-default text-nc-content-on-danger hover:bg-nc-danger-hover hover:border-nc-danger-hover text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+              >
+                Danger
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+                disabled=""
+              >
+                Disabled
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+        <div
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
+        >
+          <h3
+            class="mb-nc-md text-nc-lg font-semibold"
+          >
+            Typography
+          </h3>
+          <div
+            class="flex flex-col gap-nc-sm"
+          >
+            <h1>
+              Heading 1 — 2rem
+            </h1>
+            <h2>
+              Heading 2 — 1.563rem
+            </h2>
+            <h3>
+              Heading 3 — 1.25rem
+            </h3>
+            <h4>
+              Heading 4 — 1rem
+            </h4>
+            <p>
+              Body text — system-ui. Nova-Circle keeps your events and group activity private. Only explicitly invited members can see event details.
+            </p>
+            <small>
+              Small text — secondary colour
+            </small>
+          </div>
+        </div>
+        <div
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
+        >
+          <h3
+            class="mb-nc-md text-nc-lg font-semibold"
+          >
+            Semantic colour tokens
+          </h3>
+          <div
+            aria-label="Colour token swatches"
+            class="grid grid-cols-2 gap-nc-sm sm:grid-cols-4"
+            role="list"
+          >
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-surface-background);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                surface.background
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-surface-card);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                surface.card
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-surface-subtle);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                surface.subtle
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-accent-default);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                accent.default
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-accent-hover);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                accent.hover
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-accent-subtle);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                accent.subtle
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-danger-default);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                danger.default
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-success-default);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                success.default
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
   <footer
-    class="_footer_650bde"
+    class="border-t border-nc-border-default bg-nc-surface-card py-nc-lg text-center"
     role="contentinfo"
   >
     <p
-      class="_footerText_650bde"
+      class="text-nc-sm text-nc-content-secondary"
     >
       Nova-Circle — privacy-first group calendar. No tracking. No ads.
     </p>
@@ -532,39 +539,40 @@ exports[`Home page snapshot > renders correctly in dark mode 1`] = `
 
 exports[`Home page snapshot > renders correctly in light mode 1`] = `
 <div
-  class="_page_650bde"
+  class="flex min-h-dvh flex-col bg-nc-surface-background text-nc-content-primary"
 >
   <header
-    class="_header_650bde"
+    class="border-b border-nc-border-default bg-nc-surface-card"
     role="banner"
   >
     <div
-      class="_headerInner_650bde"
+      class="mx-auto flex max-w-5xl items-center px-nc-md py-nc-sm md:px-nc-lg"
     >
       <div
-        class="_brand_650bde"
+        class="flex items-center gap-nc-sm"
       >
         <span
           aria-hidden="true"
-          class="_brandIcon_650bde"
+          class="text-2xl text-nc-accent-default"
         >
           ◎
         </span>
         <span
-          class="_brandName_650bde"
+          class="text-nc-lg font-semibold tracking-tight"
         >
           Nova-Circle
         </span>
       </div>
       <nav
         aria-label="Primary navigation"
+        class="ml-auto"
       >
         <ul
-          class="_navList_650bde"
+          class="flex gap-nc-md"
         >
           <li>
             <a
-              class="_navLink_650bde"
+              class="text-nc-sm font-medium text-nc-content-secondary no-underline hover:text-nc-content-primary"
               href="#groups"
             >
               Groups
@@ -572,7 +580,7 @@ exports[`Home page snapshot > renders correctly in light mode 1`] = `
           </li>
           <li>
             <a
-              class="_navLink_650bde"
+              class="text-nc-sm font-medium text-nc-content-secondary no-underline hover:text-nc-content-primary"
               href="#events"
             >
               Events
@@ -583,476 +591,482 @@ exports[`Home page snapshot > renders correctly in light mode 1`] = `
     </div>
   </header>
   <main
-    class="_main_650bde"
+    class="mx-auto w-full max-w-5xl flex-1 px-nc-md py-nc-2xl md:px-nc-lg"
     id="main-content"
   >
-    <section
-      aria-labelledby="hero-heading"
-      class="_hero_650bde"
+    <div
+      class="flex flex-col gap-nc-2xl"
     >
-      <h1
-        class="_heroTitle_650bde"
-        id="hero-heading"
+      <section
+        aria-labelledby="hero-heading"
+        class="flex flex-col items-center gap-nc-lg py-nc-3xl text-center"
       >
-        Your private group calendar
-      </h1>
-      <p
-        class="_heroSubtitle_650bde"
-      >
-        Organise events with friends and family. Privacy-first, no tracking.
-      </p>
-      <div
-        class="_heroActions_650bde"
-      >
-        <button
-          class="_button_0829c1 _primary_0829c1 _lg_0829c1"
+        <h1
+          class="max-w-[28ch] text-[clamp(2rem,5vw,3.5rem)] font-bold leading-[1.15] tracking-tight"
+          id="hero-heading"
         >
-          Get started
-        </button>
-        <button
-          class="_button_0829c1 _secondary_0829c1 _lg_0829c1"
-        >
-          Learn more
-        </button>
-      </div>
-    </section>
-    <section
-      aria-labelledby="appearance-heading"
-      class="_section_650bde"
-    >
-      <div
-        class="_card_650bde"
-      >
-        <h2
-          class="_sectionTitle_650bde"
-          id="appearance-heading"
-        >
-          Appearance
-        </h2>
+          Your private group calendar
+        </h1>
         <p
-          class="_sectionSubtitle_650bde"
+          class="max-w-[44ch] text-lg leading-relaxed text-nc-content-secondary"
         >
-          Currently: 
-          <strong>
-            light
-             mode
-          </strong>
-           with
-           
-          <strong>
-            default
-             palette
-          </strong>
+          Organise events with friends and family. Privacy-first, no tracking.
         </p>
         <div
-          aria-label="Appearance settings"
-          class="_container_e7ffc6"
-          role="group"
+          class="flex flex-wrap justify-center gap-nc-md"
         >
-          <fieldset
-            class="_fieldset_e7ffc6"
+          <button
+            class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-nc-md px-nc-lg py-nc-sm min-h-[3rem]"
           >
-            <legend
-              class="_legend_e7ffc6"
-            >
-              Colour mode
-            </legend>
-            <div
-              aria-label="Colour mode"
-              class="_modeButtons_e7ffc6"
-              role="radiogroup"
-            >
-              <label
-                class="_modeLabel_e7ffc6"
-              >
-                <input
-                  checked=""
-                  class="_hiddenRadio_e7ffc6"
-                  name="theme-mode"
-                  type="radio"
-                  value="light"
-                />
-                <span
-                  class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="_modeIcon_e7ffc6"
-                  >
-                    ☀️
-                  </span>
-                  <span>
-                    Light
-                  </span>
-                </span>
-              </label>
-              <label
-                class="_modeLabel_e7ffc6"
-              >
-                <input
-                  class="_hiddenRadio_e7ffc6"
-                  name="theme-mode"
-                  type="radio"
-                  value="dark"
-                />
-                <span
-                  class="_modeButton_e7ffc6"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="_modeIcon_e7ffc6"
-                  >
-                    🌙
-                  </span>
-                  <span>
-                    Dark
-                  </span>
-                </span>
-              </label>
-              <label
-                class="_modeLabel_e7ffc6"
-              >
-                <input
-                  class="_hiddenRadio_e7ffc6"
-                  name="theme-mode"
-                  type="radio"
-                  value="system"
-                />
-                <span
-                  class="_modeButton_e7ffc6"
-                >
-                  <span
-                    aria-hidden="true"
-                    class="_modeIcon_e7ffc6"
-                  >
-                    💻
-                  </span>
-                  <span>
-                    System
-                  </span>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-          <fieldset
-            class="_fieldset_e7ffc6"
+            Get started
+          </button>
+          <button
+            class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-transparent border-nc-border-interactive text-nc-content-primary hover:bg-nc-surface-subtle active:bg-nc-surface-subtle active:border-nc-accent-default text-nc-md px-nc-lg py-nc-sm min-h-[3rem]"
           >
-            <legend
-              class="_legend_e7ffc6"
-            >
-              Colour palette
-            </legend>
-            <div
-              aria-label="Colour palette"
-              class="_paletteSwatches_e7ffc6"
-              role="radiogroup"
-            >
-              <label
-                title="Default – Calm indigo/violet tones"
-              >
-                <input
-                  aria-label="Default palette – Calm indigo/violet tones"
-                  checked=""
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="default"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
-                  style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
-                />
-              </label>
-              <label
-                title="Ocean – Cool teal and cyan tones"
-              >
-                <input
-                  aria-label="Ocean palette – Cool teal and cyan tones"
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="ocean"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6"
-                  style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
-                />
-              </label>
-              <label
-                title="Forest – Warm green and emerald tones"
-              >
-                <input
-                  aria-label="Forest palette – Warm green and emerald tones"
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="forest"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6"
-                  style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
-                />
-              </label>
-              <label
-                title="Sunset – Warm amber and orange tones"
-              >
-                <input
-                  aria-label="Sunset palette – Warm amber and orange tones"
-                  class="_hiddenRadio_e7ffc6"
-                  name="palette"
-                  type="radio"
-                  value="sunset"
-                />
-                <span
-                  aria-hidden="true"
-                  class="_paletteSwatch_e7ffc6"
-                  style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
-                />
-              </label>
-            </div>
-          </fieldset>
+            Learn more
+          </button>
         </div>
-      </div>
-    </section>
-    <section
-      aria-labelledby="components-heading"
-      class="_section_650bde"
-    >
-      <h2
-        class="_sectionTitle_650bde"
-        id="components-heading"
+      </section>
+      <section
+        aria-labelledby="appearance-heading"
       >
-        Component showcase
-      </h2>
-      <div
-        class="_card_650bde"
-      >
-        <h3
-          class="_cardTitle_650bde"
-        >
-          Buttons
-        </h3>
         <div
-          class="_showcase_650bde"
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
         >
-          <div
-            class="_showcaseRow_650bde"
+          <h2
+            class="text-nc-xl font-semibold"
+            id="appearance-heading"
           >
-            <button
-              class="_button_0829c1 _primary_0829c1 _sm_0829c1"
-            >
-              Small
-            </button>
-            <button
-              class="_button_0829c1 _primary_0829c1 _md_0829c1"
-            >
-              Medium
-            </button>
-            <button
-              class="_button_0829c1 _primary_0829c1 _lg_0829c1"
-            >
-              Large
-            </button>
-          </div>
-          <div
-            class="_showcaseRow_650bde"
-          >
-            <button
-              class="_button_0829c1 _secondary_0829c1 _md_0829c1"
-            >
-              Secondary
-            </button>
-            <button
-              class="_button_0829c1 _danger_0829c1 _md_0829c1"
-            >
-              Danger
-            </button>
-            <button
-              class="_button_0829c1 _primary_0829c1 _md_0829c1"
-              disabled=""
-            >
-              Disabled
-            </button>
-          </div>
-        </div>
-      </div>
-      <div
-        class="_card_650bde"
-      >
-        <h3
-          class="_cardTitle_650bde"
-        >
-          Typography
-        </h3>
-        <div
-          class="_typographyShowcase_650bde"
-        >
-          <h1>
-            Heading 1 — 2rem
-          </h1>
-          <h2>
-            Heading 2 — 1.563rem
+            Appearance
           </h2>
-          <h3>
-            Heading 3 — 1.25rem
-          </h3>
-          <h4>
-            Heading 4 — 1rem
-          </h4>
-          <p>
-            Body text — system-ui. Nova-Circle keeps your events and group activity private. Only explicitly invited members can see event details.
+          <p
+            class="mt-nc-xs text-nc-content-secondary"
+          >
+            Currently: 
+            <strong>
+              light
+               mode
+            </strong>
+             with 
+            <strong>
+              default
+               palette
+            </strong>
           </p>
-          <small>
-            Small text — secondary colour
-          </small>
+          <div
+            class="mt-nc-md"
+          >
+            <div
+              aria-label="Appearance settings"
+              class="_container_e7ffc6"
+              role="group"
+            >
+              <fieldset
+                class="_fieldset_e7ffc6"
+              >
+                <legend
+                  class="_legend_e7ffc6"
+                >
+                  Colour mode
+                </legend>
+                <div
+                  aria-label="Colour mode"
+                  class="_modeButtons_e7ffc6"
+                  role="radiogroup"
+                >
+                  <label
+                    class="_modeLabel_e7ffc6"
+                  >
+                    <input
+                      checked=""
+                      class="_hiddenRadio_e7ffc6"
+                      name="theme-mode"
+                      type="radio"
+                      value="light"
+                    />
+                    <span
+                      class="_modeButton_e7ffc6 _modeButtonActive_e7ffc6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="_modeIcon_e7ffc6"
+                      >
+                        ☀️
+                      </span>
+                      <span>
+                        Light
+                      </span>
+                    </span>
+                  </label>
+                  <label
+                    class="_modeLabel_e7ffc6"
+                  >
+                    <input
+                      class="_hiddenRadio_e7ffc6"
+                      name="theme-mode"
+                      type="radio"
+                      value="dark"
+                    />
+                    <span
+                      class="_modeButton_e7ffc6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="_modeIcon_e7ffc6"
+                      >
+                        🌙
+                      </span>
+                      <span>
+                        Dark
+                      </span>
+                    </span>
+                  </label>
+                  <label
+                    class="_modeLabel_e7ffc6"
+                  >
+                    <input
+                      class="_hiddenRadio_e7ffc6"
+                      name="theme-mode"
+                      type="radio"
+                      value="system"
+                    />
+                    <span
+                      class="_modeButton_e7ffc6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="_modeIcon_e7ffc6"
+                      >
+                        💻
+                      </span>
+                      <span>
+                        System
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+              <fieldset
+                class="_fieldset_e7ffc6"
+              >
+                <legend
+                  class="_legend_e7ffc6"
+                >
+                  Colour palette
+                </legend>
+                <div
+                  aria-label="Colour palette"
+                  class="_paletteSwatches_e7ffc6"
+                  role="radiogroup"
+                >
+                  <label
+                    title="Default – Calm indigo/violet tones"
+                  >
+                    <input
+                      aria-label="Default palette – Calm indigo/violet tones"
+                      checked=""
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="default"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6 _paletteSwatchActive_e7ffc6"
+                      style="--swatch-accent: #4f46e5; --swatch-accent-light: #ede9fe;"
+                    />
+                  </label>
+                  <label
+                    title="Ocean – Cool teal and cyan tones"
+                  >
+                    <input
+                      aria-label="Ocean palette – Cool teal and cyan tones"
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="ocean"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6"
+                      style="--swatch-accent: #0891b2; --swatch-accent-light: #cffafe;"
+                    />
+                  </label>
+                  <label
+                    title="Forest – Warm green and emerald tones"
+                  >
+                    <input
+                      aria-label="Forest palette – Warm green and emerald tones"
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="forest"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6"
+                      style="--swatch-accent: #059669; --swatch-accent-light: #dcfce7;"
+                    />
+                  </label>
+                  <label
+                    title="Sunset – Warm amber and orange tones"
+                  >
+                    <input
+                      aria-label="Sunset palette – Warm amber and orange tones"
+                      class="_hiddenRadio_e7ffc6"
+                      name="palette"
+                      type="radio"
+                      value="sunset"
+                    />
+                    <span
+                      aria-hidden="true"
+                      class="_paletteSwatch_e7ffc6"
+                      style="--swatch-accent: #d97706; --swatch-accent-light: #fffbeb;"
+                    />
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+          </div>
         </div>
-      </div>
-      <div
-        class="_card_650bde"
+      </section>
+      <section
+        aria-labelledby="components-heading"
+        class="flex flex-col gap-nc-lg"
       >
-        <h3
-          class="_cardTitle_650bde"
+        <h2
+          class="text-nc-xl font-semibold"
+          id="components-heading"
         >
-          Semantic colour tokens
-        </h3>
+          Component showcase
+        </h2>
         <div
-          aria-label="Colour token swatches"
-          class="_tokenGrid_650bde"
-          role="list"
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
         >
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
+          <h3
+            class="mb-nc-md text-nc-lg font-semibold"
           >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-surface-background);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              surface.background
-            </span>
-          </div>
+            Buttons
+          </h3>
           <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
+            class="flex flex-col gap-nc-md"
           >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-surface-card);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
+            <div
+              class="flex flex-wrap items-center gap-nc-sm"
             >
-              surface.card
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-surface-subtle);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.8125rem] px-nc-sm py-nc-xs min-h-[2rem]"
+              >
+                Small
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+              >
+                Medium
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-nc-md px-nc-lg py-nc-sm min-h-[3rem]"
+              >
+                Large
+              </button>
+            </div>
+            <div
+              class="flex flex-wrap items-center gap-nc-sm"
             >
-              surface.subtle
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-accent-default);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              accent.default
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-accent-hover);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              accent.hover
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-accent-subtle);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              accent.subtle
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-danger-default);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              danger.default
-            </span>
-          </div>
-          <div
-            class="_tokenSwatch_650bde"
-            role="listitem"
-          >
-            <span
-              aria-hidden="true"
-              class="_tokenSwatchColour_650bde"
-              style="background-color: var(--nc-success-default);"
-            />
-            <span
-              class="_tokenSwatchLabel_650bde"
-            >
-              success.default
-            </span>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-transparent border-nc-border-interactive text-nc-content-primary hover:bg-nc-surface-subtle active:bg-nc-surface-subtle active:border-nc-accent-default text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+              >
+                Secondary
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-danger-default border-nc-danger-default text-nc-content-on-danger hover:bg-nc-danger-hover hover:border-nc-danger-hover text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+              >
+                Danger
+              </button>
+              <button
+                class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
+                disabled=""
+              >
+                Disabled
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+        <div
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
+        >
+          <h3
+            class="mb-nc-md text-nc-lg font-semibold"
+          >
+            Typography
+          </h3>
+          <div
+            class="flex flex-col gap-nc-sm"
+          >
+            <h1>
+              Heading 1 — 2rem
+            </h1>
+            <h2>
+              Heading 2 — 1.563rem
+            </h2>
+            <h3>
+              Heading 3 — 1.25rem
+            </h3>
+            <h4>
+              Heading 4 — 1rem
+            </h4>
+            <p>
+              Body text — system-ui. Nova-Circle keeps your events and group activity private. Only explicitly invited members can see event details.
+            </p>
+            <small>
+              Small text — secondary colour
+            </small>
+          </div>
+        </div>
+        <div
+          class="rounded-nc-md border border-nc-border-default bg-nc-surface-card shadow-nc-sm p-nc-lg"
+        >
+          <h3
+            class="mb-nc-md text-nc-lg font-semibold"
+          >
+            Semantic colour tokens
+          </h3>
+          <div
+            aria-label="Colour token swatches"
+            class="grid grid-cols-2 gap-nc-sm sm:grid-cols-4"
+            role="list"
+          >
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-surface-background);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                surface.background
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-surface-card);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                surface.card
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-surface-subtle);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                surface.subtle
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-accent-default);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                accent.default
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-accent-hover);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                accent.hover
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-accent-subtle);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                accent.subtle
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-danger-default);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                danger.default
+              </span>
+            </div>
+            <div
+              class="flex items-center gap-nc-sm"
+              role="listitem"
+            >
+              <span
+                aria-hidden="true"
+                class="h-8 w-8 shrink-0 rounded-nc-sm"
+                style="background-color: var(--nc-success-default);"
+              />
+              <span
+                class="text-nc-xs text-nc-content-secondary"
+              >
+                success.default
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
   <footer
-    class="_footer_650bde"
+    class="border-t border-nc-border-default bg-nc-surface-card py-nc-lg text-center"
     role="contentinfo"
   >
     <p
-      class="_footerText_650bde"
+      class="text-nc-sm text-nc-content-secondary"
     >
       Nova-Circle — privacy-first group calendar. No tracking. No ads.
     </p>

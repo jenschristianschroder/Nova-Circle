@@ -182,12 +182,12 @@ describe('GroupDetail', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/groups/g1/events/e1');
   });
 
-  it('navigates to event creation when "+ New Event" is clicked', async () => {
+  it('navigates to event creation when "New Event" is clicked', async () => {
     const user = userEvent.setup();
     mockLoadData();
     renderGroupDetail();
-    await waitFor(() => screen.getByRole('button', { name: /\+ new event/i }));
-    await user.click(screen.getByRole('button', { name: /\+ new event/i }));
+    await waitFor(() => screen.getByRole('button', { name: /new event/i }));
+    await user.click(screen.getByRole('button', { name: /new event/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/groups/g1/events/new');
   });
 

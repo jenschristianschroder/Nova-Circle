@@ -1,25 +1,26 @@
 /**
  * Login page — shown to unauthenticated users.
  *
- * Displays a brief product description and two calls to action:
- * - "Create account" triggers the MSAL sign-up redirect flow
- * - "Sign in" triggers the MSAL login redirect flow
- *
- * No personal data is rendered or stored here.
+ * Modern minimalist mobile-first design.
+ * Full-screen centered card with ample whitespace.
  */
 
 import { Navigate } from 'react-router-dom';
+import { CalendarDays, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import { Button } from '../../components/Button';
-import styles from './Login.module.css';
 
 export function Login() {
   const { login, signUp, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className={styles.page} aria-live="polite" aria-busy="true">
-        <span className={styles.loadingText}>Loading…</span>
+      <div
+        className="flex min-h-dvh items-center justify-center bg-nc-surface-background"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span className="text-nc-lg text-nc-content-secondary">Loading…</span>
       </div>
     );
   }
@@ -29,27 +30,34 @@ export function Login() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header} role="banner">
-        <div className={styles.headerInner}>
-          <div className={styles.brand}>
-            <span className={styles.brandIcon} aria-hidden="true">
-              ◎
-            </span>
-            <span className={styles.brandName}>Nova-Circle</span>
+    <div className="flex min-h-dvh flex-col bg-nc-surface-background text-nc-content-primary">
+      {/* Header */}
+      <header role="banner" className="border-b border-nc-border-default bg-nc-surface-card">
+        <div className="mx-auto flex max-w-5xl items-center px-nc-md py-nc-sm md:px-nc-lg">
+          <div className="flex items-center gap-nc-sm">
+            <span className="text-2xl text-nc-accent-default" aria-hidden="true">◎</span>
+            <span className="text-nc-lg font-semibold tracking-tight">Nova-Circle</span>
           </div>
         </div>
       </header>
 
-      <main id="main-content" className={styles.main}>
-        <section className={styles.hero} aria-labelledby="hero-heading">
-          <h1 id="hero-heading" className={styles.heroTitle}>
+      {/* Main */}
+      <main id="main-content" className="flex flex-1 flex-col">
+        {/* Hero */}
+        <section
+          aria-labelledby="hero-heading"
+          className="flex flex-1 flex-col items-center justify-center gap-nc-lg px-nc-md py-nc-2xl text-center"
+        >
+          <h1
+            id="hero-heading"
+            className="max-w-[28ch] text-[clamp(2rem,5vw,3.5rem)] font-bold leading-[1.15] tracking-tight"
+          >
             Your private group calendar
           </h1>
-          <p className={styles.heroSubtitle}>
+          <p className="max-w-[44ch] text-lg leading-relaxed text-nc-content-secondary">
             Organise events with friends and family. Privacy-first, no tracking.
           </p>
-          <div className={styles.heroActions}>
+          <div className="flex flex-wrap justify-center gap-nc-md">
             <Button variant="primary" size="lg" onClick={() => void signUp()}>
               Create account
             </Button>
@@ -59,45 +67,62 @@ export function Login() {
           </div>
         </section>
 
-        <section className={styles.features} aria-labelledby="features-heading">
-          <h2 id="features-heading" className={styles.featuresHeading}>
+        {/* Features */}
+        <section
+          aria-labelledby="features-heading"
+          className="mx-auto w-full max-w-xl px-nc-md pb-nc-3xl"
+        >
+          <h2 id="features-heading" className="mb-nc-lg text-center text-nc-xl font-semibold">
             What Nova-Circle offers
           </h2>
-          <ul className={styles.featureList} role="list">
-            <li className={styles.featureItem}>
-              <span className={styles.featureIcon} aria-hidden="true">
-                🗓
-              </span>
-              <div>
-                <strong>Event scheduling</strong>
-                <p>Create events with a text description, voice note, or photo.</p>
-              </div>
-            </li>
-            <li className={styles.featureItem}>
-              <span className={styles.featureIcon} aria-hidden="true">
-                🔒
-              </span>
-              <div>
-                <strong>Explicit invitations</strong>
-                <p>Only people you explicitly invite can see your event details.</p>
-              </div>
-            </li>
-            <li className={styles.featureItem}>
-              <span className={styles.featureIcon} aria-hidden="true">
-                💬
-              </span>
-              <div>
-                <strong>Event chat & checklists</strong>
-                <p>Coordinate directly within each event — no separate apps needed.</p>
-              </div>
-            </li>
+          <ul role="list" className="flex flex-col gap-nc-md">
+            <FeatureItem
+              icon={<CalendarDays size={24} className="text-nc-accent-default" />}
+              title="Event scheduling"
+              description="Create events with a text description, voice note, or photo."
+            />
+            <FeatureItem
+              icon={<Shield size={24} className="text-nc-accent-default" />}
+              title="Explicit invitations"
+              description="Only people you explicitly invite can see your event details."
+            />
+            <FeatureItem
+              icon={<MessageSquare size={24} className="text-nc-accent-default" />}
+              title="Event chat & checklists"
+              description="Coordinate directly within each event — no separate apps needed."
+            />
           </ul>
         </section>
       </main>
 
-      <footer className={styles.footer} role="contentinfo">
-        <p className={styles.footerText}>Nova-Circle — privacy-first. No tracking. No ads.</p>
+      {/* Footer */}
+      <footer role="contentinfo" className="border-t border-nc-border-default bg-nc-surface-card py-nc-lg text-center">
+        <p className="text-nc-sm text-nc-content-secondary">
+          Nova-Circle — privacy-first. No tracking. No ads.
+        </p>
       </footer>
     </div>
+  );
+}
+
+function FeatureItem({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <li className="flex gap-nc-md rounded-nc-md border border-nc-border-default bg-nc-surface-card p-nc-lg">
+      <div className="shrink-0 pt-0.5" aria-hidden="true">
+        {icon}
+      </div>
+      <div>
+        <strong className="text-nc-md">{title}</strong>
+        <p className="mt-nc-xs text-nc-sm text-nc-content-secondary">{description}</p>
+      </div>
+    </li>
   );
 }

@@ -2,7 +2,7 @@
 
 exports[`Button DOM snapshot > danger variant 1`] = `
 <button
-  class="_button_0829c1 _danger_0829c1 _md_0829c1"
+  class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-danger-default border-nc-danger-default text-nc-content-on-danger hover:bg-nc-danger-hover hover:border-nc-danger-hover text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
 >
   Delete
 </button>
@@ -10,7 +10,7 @@ exports[`Button DOM snapshot > danger variant 1`] = `
 
 exports[`Button DOM snapshot > disabled state 1`] = `
 <button
-  class="_button_0829c1 _primary_0829c1 _md_0829c1"
+  class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
   disabled=""
 >
   Disabled
@@ -19,7 +19,7 @@ exports[`Button DOM snapshot > disabled state 1`] = `
 
 exports[`Button DOM snapshot > primary variant 1`] = `
 <button
-  class="_button_0829c1 _primary_0829c1 _md_0829c1"
+  class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-nc-accent-default border-nc-accent-default text-nc-content-on-accent hover:bg-nc-accent-hover hover:border-nc-accent-hover active:bg-nc-accent-active active:border-nc-accent-active text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
 >
   Save
 </button>
@@ -27,7 +27,7 @@ exports[`Button DOM snapshot > primary variant 1`] = `
 
 exports[`Button DOM snapshot > secondary variant 1`] = `
 <button
-  class="_button_0829c1 _secondary_0829c1 _md_0829c1"
+  class="inline-flex items-center justify-center gap-nc-xs rounded-nc-md border-[1.5px] border-transparent font-medium cursor-pointer whitespace-nowrap no-underline select-none transition-all duration-[120ms] ease-in-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-nc-border-focus disabled:cursor-not-allowed disabled:opacity-40 bg-transparent border-nc-border-interactive text-nc-content-primary hover:bg-nc-surface-subtle active:bg-nc-surface-subtle active:border-nc-accent-default text-[0.9375rem] px-nc-md py-nc-sm min-h-[2.75rem]"
 >
   Cancel
 </button>

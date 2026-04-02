@@ -1,6 +1,8 @@
 /**
  * User profile page — view and edit the signed-in user's display name
- * and avatar URL.
+ * and avatar URL. Includes theme preferences and sign-out.
+ *
+ * Mobile-first minimalist layout.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,7 +10,8 @@ import { useApiClient } from '../../api/client';
 import { getMyProfile, updateMyProfile, type UserProfile } from '../../api/profile';
 import { useAuth } from '../../auth/useAuth';
 import { Button } from '../../components/Button';
-import styles from './Profile.module.css';
+import { ThemeSwitcher } from '../../components/ThemeSwitcher';
+import { Card, Input, Label, Avatar } from '../../components/ui';
 
 export function Profile() {
   const { apiFetch } = useApiClient();
@@ -67,8 +70,8 @@ export function Profile() {
 
   if (isLoading) {
     return (
-      <main id="main-content" className={styles.page}>
-        <p className={styles.statusText} aria-live="polite">
+      <main id="main-content" className="mx-auto max-w-2xl px-nc-md py-nc-2xl">
+        <p className="text-nc-sm text-nc-content-secondary" aria-live="polite">
           Loading profile…
         </p>
       </main>
@@ -77,8 +80,8 @@ export function Profile() {
 
   if (loadError) {
     return (
-      <main id="main-content" className={styles.page}>
-        <p className={styles.errorText} role="alert">
+      <main id="main-content" className="mx-auto max-w-2xl px-nc-md py-nc-2xl">
+        <p className="text-nc-sm text-nc-danger-default" role="alert">
           {loadError}
         </p>
       </main>
@@ -86,32 +89,38 @@ export function Profile() {
   }
 
   return (
-    <main id="main-content" className={styles.page}>
-      <h1 className={styles.heading}>Profile</h1>
+    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+      <h1 className="text-nc-2xl font-bold">Profile</h1>
 
-      <section className={styles.card} aria-labelledby="profile-heading">
-        <h2 id="profile-heading" className={styles.subheading}>
+      {/* Profile details */}
+      <Card>
+        <h2 id="profile-heading" className="mb-nc-md text-nc-lg font-semibold">
           Your details
         </h2>
 
         {saveSuccess && (
-          <p className={styles.successText} role="status">
+          <p
+            className="mb-nc-md rounded-nc-sm bg-nc-success-subtle p-nc-sm text-nc-sm text-nc-success-default"
+            role="status"
+          >
             Profile updated successfully.
           </p>
         )}
 
         {!isEditing ? (
-          <div className={styles.profileView}>
-            <div className={styles.avatar} aria-hidden="true">
-              {profile?.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="" className={styles.avatarImage} />
-              ) : (
-                <span className={styles.avatarPlaceholder}>👤</span>
+          <div className="flex flex-wrap items-center gap-nc-lg">
+            <Avatar
+              src={profile?.avatarUrl}
+              fallback="👤"
+              size="lg"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-nc-lg font-semibold">{profile?.displayName}</p>
+              {profile?.avatarUrl && (
+                <p className="mt-nc-xs truncate font-mono text-nc-xs text-nc-content-secondary">
+                  {profile.avatarUrl}
+                </p>
               )}
-            </div>
-            <div className={styles.profileInfo}>
-              <p className={styles.profileName}>{profile?.displayName}</p>
-              {profile?.avatarUrl && <p className={styles.profileAvatarUrl}>{profile.avatarUrl}</p>}
             </div>
             <Button variant="secondary" size="md" onClick={() => setIsEditing(true)}>
               Edit
@@ -119,14 +128,13 @@ export function Profile() {
           </div>
         ) : (
           <form onSubmit={(e) => void handleSave(e)} noValidate>
-            <div className={styles.field}>
-              <label htmlFor="display-name" className={styles.label}>
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="display-name">
                 Display name <span aria-hidden="true">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="display-name"
                 type="text"
-                className={styles.input}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -134,14 +142,11 @@ export function Profile() {
               />
             </div>
 
-            <div className={styles.field}>
-              <label htmlFor="avatar-url" className={styles.label}>
-                Avatar URL
-              </label>
-              <input
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="avatar-url">Avatar URL</Label>
+              <Input
                 id="avatar-url"
                 type="url"
-                className={styles.input}
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
                 placeholder="https://example.com/avatar.png"
@@ -149,12 +154,12 @@ export function Profile() {
             </div>
 
             {saveError && (
-              <p className={styles.errorText} role="alert">
+              <p className="text-nc-sm text-nc-danger-default" role="alert">
                 {saveError}
               </p>
             )}
 
-            <div className={styles.formActions}>
+            <div className="mt-nc-md flex justify-end gap-nc-md">
               <Button
                 type="button"
                 variant="secondary"
@@ -171,16 +176,23 @@ export function Profile() {
             </div>
           </form>
         )}
-      </section>
+      </Card>
 
-      <section className={styles.card} aria-labelledby="account-heading">
-        <h2 id="account-heading" className={styles.subheading}>
+      {/* Appearance */}
+      <Card>
+        <h2 className="mb-nc-md text-nc-lg font-semibold">Appearance</h2>
+        <ThemeSwitcher />
+      </Card>
+
+      {/* Account actions */}
+      <Card>
+        <h2 id="account-heading" className="mb-nc-md text-nc-lg font-semibold">
           Account
         </h2>
         <Button variant="danger" size="md" onClick={() => void logout()}>
           Sign out
         </Button>
-      </section>
+      </Card>
     </main>
   );
 }

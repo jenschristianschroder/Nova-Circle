@@ -1,8 +1,7 @@
 /**
  * Sign-up page — shown to authenticated users who have not yet registered.
  *
- * Collects the required displayName (and optional avatarUrl), calls
- * POST /api/v1/signup, then redirects to the main application.
+ * Clean single-column form, mobile-first with large touch-friendly inputs.
  */
 
 import { useState } from 'react';
@@ -11,7 +10,7 @@ import { useApiClient, ApiError } from '../../api/client';
 import { signUp } from '../../api/profile';
 import { useAuth } from '../../auth/useAuth';
 import { Button } from '../../components/Button';
-import styles from './SignUp.module.css';
+import { Card, Input, Label } from '../../components/ui';
 
 export function SignUp() {
   const { apiFetch } = useApiClient();
@@ -47,34 +46,33 @@ export function SignUp() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header} role="banner">
-        <div className={styles.headerInner}>
-          <div className={styles.brand}>
-            <span className={styles.brandIcon} aria-hidden="true">
-              ◎
-            </span>
-            <span className={styles.brandName}>Nova-Circle</span>
+    <div className="flex min-h-dvh flex-col bg-nc-surface-background text-nc-content-primary">
+      {/* Header */}
+      <header role="banner" className="border-b border-nc-border-default bg-nc-surface-card">
+        <div className="mx-auto flex max-w-5xl items-center px-nc-md py-nc-sm md:px-nc-lg">
+          <div className="flex items-center gap-nc-sm">
+            <span className="text-2xl text-nc-accent-default" aria-hidden="true">◎</span>
+            <span className="text-nc-lg font-semibold tracking-tight">Nova-Circle</span>
           </div>
         </div>
       </header>
 
-      <main id="main-content" className={styles.main}>
-        <section className={styles.card} aria-labelledby="signup-heading">
-          <h1 id="signup-heading" className={styles.heading}>
-            Complete your profile
-          </h1>
-          <p className={styles.subtitle}>Choose a display name to get started with Nova-Circle.</p>
+      {/* Main */}
+      <main id="main-content" className="mx-auto w-full max-w-md flex-1 px-nc-md py-nc-2xl">
+        <Card>
+          <h1 className="text-nc-2xl font-bold">Complete your profile</h1>
+          <p className="mt-nc-xs text-nc-content-secondary">
+            Choose a display name to get started with Nova-Circle.
+          </p>
 
-          <form onSubmit={(e) => void handleSubmit(e)} noValidate>
-            <div className={styles.field}>
-              <label htmlFor="display-name" className={styles.label}>
+          <form onSubmit={(e) => void handleSubmit(e)} noValidate className="mt-nc-lg">
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="display-name">
                 Display name <span aria-hidden="true">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="display-name"
                 type="text"
-                className={styles.input}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
@@ -84,14 +82,11 @@ export function SignUp() {
               />
             </div>
 
-            <div className={styles.field}>
-              <label htmlFor="avatar-url" className={styles.label}>
-                Avatar URL
-              </label>
-              <input
+            <div className="mb-nc-md flex flex-col gap-nc-xs">
+              <Label htmlFor="avatar-url">Avatar URL</Label>
+              <Input
                 id="avatar-url"
                 type="url"
-                className={styles.input}
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
                 placeholder="https://example.com/avatar.png"
@@ -99,12 +94,12 @@ export function SignUp() {
             </div>
 
             {error && (
-              <p className={styles.errorText} role="alert">
+              <p className="text-nc-sm text-nc-danger-default" role="alert">
                 {error}
               </p>
             )}
 
-            <div className={styles.formActions}>
+            <div className="mt-nc-lg flex justify-end gap-nc-md">
               <Button type="button" variant="secondary" onClick={() => void logout()}>
                 Sign out
               </Button>
@@ -113,7 +108,7 @@ export function SignUp() {
               </Button>
             </div>
           </form>
-        </section>
+        </Card>
       </main>
     </div>
   );

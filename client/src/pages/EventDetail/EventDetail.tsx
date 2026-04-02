@@ -1,7 +1,6 @@
 /**
  * Event detail page — shows event information, RSVP controls, and the list
- * of invitees. Provides navigation to event-scoped collaboration features
- * (chat, checklist, location) once they are implemented.
+ * of invitees. Mobile-first with hero section and card-based sections.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,7 +19,8 @@ import {
 } from '../../api/events';
 import { Button } from '../../components/Button';
 import { ShareDialog } from '../../components/ShareDialog';
-import styles from './EventDetail.module.css';
+import { Card, Badge } from '../../components/ui';
+import { CalendarDays, Flag, FileText, Share2, UserCircle } from 'lucide-react';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -33,13 +33,6 @@ function formatDate(iso: string): string {
   });
 }
 
-/** Maps known invitation statuses to their attendee badge CSS class name. */
-const INVITATION_STATUS_CLASS: Partial<Record<InvitationStatus, string>> = {
-  accepted: styles['attendeeState_accepted'] ?? '',
-  declined: styles['attendeeState_declined'] ?? '',
-  tentative: styles['attendeeState_tentative'] ?? '',
-};
-
 const RSVP_LABELS: Record<string, string> = {
   accepted: 'Going',
   tentative: 'Maybe',
@@ -48,14 +41,18 @@ const RSVP_LABELS: Record<string, string> = {
   removed: 'Removed',
 };
 
+const RSVP_BADGE_VARIANT: Record<string, 'success' | 'danger' | 'accent' | 'default'> = {
+  accepted: 'success',
+  declined: 'danger',
+  tentative: 'accent',
+};
+
 export function EventDetail() {
   const { groupId, eventId } = useParams<{ groupId: string; eventId: string }>();
   const { apiFetch } = useApiClient();
   const { account } = useAuth();
   const navigate = useNavigate();
 
-  // Extract the stable primitive so it can be used as a useCallback dependency
-  // without triggering re-renders when the account object reference changes.
   const callerUserId = account?.localAccountId;
 
   const [event, setEvent] = useState<CalendarEvent | null>(null);
@@ -72,8 +69,6 @@ export function EventDetail() {
     if (!groupId || !eventId) return;
     setIsLoading(true);
     setError(null);
-    // Clear stale invitation data so a previously viewed event's attendees
-    // are not shown while the new event's invitations load.
     setInvitations([]);
     setMyInvitation(null);
     try {
@@ -82,22 +77,19 @@ export function EventDetail() {
       try {
         const invitationData = await listEventInvitations(apiFetch, groupId, eventId);
         setInvitations(invitationData);
-        // Match the caller's invitation by the MSAL account's localAccountId,
-        // which corresponds to the Azure AD `oid` claim used as userId in the backend.
         const mine = callerUserId
           ? (invitationData.find((i) => i.userId === callerUserId) ?? null)
           : null;
         setMyInvitation(mine);
       } catch {
-        // Invitation list is supplemental — don't fail the whole page.
+        // Invitation list is supplemental
       }
-      // Load share count only for personal events where the caller is the owner.
       if (eventData.groupId === null && callerUserId === eventData.ownerId) {
         try {
           const shares = await listEventShares(apiFetch, eventData.id);
           setShareCount(shares.length);
         } catch {
-          // Share count is supplemental — don't fail the page if unauthorized.
+          // Share count is supplemental
         }
       }
     } catch {
@@ -130,49 +122,39 @@ export function EventDetail() {
 
   if (isLoading) {
     return (
-      <main id="main-content" className={styles.page}>
-        <p className={styles.statusText} aria-live="polite">
-          Loading event…
-        </p>
+      <main id="main-content" className="mx-auto max-w-2xl px-nc-md py-nc-2xl">
+        <p className="text-nc-sm text-nc-content-secondary" aria-live="polite">Loading event…</p>
       </main>
     );
   }
 
   if (error || !event) {
     return (
-      <main id="main-content" className={styles.page}>
-        <p className={styles.errorText} role="alert">
-          {error ?? 'Event not found.'}
-        </p>
-        <Button variant="secondary" onClick={() => navigate(-1)}>
-          Go back
-        </Button>
+      <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-2xl">
+        <p className="text-nc-sm text-nc-danger-default" role="alert">{error ?? 'Event not found.'}</p>
+        <Button variant="secondary" onClick={() => navigate(-1)}>Go back</Button>
       </main>
     );
   }
 
   return (
-    <main id="main-content" className={styles.page}>
-      <nav aria-label="Breadcrumb" className={styles.breadcrumb}>
-        <Link to="/groups" className={styles.breadcrumbLink}>
-          Groups
-        </Link>
-        <span aria-hidden="true" className={styles.breadcrumbSep}>
-          ›
-        </span>
-        <Link to={`/groups/${event.groupId}`} className={styles.breadcrumbLink}>
-          Group
-        </Link>
-        <span aria-hidden="true" className={styles.breadcrumbSep}>
-          ›
-        </span>
+    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+      {/* Breadcrumb */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary">
+        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">Groups</Link>
+        <span aria-hidden="true">›</span>
+        <Link to={`/groups/${event.groupId}`} className="text-nc-accent-default no-underline hover:underline">Group</Link>
+        <span aria-hidden="true">›</span>
         <span aria-current="page">{event.title}</span>
       </nav>
 
-      <div className={styles.eventHeader}>
-        <div>
-          <h1 className={styles.heading}>{event.title}</h1>
-          {event.status === 'cancelled' && <span className={styles.cancelledBadge}>Cancelled</span>}
+      {/* Event header */}
+      <div className="flex items-start gap-nc-md">
+        <div className="flex-1">
+          <h1 className="text-nc-2xl font-bold">{event.title}</h1>
+          {event.status === 'cancelled' && (
+            <Badge variant="danger" className="mt-nc-xs">Cancelled</Badge>
+          )}
         </div>
         {event.groupId === null && callerUserId === event.ownerId && (
           <Button
@@ -181,63 +163,54 @@ export function EventDetail() {
             onClick={() => setIsShareDialogOpen(true)}
             aria-label="Share event to groups"
           >
-            🔗 Share{shareCount > 0 ? ` (${shareCount})` : ''}
+            <Share2 size={16} aria-hidden="true" />
+            Share{shareCount > 0 ? ` (${shareCount})` : ''}
           </Button>
         )}
       </div>
 
-      <div className={styles.meta}>
-        <div className={styles.metaItem}>
-          <span className={styles.metaIcon} aria-hidden="true">
-            🗓
-          </span>
-          <div>
-            <strong>Starts</strong>
-            <p>{formatDate(event.startAt)}</p>
+      {/* Event meta */}
+      <Card>
+        <div className="flex flex-col gap-nc-md">
+          <div className="flex items-start gap-nc-md">
+            <CalendarDays size={20} className="mt-0.5 shrink-0 text-nc-accent-default" aria-hidden="true" />
+            <div>
+              <strong className="block text-nc-sm font-medium text-nc-content-secondary">Starts</strong>
+              <p className="mt-nc-xs">{formatDate(event.startAt)}</p>
+            </div>
           </div>
+          {event.endAt && (
+            <div className="flex items-start gap-nc-md">
+              <Flag size={20} className="mt-0.5 shrink-0 text-nc-accent-default" aria-hidden="true" />
+              <div>
+                <strong className="block text-nc-sm font-medium text-nc-content-secondary">Ends</strong>
+                <p className="mt-nc-xs">{formatDate(event.endAt)}</p>
+              </div>
+            </div>
+          )}
+          {event.description && (
+            <div className="flex items-start gap-nc-md">
+              <FileText size={20} className="mt-0.5 shrink-0 text-nc-accent-default" aria-hidden="true" />
+              <div>
+                <strong className="block text-nc-sm font-medium text-nc-content-secondary">Description</strong>
+                <p className="mt-nc-xs">{event.description}</p>
+              </div>
+            </div>
+          )}
         </div>
-        {event.endAt && (
-          <div className={styles.metaItem}>
-            <span className={styles.metaIcon} aria-hidden="true">
-              🏁
-            </span>
-            <div>
-              <strong>Ends</strong>
-              <p>{formatDate(event.endAt)}</p>
-            </div>
-          </div>
-        )}
-        {event.description && (
-          <div className={styles.metaItem}>
-            <span className={styles.metaIcon} aria-hidden="true">
-              📝
-            </span>
-            <div>
-              <strong>Description</strong>
-              <p>{event.description}</p>
-            </div>
-          </div>
-        )}
-      </div>
+      </Card>
 
-      {/* RSVP controls — only show when the event is not cancelled */}
+      {/* RSVP */}
       {event.status !== 'cancelled' && (
-        <section aria-labelledby="rsvp-heading" className={styles.rsvpSection}>
-          <h2 id="rsvp-heading" className={styles.subheading}>
-            Your RSVP
-          </h2>
+        <Card>
+          <h2 id="rsvp-heading" className="mb-nc-md text-nc-lg font-semibold">Your RSVP</h2>
           {myInvitation && (
-            <p className={styles.currentRsvp}>
-              Current status:{' '}
-              <strong>{RSVP_LABELS[myInvitation.status] ?? myInvitation.status}</strong>
+            <p className="mb-nc-md text-nc-sm text-nc-content-secondary">
+              Current status: <strong>{RSVP_LABELS[myInvitation.status] ?? myInvitation.status}</strong>
             </p>
           )}
-          {rsvpError && (
-            <p className={styles.errorText} role="alert">
-              {rsvpError}
-            </p>
-          )}
-          <div className={styles.rsvpButtons}>
+          {rsvpError && <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">{rsvpError}</p>}
+          <div className="flex flex-wrap gap-nc-sm">
             <Button
               variant="primary"
               size="md"
@@ -263,37 +236,31 @@ export function EventDetail() {
               Not going
             </Button>
           </div>
-        </section>
+        </Card>
       )}
 
-      {/* Attendee list */}
+      {/* Attendees */}
       {invitations.length > 0 && (
-        <section aria-labelledby="attendees-heading" className={styles.attendeesSection}>
-          <h2 id="attendees-heading" className={styles.subheading}>
+        <Card>
+          <h2 id="attendees-heading" className="mb-nc-md text-nc-lg font-semibold">
             Attendees ({invitations.filter((i) => i.status !== 'removed').length})
           </h2>
-          <ul className={styles.attendeeList} role="list">
+          <ul className="flex flex-col gap-nc-sm" role="list">
             {invitations
               .filter((i) => i.status !== 'removed')
               .map((inv) => (
-                <li key={inv.userId} className={styles.attendeeItem}>
-                  <span className={styles.attendeeAvatar} aria-hidden="true">
-                    👤
-                  </span>
-                  <span className={styles.attendeeName} title={inv.userId}>
+                <li key={inv.userId} className="flex items-center gap-nc-md border-b border-nc-border-default py-nc-sm last:border-b-0">
+                  <UserCircle size={24} className="shrink-0 text-nc-content-secondary" aria-hidden="true" />
+                  <span className="flex-1 font-medium" title={inv.userId}>
                     Member ({inv.userId.slice(0, 8)}…)
                   </span>
-                  <span
-                    className={[styles.attendeeState, INVITATION_STATUS_CLASS[inv.status] ?? '']
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
+                  <Badge variant={RSVP_BADGE_VARIANT[inv.status] ?? 'default'}>
                     {RSVP_LABELS[inv.status] ?? inv.status}
-                  </span>
+                  </Badge>
                 </li>
               ))}
           </ul>
-        </section>
+        </Card>
       )}
 
       <ShareDialog
@@ -301,7 +268,6 @@ export function EventDetail() {
         isOpen={isShareDialogOpen}
         onClose={() => {
           setIsShareDialogOpen(false);
-          // Refresh share count when dialog closes
           void listEventShares(apiFetch, event.id)
             .then((shares: EventShareDto[]) => setShareCount(shares.length))
             .catch(() => {});
