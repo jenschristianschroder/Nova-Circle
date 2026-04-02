@@ -60,9 +60,7 @@ function makeEventRepo(overrides?: Partial<EventRepositoryPort>): EventRepositor
   };
 }
 
-function makeShareRepo(
-  overrides?: Partial<EventShareRepositoryPort>,
-): EventShareRepositoryPort {
+function makeShareRepo(overrides?: Partial<EventShareRepositoryPort>): EventShareRepositoryPort {
   return {
     findById: vi.fn().mockResolvedValue(null),
     findByEventAndGroup: vi.fn().mockResolvedValue(null),
@@ -361,10 +359,7 @@ describe('DeletePersonalEventUseCase', () => {
       findById: vi.fn().mockResolvedValue(event),
       deleteEvent,
     });
-    const useCase = new DeletePersonalEventUseCase(
-      eventRepo,
-      makeShareRepo({ deleteByEvent }),
-    );
+    const useCase = new DeletePersonalEventUseCase(eventRepo, makeShareRepo({ deleteByEvent }));
 
     await useCase.execute(owner, 'personal-event-1');
     expect(deleteByEvent).toHaveBeenCalledWith('personal-event-1');
@@ -403,13 +398,8 @@ describe('DeletePersonalEventUseCase', () => {
     const event = makePersonalEvent();
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
     const deleteByEvent = vi.fn().mockRejectedValue(new Error('DB connection lost'));
-    const useCase = new DeletePersonalEventUseCase(
-      eventRepo,
-      makeShareRepo({ deleteByEvent }),
-    );
+    const useCase = new DeletePersonalEventUseCase(eventRepo, makeShareRepo({ deleteByEvent }));
 
-    await expect(useCase.execute(owner, 'personal-event-1')).rejects.toThrow(
-      'DB connection lost',
-    );
+    await expect(useCase.execute(owner, 'personal-event-1')).rejects.toThrow('DB connection lost');
   });
 });

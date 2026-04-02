@@ -71,10 +71,7 @@ async function migrateToBaseline(db: Knex): Promise<void> {
  * Helper: query the FK delete rule for a specific constraint using
  * pg_constraint (schema-safe).
  */
-async function getFkDeleteRule(
-  db: Knex,
-  constraintName: string,
-): Promise<string | undefined> {
+async function getFkDeleteRule(db: Knex, constraintName: string): Promise<string | undefined> {
   const result = await db.raw<{ rows: FkActionRow[] }>(
     `SELECT con.conname  AS constraint_name,
             CASE con.confdeltype
@@ -117,50 +114,44 @@ describe('Event shares restrict deletes migration', () => {
 
   // ── Up migration: FK rules change to RESTRICT ──────────────────────────
 
-  it.skipIf(skipReason !== undefined)(
-    'event_id FK uses RESTRICT after up migration',
-    async () => {
-      const { db, cleanup } = await createIsolatedTestDb();
-      cleanups.push(cleanup);
-      try {
-        await migrateToBaseline(db);
+  it.skipIf(skipReason !== undefined)('event_id FK uses RESTRICT after up migration', async () => {
+    const { db, cleanup } = await createIsolatedTestDb();
+    cleanups.push(cleanup);
+    try {
+      await migrateToBaseline(db);
 
-        // Before: should be CASCADE from migration 10
-        const before = await getFkDeleteRule(db, 'event_shares_event_id_foreign');
-        expect(before).toBe('CASCADE');
+      // Before: should be CASCADE from migration 10
+      const before = await getFkDeleteRule(db, 'event_shares_event_id_foreign');
+      expect(before).toBe('CASCADE');
 
-        await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
+      await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
 
-        const after = await getFkDeleteRule(db, 'event_shares_event_id_foreign');
-        expect(after).toBe('RESTRICT');
-      } finally {
-        await cleanup();
-        cleanups.pop();
-      }
-    },
-  );
+      const after = await getFkDeleteRule(db, 'event_shares_event_id_foreign');
+      expect(after).toBe('RESTRICT');
+    } finally {
+      await cleanup();
+      cleanups.pop();
+    }
+  });
 
-  it.skipIf(skipReason !== undefined)(
-    'group_id FK uses RESTRICT after up migration',
-    async () => {
-      const { db, cleanup } = await createIsolatedTestDb();
-      cleanups.push(cleanup);
-      try {
-        await migrateToBaseline(db);
+  it.skipIf(skipReason !== undefined)('group_id FK uses RESTRICT after up migration', async () => {
+    const { db, cleanup } = await createIsolatedTestDb();
+    cleanups.push(cleanup);
+    try {
+      await migrateToBaseline(db);
 
-        const before = await getFkDeleteRule(db, 'event_shares_group_id_foreign');
-        expect(before).toBe('CASCADE');
+      const before = await getFkDeleteRule(db, 'event_shares_group_id_foreign');
+      expect(before).toBe('CASCADE');
 
-        await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
+      await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
 
-        const after = await getFkDeleteRule(db, 'event_shares_group_id_foreign');
-        expect(after).toBe('RESTRICT');
-      } finally {
-        await cleanup();
-        cleanups.pop();
-      }
-    },
-  );
+      const after = await getFkDeleteRule(db, 'event_shares_group_id_foreign');
+      expect(after).toBe('RESTRICT');
+    } finally {
+      await cleanup();
+      cleanups.pop();
+    }
+  });
 
   // ── Behavioral tests: RESTRICT blocks deletion ─────────────────────────
 
@@ -344,29 +335,26 @@ describe('Event shares restrict deletes migration', () => {
 
   // ── Down migration: restores CASCADE ───────────────────────────────────
 
-  it.skipIf(skipReason !== undefined)(
-    'down migration restores CASCADE on both FKs',
-    async () => {
-      const { db, cleanup } = await createIsolatedTestDb();
-      cleanups.push(cleanup);
-      try {
-        await migrateToBaseline(db);
-        await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
+  it.skipIf(skipReason !== undefined)('down migration restores CASCADE on both FKs', async () => {
+    const { db, cleanup } = await createIsolatedTestDb();
+    cleanups.push(cleanup);
+    try {
+      await migrateToBaseline(db);
+      await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
 
-        // Confirm RESTRICT is active
-        expect(await getFkDeleteRule(db, 'event_shares_event_id_foreign')).toBe('RESTRICT');
-        expect(await getFkDeleteRule(db, 'event_shares_group_id_foreign')).toBe('RESTRICT');
+      // Confirm RESTRICT is active
+      expect(await getFkDeleteRule(db, 'event_shares_event_id_foreign')).toBe('RESTRICT');
+      expect(await getFkDeleteRule(db, 'event_shares_group_id_foreign')).toBe('RESTRICT');
 
-        // Roll back
-        await db.migrate.rollback();
+      // Roll back
+      await db.migrate.rollback();
 
-        // After rollback, both FKs should be CASCADE again
-        expect(await getFkDeleteRule(db, 'event_shares_event_id_foreign')).toBe('CASCADE');
-        expect(await getFkDeleteRule(db, 'event_shares_group_id_foreign')).toBe('CASCADE');
-      } finally {
-        await cleanup();
-        cleanups.pop();
-      }
-    },
-  );
+      // After rollback, both FKs should be CASCADE again
+      expect(await getFkDeleteRule(db, 'event_shares_event_id_foreign')).toBe('CASCADE');
+      expect(await getFkDeleteRule(db, 'event_shares_group_id_foreign')).toBe('CASCADE');
+    } finally {
+      await cleanup();
+      cleanups.pop();
+    }
+  });
 });

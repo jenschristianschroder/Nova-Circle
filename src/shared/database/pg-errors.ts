@@ -6,7 +6,5 @@
  * a generic 500.
  */
 export function isForeignKeyViolation(err: unknown): boolean {
-  return (
-    err instanceof Error && (err as Error & { code?: string }).code === '23503'
-  );
+  return err instanceof Error && (err as Error & { code?: string }).code === '23503';
 }

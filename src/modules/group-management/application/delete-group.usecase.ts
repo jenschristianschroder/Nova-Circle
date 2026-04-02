@@ -22,7 +22,7 @@ export class DeleteGroupUseCase {
         throw Object.assign(
           new Error(
             'Cannot delete group: active event shares reference this group. ' +
-            'Revoke all shares first.',
+              'Revoke all shares first.',
           ),
           { code: 'HAS_ACTIVE_SHARES' },
         );
