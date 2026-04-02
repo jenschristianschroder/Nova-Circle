@@ -1,6 +1,6 @@
 /**
- * User profile page — view and edit the signed-in user's display name
- * and avatar URL.
+ * User profile page — view and edit the signed-in user's display name,
+ * avatar URL, and appearance preferences (theme mode & colour palette).
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,6 +8,7 @@ import { useApiClient } from '../../api/client';
 import { getMyProfile, updateMyProfile, type UserProfile } from '../../api/profile';
 import { useAuth } from '../../auth/useAuth';
 import { Button } from '../../components/Button';
+import { ThemeSwitcher } from '../../components/ThemeSwitcher';
 import styles from './Profile.module.css';
 
 export function Profile() {
@@ -171,6 +172,13 @@ export function Profile() {
             </div>
           </form>
         )}
+      </section>
+
+      <section className={styles.card} aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className={styles.subheading}>
+          Appearance
+        </h2>
+        <ThemeSwitcher />
       </section>
 
       <section className={styles.card} aria-labelledby="account-heading">

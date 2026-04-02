@@ -74,31 +74,3 @@
   outline: 2px solid var(--nc-border-focus);
   outline-offset: 2px;
 }
-
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: var(--nc-space-md);
-  margin-left: auto;
-}
-
-.signOutButton {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: var(--nc-font-size-sm);
-  color: var(--nc-content-secondary);
-  padding: var(--nc-space-xs) var(--nc-space-sm);
-  border-radius: var(--nc-radius-sm);
-  transition: color 0.15s;
-}
-
-.signOutButton:hover {
-  color: var(--nc-danger-default);
-}
-
-.signOutButton:focus-visible {
-  outline: 2px solid var(--nc-border-focus);
-  outline-offset: 2px;
-}
