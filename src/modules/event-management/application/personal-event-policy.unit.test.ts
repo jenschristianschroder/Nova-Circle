@@ -424,7 +424,8 @@ describe('TransferEventOwnershipUseCase', () => {
     const useCase = new TransferEventOwnershipUseCase(eventRepo);
 
     const result = await useCase.execute(owner, 'personal-event-1', newOwnerId);
-    expect(result.ownerId).toBe(newOwnerId);
+    expect(result.event.ownerId).toBe(newOwnerId);
+    expect(result.previousOwnerId).toBe(owner.userId);
     expect(transferOwnership).toHaveBeenCalledWith('personal-event-1', newOwnerId);
   });
 

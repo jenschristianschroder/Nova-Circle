@@ -296,19 +296,19 @@ export function createPersonalEventRouter(
     }
 
     try {
-      const event = await transferOwnership.execute(identity, eventId, newOwnerId);
+      const result = await transferOwnership.execute(identity, eventId, newOwnerId);
       try {
         await auditLog.record({
           actorId: identity.userId,
           action: 'event.ownership_transferred',
           resourceType: 'event',
           resourceId: eventId,
-          metadata: { previousOwnerId: identity.userId, newOwnerId },
+          metadata: { previousOwnerId: result.previousOwnerId, newOwnerId },
         });
       } catch (auditErr) {
         logger.error('Audit log failed for event.ownership_transferred', auditErr);
       }
-      res.json(event);
+      res.json(result.event);
     } catch (err: unknown) {
       if (isNotFoundError(err)) {
         res.status(404).json({ error: 'Not found', code: 'NOT_FOUND' });

@@ -3,10 +3,19 @@ import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { Event } from '../domain/event.js';
 import { EventOwnershipPolicy } from '../domain/event-ownership-policy.js';
 
+export interface TransferOwnershipResult {
+  readonly event: Event;
+  readonly previousOwnerId: string;
+}
+
 export class TransferEventOwnershipUseCase {
   constructor(private readonly eventRepo: EventRepositoryPort) {}
 
-  async execute(caller: IdentityContext, eventId: string, newOwnerId: string): Promise<Event> {
+  async execute(
+    caller: IdentityContext,
+    eventId: string,
+    newOwnerId: string,
+  ): Promise<TransferOwnershipResult> {
     const event = await this.eventRepo.findById(eventId);
 
     // Explicit ownership authorization via centralised policy.
@@ -29,10 +38,12 @@ export class TransferEventOwnershipUseCase {
       });
     }
 
+    const previousOwnerId = event.ownerId;
+
     const updated = await this.eventRepo.transferOwnership(eventId, newOwnerId);
     if (!updated) {
       throw Object.assign(new Error('Not found'), { code: 'NOT_FOUND' });
     }
-    return updated;
+    return { event: updated, previousOwnerId };
   }
 }
