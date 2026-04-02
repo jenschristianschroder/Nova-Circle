@@ -15,30 +15,32 @@ import type { Knex } from 'knex';
  * 5. Adds performance indexes on the new columns/tables.
  */
 export async function up(knex: Knex): Promise<void> {
-  // ── 1. Add owner_id to events (NOT NULL with temporary default) ────────
-  // The column is added as NOT NULL with a placeholder default so there is
-  // never a window where NULL values are accepted. The FK constraint is
-  // deferred until after the back-fill; adding it will fail if any row
-  // still holds the placeholder, providing an automatic integrity check.
-  const placeholderUuid = '00000000-0000-0000-0000-000000000000';
-  await knex.raw(
-    `ALTER TABLE events ADD COLUMN owner_id UUID NOT NULL DEFAULT '${placeholderUuid}'`,
-  );
+  // ── 1. Add owner_id to events ──────────────────────────────────────────
+  // The column is added as nullable first, back-filled from created_by,
+  // then altered to NOT NULL. This is safe because the entire migration
+  // runs inside a transaction, so no concurrent code can observe the
+  // intermediate nullable state.
+  await knex.schema.alterTable('events', (table) => {
+    table.uuid('owner_id').nullable();
+  });
 
   // Back-fill owner_id from created_by for all existing events.
-  await knex.raw('UPDATE events SET owner_id = created_by');
+  await knex('events').update({ owner_id: knex.ref('created_by') });
 
-  // Remove the temporary default now that all rows have real values.
-  await knex.raw('ALTER TABLE events ALTER COLUMN owner_id DROP DEFAULT');
+  // Set NOT NULL now that every row has a real value.
+  await knex.schema.alterTable('events', (table) => {
+    table.uuid('owner_id').notNullable().alter();
+  });
 
   // Add the FK constraint to user_profiles.
-  await knex.raw(
-    `ALTER TABLE events ADD CONSTRAINT events_owner_id_foreign
-     FOREIGN KEY (owner_id) REFERENCES user_profiles(id) ON DELETE RESTRICT`,
-  );
+  await knex.schema.alterTable('events', (table) => {
+    table.foreign('owner_id').references('id').inTable('user_profiles').onDelete('RESTRICT');
+  });
 
   // ── 2. Make group_id nullable ──────────────────────────────────────────
-  await knex.raw('ALTER TABLE events ALTER COLUMN group_id DROP NOT NULL');
+  await knex.schema.alterTable('events', (table) => {
+    table.uuid('group_id').nullable().alter();
+  });
 
   // ── 3. Create event_shares table ───────────────────────────────────────
   await knex.schema.createTable('event_shares', (table) => {
@@ -63,12 +65,16 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   // ── 4. Back-fill event_shares for existing group-scoped events ─────────
-  await knex.raw(`
-    INSERT INTO event_shares (event_id, group_id, visibility_level, shared_by_user_id)
-    SELECT id, group_id, 'details', created_by
-    FROM events
-    WHERE group_id IS NOT NULL
-  `);
+  await knex('event_shares').insert(
+    knex('events')
+      .select({
+        event_id: 'id',
+        group_id: 'group_id',
+        shared_by_user_id: 'created_by',
+      })
+      .select(knex.raw("'details' as visibility_level"))
+      .whereNotNull('group_id'),
+  );
 
   // ── 5. Add performance indexes ─────────────────────────────────────────
   await knex.schema.alterTable('events', (table) => {
@@ -99,5 +105,7 @@ export async function down(knex: Knex): Promise<void> {
   // WARNING: This deletion is intentional and irreversible. Back up personal
   // events before rolling back if recovery is needed.
   await knex('events').whereNull('group_id').delete();
-  await knex.raw('ALTER TABLE events ALTER COLUMN group_id SET NOT NULL');
+  await knex.schema.alterTable('events', (table) => {
+    table.uuid('group_id').notNullable().alter();
+  });
 }
