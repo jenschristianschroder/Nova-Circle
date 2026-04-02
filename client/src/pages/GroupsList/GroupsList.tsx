@@ -95,15 +95,14 @@ export function GroupsList() {
   }
 
   return (
-    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+    <main
+      id="main-content"
+      className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl"
+    >
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-nc-md">
         <h1 className="text-nc-2xl font-bold">My Groups</h1>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => setShowCreateForm((v) => !v)}
-        >
+        <Button variant="primary" size="md" onClick={() => setShowCreateForm((v) => !v)}>
           {showCreateForm ? (
             'Cancel'
           ) : (
@@ -222,7 +221,11 @@ export function GroupsList() {
                     </span>
                   )}
                 </div>
-                <ChevronRight size={20} className="shrink-0 text-nc-content-secondary" aria-hidden="true" />
+                <ChevronRight
+                  size={20}
+                  className="shrink-0 text-nc-content-secondary"
+                  aria-hidden="true"
+                />
               </button>
             </li>
           ))}

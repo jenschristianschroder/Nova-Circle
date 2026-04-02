@@ -79,12 +79,25 @@ export function EventCreate() {
   }
 
   return (
-    <main id="main-content" className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl">
+    <main
+      id="main-content"
+      className="mx-auto flex max-w-2xl flex-col gap-nc-lg px-nc-md py-nc-xl md:py-nc-2xl"
+    >
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary">
-        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">Groups</Link>
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-nc-xs text-nc-sm text-nc-content-secondary"
+      >
+        <Link to="/groups" className="text-nc-accent-default no-underline hover:underline">
+          Groups
+        </Link>
         <span aria-hidden="true">›</span>
-        <Link to={`/groups/${groupId}`} className="text-nc-accent-default no-underline hover:underline">Group</Link>
+        <Link
+          to={`/groups/${groupId}`}
+          className="text-nc-accent-default no-underline hover:underline"
+        >
+          Group
+        </Link>
         <span aria-hidden="true">›</span>
         <span aria-current="page">New Event</span>
       </nav>
@@ -92,7 +105,11 @@ export function EventCreate() {
       <h1 className="text-nc-2xl font-bold">Create event</h1>
 
       {/* Mode switcher */}
-      <div className="flex self-start overflow-hidden rounded-nc-sm border border-nc-border-default" role="tablist" aria-label="Event creation mode">
+      <div
+        className="flex self-start overflow-hidden rounded-nc-sm border border-nc-border-default"
+        role="tablist"
+        aria-label="Event creation mode"
+      >
         <button
           id="form-tab"
           role="tab"
@@ -134,32 +151,78 @@ export function EventCreate() {
       {/* Structured form */}
       {mode === 'form' && (
         <Card>
-          <form id="form-panel" role="tabpanel" aria-labelledby="form-tab" onSubmit={(e) => void handleFormSubmit(e)} noValidate>
+          <form
+            id="form-panel"
+            role="tabpanel"
+            aria-labelledby="form-tab"
+            onSubmit={(e) => void handleFormSubmit(e)}
+            noValidate
+          >
             <div className="mb-nc-md flex flex-col gap-nc-xs">
-              <Label htmlFor="event-title">Title <span aria-hidden="true">*</span></Label>
-              <Input id="event-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Summer BBQ" required aria-required="true" />
+              <Label htmlFor="event-title">
+                Title <span aria-hidden="true">*</span>
+              </Label>
+              <Input
+                id="event-title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Summer BBQ"
+                required
+                aria-required="true"
+              />
             </div>
 
             <div className="mb-nc-md flex flex-col gap-nc-xs">
-              <Label htmlFor="event-start">Start date & time <span aria-hidden="true">*</span></Label>
-              <Input id="event-start" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} required aria-required="true" />
+              <Label htmlFor="event-start">
+                Start date & time <span aria-hidden="true">*</span>
+              </Label>
+              <Input
+                id="event-start"
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+                required
+                aria-required="true"
+              />
             </div>
 
             <div className="mb-nc-md flex flex-col gap-nc-xs">
               <Label htmlFor="event-end">End date & time</Label>
-              <Input id="event-end" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+              <Input
+                id="event-end"
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+              />
             </div>
 
             <div className="mb-nc-md flex flex-col gap-nc-xs">
               <Label htmlFor="event-description">Description</Label>
-              <Textarea id="event-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Optional details about the event" />
+              <Textarea
+                id="event-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Optional details about the event"
+              />
             </div>
 
-            {formError && <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">{formError}</p>}
+            {formError && (
+              <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">
+                {formError}
+              </p>
+            )}
 
             <div className="mt-nc-lg flex justify-end gap-nc-md">
-              <Button type="button" variant="secondary" onClick={() => navigate(-1)}>Cancel</Button>
-              <Button type="submit" variant="primary" disabled={isSubmitting || !title.trim() || !startAt}>
+              <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting || !title.trim() || !startAt}
+              >
                 {isSubmitting ? 'Creating…' : 'Create event'}
               </Button>
             </div>
@@ -172,11 +235,14 @@ export function EventCreate() {
         <Card>
           <div id="capture-panel" role="tabpanel" aria-labelledby="capture-tab">
             <p className="mb-nc-md text-nc-sm text-nc-content-secondary">
-              Describe your event in plain text — the date, time, and title will be extracted automatically.
+              Describe your event in plain text — the date, time, and title will be extracted
+              automatically.
             </p>
             <form onSubmit={(e) => void handleCapture(e)} noValidate>
               <div className="mb-nc-md flex flex-col gap-nc-xs">
-                <Label htmlFor="capture-text">Event description <span aria-hidden="true">*</span></Label>
+                <Label htmlFor="capture-text">
+                  Event description <span aria-hidden="true">*</span>
+                </Label>
                 <Textarea
                   id="capture-text"
                   value={captureText}
@@ -189,22 +255,37 @@ export function EventCreate() {
               </div>
 
               {captureIssues.length > 0 && (
-                <div className="mb-nc-md rounded-nc-sm border border-nc-danger-default bg-nc-danger-subtle p-nc-md text-nc-sm" role="alert">
+                <div
+                  className="mb-nc-md rounded-nc-sm border border-nc-danger-default bg-nc-danger-subtle p-nc-md text-nc-sm"
+                  role="alert"
+                >
                   <p className="mb-nc-xs font-semibold">Could not extract all event details:</p>
                   <ul className="ml-nc-md list-disc">
                     {captureIssues.map((issue) => (
                       <li key={issue}>{issue.replace(/_/g, ' ')}</li>
                     ))}
                   </ul>
-                  <p className="mt-nc-sm">Please provide more detail or switch to the structured form.</p>
+                  <p className="mt-nc-sm">
+                    Please provide more detail or switch to the structured form.
+                  </p>
                 </div>
               )}
 
-              {captureError && <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">{captureError}</p>}
+              {captureError && (
+                <p className="mb-nc-md text-nc-sm text-nc-danger-default" role="alert">
+                  {captureError}
+                </p>
+              )}
 
               <div className="mt-nc-lg flex justify-end gap-nc-md">
-                <Button type="button" variant="secondary" onClick={() => navigate(-1)}>Cancel</Button>
-                <Button type="submit" variant="primary" disabled={isSubmitting || !captureText.trim()}>
+                <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitting || !captureText.trim()}
+                >
                   {isSubmitting ? 'Processing…' : 'Create from text'}
                 </Button>
               </div>
