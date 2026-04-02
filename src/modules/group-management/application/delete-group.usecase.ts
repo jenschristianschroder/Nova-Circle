@@ -1,6 +1,7 @@
 import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { GroupRepositoryPort } from '../domain/group.repository.port.js';
 import type { MembershipCheckerPort } from '../domain/membership-checker.port.js';
+import { isForeignKeyViolation } from '../../../shared/database/pg-errors.js';
 
 export class DeleteGroupUseCase {
   constructor(
@@ -14,6 +15,19 @@ export class DeleteGroupUseCase {
       throw Object.assign(new Error('Forbidden'), { code: 'FORBIDDEN' });
     }
 
-    await this.groupRepo.delete(groupId);
+    try {
+      await this.groupRepo.delete(groupId);
+    } catch (err: unknown) {
+      if (isForeignKeyViolation(err)) {
+        throw Object.assign(
+          new Error(
+            'Cannot delete group: active event shares reference this group. ' +
+              'Revoke all shares first.',
+          ),
+          { code: 'HAS_ACTIVE_SHARES' },
+        );
+      }
+      throw err;
+    }
   }
 }

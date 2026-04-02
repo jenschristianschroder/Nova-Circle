@@ -164,5 +164,50 @@ describe('Groups API', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 409 when group has active event shares',
+      async () => {
+        // Create a group
+        const groupRes = await request(app)
+          .post('/api/v1/groups')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ name: 'Group With Shares' });
+        const groupId = (groupRes.body as { id: string }).id;
+
+        // Create a personal event
+        const eventRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Shared Event', startAt: '2026-12-20T10:00:00Z' });
+        const eventId = (eventRes.body as { id: string }).id;
+
+        // Share the event to the group
+        const shareRes = await request(app)
+          .post(`/api/v1/events/${eventId}/shares`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ groupId, visibilityLevel: 'details' });
+        expect(shareRes.status).toBe(201);
+        const shareId = (shareRes.body as { id: string }).id;
+
+        // Try to delete the group — should fail with 409
+        const deleteRes = await request(app)
+          .delete(`/api/v1/groups/${groupId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(deleteRes.status).toBe(409);
+        expect((deleteRes.body as { code: string }).code).toBe('HAS_ACTIVE_SHARES');
+
+        // Revoke the share, then delete the group — should succeed
+        const revokeRes = await request(app)
+          .delete(`/api/v1/events/${eventId}/shares/${shareId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(revokeRes.status).toBe(204);
+
+        const deleteRes2 = await request(app)
+          .delete(`/api/v1/groups/${groupId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(deleteRes2.status).toBe(204);
+      },
+    );
   });
 });

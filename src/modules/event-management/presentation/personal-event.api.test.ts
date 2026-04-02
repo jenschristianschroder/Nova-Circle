@@ -551,6 +551,43 @@ describe('Personal Events API', () => {
 
       expect(res.status).toBe(404);
     });
+
+    it.skipIf(skipReason !== undefined)(
+      'deleting a shared personal event succeeds — shares are revoked automatically',
+      async () => {
+        // Create a group and a personal event
+        const groupRes = await request(app)
+          .post('/api/v1/groups')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ name: 'Share-Delete Test Group' });
+        const groupId = (groupRes.body as { id: string }).id;
+
+        const createRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Shared Event To Delete', startAt: '2026-12-15T10:00:00Z' });
+        const eventId = (createRes.body as EventBody).id;
+
+        // Share the event to the group
+        const shareRes = await request(app)
+          .post(`/api/v1/events/${eventId}/shares`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ groupId, visibilityLevel: 'details' });
+        expect(shareRes.status).toBe(201);
+
+        // Now delete the event — should succeed (shares revoked first)
+        const deleteRes = await request(app)
+          .delete(`/api/v1/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(deleteRes.status).toBe(204);
+
+        // Event should no longer be accessible
+        const getRes = await request(app)
+          .get(`/api/v1/events/${eventId}`)
+          .set(testAuthHeaders(owner.userId, owner.displayName));
+        expect(getRes.status).toBe(404);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

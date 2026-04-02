@@ -7,4 +7,6 @@ export interface EventShareRepositoryPort {
   create(data: ShareEventData): Promise<EventShare>;
   updateVisibility(shareId: string, visibilityLevel: VisibilityLevel): Promise<EventShare | null>;
   delete(shareId: string): Promise<void>;
+  /** Deletes all shares for a given event. Returns the number of rows removed. */
+  deleteByEvent(eventId: string): Promise<number>;
 }
