@@ -170,6 +170,8 @@ Each audit record includes: `actorId`, `resourceType: 'event_share'`, `resourceI
 - Created by migration `20260328000010_personal_event_ownership.ts`.
 - Unique constraint `(event_id, group_id)` prevents duplicate shares.
 - Indexes on `group_id` and `shared_by_user_id` for query performance.
+- Foreign keys on `event_id` and `group_id` use `ON DELETE RESTRICT` (changed from `CASCADE` by migration `20260402000012_event_shares_restrict_deletes.ts`) to prevent silent data loss — shares must be explicitly revoked via `RevokeEventShareUseCase` before the referenced event or group can be deleted.
+- Foreign key on `shared_by_user_id` uses `ON DELETE RESTRICT` to prevent deletion of a user profile that owns shares.
 - All persistence operations are reached only after `EventSharePolicy` authorization checks pass in the application layer.
 
 ---
