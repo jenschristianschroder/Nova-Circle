@@ -24,6 +24,7 @@ function makeAuditLog(
 const VALID_ACTIONS: AuditAction[] = [
   'event.created',
   'event.cancelled',
+  'event.ownership_transferred',
   'member.added',
   'member.removed',
   'group.updated',

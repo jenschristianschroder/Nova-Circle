@@ -650,4 +650,127 @@ describe('Personal Events API', () => {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Transfer event ownership
+  // ---------------------------------------------------------------------------
+
+  describe('POST /api/v1/events/:eventId/transfer-ownership', () => {
+    it.skipIf(skipReason !== undefined)(
+      'transfers ownership to another user and records audit entry',
+      async () => {
+        // Create event owned by `owner`
+        const createRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Transfer Me', startAt: '2026-11-01T10:00:00Z' });
+        expect(createRes.status).toBe(201);
+        const eventId = (createRes.body as EventBody).id;
+
+        // Transfer to otherUser
+        const transferRes = await request(app)
+          .post(`/api/v1/events/${eventId}/transfer-ownership`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ newOwnerId: otherUser.userId });
+        expect(transferRes.status).toBe(200);
+        expect((transferRes.body as EventBody).ownerId).toBe(otherUser.userId);
+
+        // Verify audit trail
+        interface AuditRow {
+          actor_id: string;
+          metadata: { previousOwnerId: string; newOwnerId: string };
+        }
+        const auditRows = await db('audit_log')
+          .where({ action: 'event.ownership_transferred', resource_id: eventId })
+          .select('*');
+        expect(auditRows.length).toBe(1);
+        const auditRow = auditRows[0] as AuditRow;
+        expect(auditRow.actor_id).toBe(owner.userId);
+        expect(auditRow.metadata.previousOwnerId).toBe(owner.userId);
+        expect(auditRow.metadata.newOwnerId).toBe(otherUser.userId);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for non-owner',
+      async () => {
+        const createRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Not Yours', startAt: '2026-11-01T10:00:00Z' });
+        const eventId = (createRes.body as EventBody).id;
+
+        const transferRes = await request(app)
+          .post(`/api/v1/events/${eventId}/transfer-ownership`)
+          .set(testAuthHeaders(otherUser.userId, otherUser.displayName))
+          .send({ newOwnerId: otherUser.userId });
+        expect(transferRes.status).toBe(404);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 when newOwnerId is missing or invalid',
+      async () => {
+        const createRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Bad Transfer', startAt: '2026-11-01T10:00:00Z' });
+        const eventId = (createRes.body as EventBody).id;
+
+        const missingRes = await request(app)
+          .post(`/api/v1/events/${eventId}/transfer-ownership`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({});
+        expect(missingRes.status).toBe(400);
+        expect((missingRes.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+
+        const invalidRes = await request(app)
+          .post(`/api/v1/events/${eventId}/transfer-ownership`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ newOwnerId: 'not-a-uuid' });
+        expect(invalidRes.status).toBe(400);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 400 when transferring to the same owner',
+      async () => {
+        const createRes = await request(app)
+          .post('/api/v1/events')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ title: 'Same Owner', startAt: '2026-11-01T10:00:00Z' });
+        const eventId = (createRes.body as EventBody).id;
+
+        const transferRes = await request(app)
+          .post(`/api/v1/events/${eventId}/transfer-ownership`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ newOwnerId: owner.userId });
+        expect(transferRes.status).toBe(400);
+        expect((transferRes.body as ErrorBody).code).toBe('VALIDATION_ERROR');
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for non-existent event',
+      async () => {
+        const fakeId = '00000000-0000-4000-8000-000000000099';
+        const transferRes = await request(app)
+          .post(`/api/v1/events/${fakeId}/transfer-ownership`)
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ newOwnerId: otherUser.userId });
+        expect(transferRes.status).toBe(404);
+      },
+    );
+
+    it.skipIf(skipReason !== undefined)(
+      'returns 404 for invalid UUID in path',
+      async () => {
+        const transferRes = await request(app)
+          .post('/api/v1/events/not-a-uuid/transfer-ownership')
+          .set(testAuthHeaders(owner.userId, owner.displayName))
+          .send({ newOwnerId: otherUser.userId });
+        expect(transferRes.status).toBe(404);
+      },
+    );
+  });
 });

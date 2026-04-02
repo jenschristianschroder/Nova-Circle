@@ -58,6 +58,7 @@ function makeEventRepo(overrides?: Partial<EventRepositoryPort>): EventRepositor
     listByGroupForUser: vi.fn().mockResolvedValue([]),
     listByOwner: vi.fn().mockResolvedValue([]),
     update: vi.fn().mockResolvedValue(null),
+    transferOwnership: vi.fn().mockResolvedValue(null),
     cancel: vi.fn().mockResolvedValue(undefined),
     deleteEvent: vi.fn().mockResolvedValue(undefined),
     ...overrides,

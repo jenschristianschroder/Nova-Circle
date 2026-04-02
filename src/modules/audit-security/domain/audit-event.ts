@@ -9,6 +9,7 @@ export type AuditAction =
   | 'event.created'
   | 'event.cancelled'
   | 'event.deleted'
+  | 'event.ownership_transferred'
   | 'event_invitation.added'
   | 'event_invitation.removed'
   | 'event_share.created'
