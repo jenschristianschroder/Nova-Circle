@@ -79,6 +79,7 @@ beforeEach(() => {
   mockLogout.mockClear();
   localStorage.clear();
   Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
     writable: true,
     value: mockMatchMedia(false),
   });
