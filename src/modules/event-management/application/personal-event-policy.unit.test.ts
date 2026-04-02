@@ -398,4 +398,18 @@ describe('DeletePersonalEventUseCase', () => {
       code: 'NOT_FOUND',
     });
   });
+
+  it('propagates errors from shareRepo.deleteByEvent', async () => {
+    const event = makePersonalEvent();
+    const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
+    const deleteByEvent = vi.fn().mockRejectedValue(new Error('DB connection lost'));
+    const useCase = new DeletePersonalEventUseCase(
+      eventRepo,
+      makeShareRepo({ deleteByEvent }),
+    );
+
+    await expect(useCase.execute(owner, 'personal-event-1')).rejects.toThrow(
+      'DB connection lost',
+    );
+  });
 });

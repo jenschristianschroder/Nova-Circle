@@ -1,13 +1,7 @@
 import type { IdentityContext } from '../../../shared/auth/identity-context.js';
 import type { GroupRepositoryPort } from '../domain/group.repository.port.js';
 import type { MembershipCheckerPort } from '../domain/membership-checker.port.js';
-
-/** Type guard for PostgreSQL FK violation errors (SQLSTATE 23503). */
-function isForeignKeyViolation(err: unknown): boolean {
-  return (
-    err instanceof Error && (err as Error & { code?: string }).code === '23503'
-  );
-}
+import { isForeignKeyViolation } from '../../../shared/database/pg-errors.js';
 
 export class DeleteGroupUseCase {
   constructor(
