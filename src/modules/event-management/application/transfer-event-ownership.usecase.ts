@@ -53,8 +53,8 @@ export class TransferEventOwnershipUseCase {
       throw error;
     }
     if (!updated) {
-      // 0 rows updated → concurrent transfer changed the owner between our
-      // read and the conditional update (TOCTOU). Surface as CONFLICT.
+      // 0 rows updated → another transfer changed the owner between our
+      // read and the conditional update. Surface as CONFLICT.
       throw Object.assign(new Error('Event ownership has changed concurrently'), {
         code: 'CONFLICT',
       });
