@@ -6,6 +6,7 @@ import { UpdatePersonalEventUseCase } from './update-personal-event.usecase.js';
 import { DeletePersonalEventUseCase } from './delete-personal-event.usecase.js';
 import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
+import type { EventShareRepositoryPort } from '../../event-sharing/domain/event-share.repository.port.js';
 import type { Event } from '../domain/event.js';
 import { FakeIdentity } from '../../../shared/test-helpers/fake-identity.js';
 
@@ -55,6 +56,21 @@ function makeEventRepo(overrides?: Partial<EventRepositoryPort>): EventRepositor
     update: vi.fn().mockResolvedValue(makePersonalEvent()),
     cancel: vi.fn().mockResolvedValue(undefined),
     deleteEvent: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+function makeShareRepo(
+  overrides?: Partial<EventShareRepositoryPort>,
+): EventShareRepositoryPort {
+  return {
+    findById: vi.fn().mockResolvedValue(null),
+    findByEventAndGroup: vi.fn().mockResolvedValue(null),
+    listByEvent: vi.fn().mockResolvedValue([]),
+    create: vi.fn().mockResolvedValue(null),
+    updateVisibility: vi.fn().mockResolvedValue(null),
+    delete: vi.fn().mockResolvedValue(undefined),
+    deleteByEvent: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
@@ -331,14 +347,32 @@ describe('DeletePersonalEventUseCase', () => {
       findById: vi.fn().mockResolvedValue(event),
       deleteEvent,
     });
-    const useCase = new DeletePersonalEventUseCase(eventRepo);
+    const useCase = new DeletePersonalEventUseCase(eventRepo, makeShareRepo());
 
     await useCase.execute(owner, 'personal-event-1');
     expect(deleteEvent).toHaveBeenCalledWith('personal-event-1');
   });
 
+  it('revokes all shares before deleting the event', async () => {
+    const event = makePersonalEvent();
+    const deleteByEvent = vi.fn().mockResolvedValue(2);
+    const deleteEvent = vi.fn().mockResolvedValue(undefined);
+    const eventRepo = makeEventRepo({
+      findById: vi.fn().mockResolvedValue(event),
+      deleteEvent,
+    });
+    const useCase = new DeletePersonalEventUseCase(
+      eventRepo,
+      makeShareRepo({ deleteByEvent }),
+    );
+
+    await useCase.execute(owner, 'personal-event-1');
+    expect(deleteByEvent).toHaveBeenCalledWith('personal-event-1');
+    expect(deleteEvent).toHaveBeenCalledWith('personal-event-1');
+  });
+
   it('throws NOT_FOUND when event does not exist', async () => {
-    const useCase = new DeletePersonalEventUseCase(makeEventRepo());
+    const useCase = new DeletePersonalEventUseCase(makeEventRepo(), makeShareRepo());
 
     await expect(useCase.execute(owner, 'non-existent')).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -348,7 +382,7 @@ describe('DeletePersonalEventUseCase', () => {
   it('throws NOT_FOUND for non-owner (no existence disclosure)', async () => {
     const event = makePersonalEvent();
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(event) });
-    const useCase = new DeletePersonalEventUseCase(eventRepo);
+    const useCase = new DeletePersonalEventUseCase(eventRepo, makeShareRepo());
 
     await expect(useCase.execute(otherUser, 'personal-event-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -358,7 +392,7 @@ describe('DeletePersonalEventUseCase', () => {
   it('throws NOT_FOUND for group-scoped events', async () => {
     const groupEvent = makeGroupEvent();
     const eventRepo = makeEventRepo({ findById: vi.fn().mockResolvedValue(groupEvent) });
-    const useCase = new DeletePersonalEventUseCase(eventRepo);
+    const useCase = new DeletePersonalEventUseCase(eventRepo, makeShareRepo());
 
     await expect(useCase.execute(owner, 'group-event-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',

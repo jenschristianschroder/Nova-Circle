@@ -296,6 +296,52 @@ describe('Event shares restrict deletes migration', () => {
     },
   );
 
+  it.skipIf(skipReason !== undefined)(
+    'deleting a group succeeds after its shares are removed',
+    async () => {
+      const { db, cleanup } = await createIsolatedTestDb();
+      cleanups.push(cleanup);
+      try {
+        await migrateToBaseline(db);
+        await db.migrate.up({ name: '20260402000012_event_shares_restrict_deletes.ts' });
+
+        const userId = 'ffffffff-0000-4000-8000-000000000004';
+        await db('user_profiles').insert({ id: userId, display_name: 'Cleanup Group User' });
+
+        const groups = await db<IdRow>('groups')
+          .insert({ name: 'Cleanup Group Test', owner_id: userId })
+          .returning('id');
+
+        const events = await db<IdRow>('events')
+          .insert({
+            group_id: null,
+            title: 'Cleanup Group Event',
+            start_at: new Date('2026-06-01T12:00:00Z'),
+            created_by: userId,
+            owner_id: userId,
+          })
+          .returning('id');
+
+        await db('event_shares').insert({
+          event_id: events[0]!.id,
+          group_id: groups[0]!.id,
+          visibility_level: 'title',
+          shared_by_user_id: userId,
+        });
+
+        // Remove shares first, then delete the group — should succeed
+        await db('event_shares').where({ group_id: groups[0]!.id }).delete();
+        await db('groups').where({ id: groups[0]!.id }).delete();
+
+        const remaining = await db('groups').where({ id: groups[0]!.id });
+        expect(remaining.length).toBe(0);
+      } finally {
+        await cleanup();
+        cleanups.pop();
+      }
+    },
+  );
+
   // ── Down migration: restores CASCADE ───────────────────────────────────
 
   it.skipIf(skipReason !== undefined)(

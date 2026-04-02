@@ -152,4 +152,20 @@ describe('DeleteGroupUseCase', () => {
     const useCase = new DeleteGroupUseCase(makeGroupRepo(), makeMembership('member'));
     await expect(useCase.execute(identity, 'group-1')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  it('throws HAS_ACTIVE_SHARES when FK violation occurs (active shares reference the group)', async () => {
+    const fkError = Object.assign(new Error('FK violation'), { code: '23503' });
+    const repo = makeGroupRepo({ delete: vi.fn().mockRejectedValue(fkError) });
+    const useCase = new DeleteGroupUseCase(repo, makeMembership('owner'));
+    await expect(useCase.execute(identity, 'group-1')).rejects.toMatchObject({
+      code: 'HAS_ACTIVE_SHARES',
+    });
+  });
+
+  it('re-throws non-FK errors from groupRepo.delete()', async () => {
+    const genericError = new Error('Connection lost');
+    const repo = makeGroupRepo({ delete: vi.fn().mockRejectedValue(genericError) });
+    const useCase = new DeleteGroupUseCase(repo, makeMembership('owner'));
+    await expect(useCase.execute(identity, 'group-1')).rejects.toThrow('Connection lost');
+  });
 });

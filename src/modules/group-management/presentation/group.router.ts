@@ -24,6 +24,10 @@ function isValidationError(err: unknown): boolean {
   return err instanceof Error && (err as Error & { code?: string }).code === 'VALIDATION_ERROR';
 }
 
+function isHasActiveSharesError(err: unknown): boolean {
+  return err instanceof Error && (err as Error & { code?: string }).code === 'HAS_ACTIVE_SHARES';
+}
+
 export function createGroupRouter(
   groupCreator: CreateGroupWithOwnerPort,
   groupRepo: GroupRepositoryPort,
@@ -203,6 +207,10 @@ export function createGroupRouter(
     } catch (err: unknown) {
       if (isForbiddenError(err)) {
         res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return;
+      }
+      if (isHasActiveSharesError(err)) {
+        res.status(409).json({ error: (err as Error).message, code: 'HAS_ACTIVE_SHARES' });
         return;
       }
       res.status(500).json({ error: 'Internal server error', code: 'INTERNAL_ERROR' });

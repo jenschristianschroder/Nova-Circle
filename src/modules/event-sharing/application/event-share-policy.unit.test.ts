@@ -73,6 +73,7 @@ function makeShareRepo(overrides?: Partial<EventShareRepositoryPort>): EventShar
     create: vi.fn().mockResolvedValue(makeShare()),
     updateVisibility: vi.fn().mockResolvedValue(makeShare()),
     delete: vi.fn().mockResolvedValue(undefined),
+    deleteByEvent: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }

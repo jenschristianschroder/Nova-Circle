@@ -4,6 +4,7 @@ import type { EventCreationPort } from '../domain/event-creation.port.js';
 import type { EventRepositoryPort } from '../domain/event.repository.port.js';
 import type { UpdateEventData } from '../domain/event.js';
 import type { AuditLogPort } from '../../audit-security/index.js';
+import type { EventShareRepositoryPort } from '../../event-sharing/domain/event-share.repository.port.js';
 import { CreatePersonalEventUseCase } from '../application/create-personal-event.usecase.js';
 import { ListMyEventsUseCase } from '../application/list-my-events.usecase.js';
 import { GetPersonalEventUseCase } from '../application/get-personal-event.usecase.js';
@@ -27,6 +28,7 @@ function isConflictError(err: unknown): boolean {
 export function createPersonalEventRouter(
   eventCreator: EventCreationPort,
   eventRepo: EventRepositoryPort,
+  shareRepo: EventShareRepositoryPort,
   auditLog: AuditLogPort,
 ): express.Router {
   const router = express.Router();
@@ -35,7 +37,7 @@ export function createPersonalEventRouter(
   const listMyEvents = new ListMyEventsUseCase(eventRepo);
   const getPersonalEvent = new GetPersonalEventUseCase(eventRepo);
   const updatePersonalEvent = new UpdatePersonalEventUseCase(eventRepo);
-  const deletePersonalEvent = new DeletePersonalEventUseCase(eventRepo);
+  const deletePersonalEvent = new DeletePersonalEventUseCase(eventRepo, shareRepo);
 
   // POST /api/v1/events
   router.post('/', async (req: Request, res: Response) => {

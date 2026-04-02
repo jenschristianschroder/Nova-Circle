@@ -220,7 +220,7 @@ export function createApp(deps?: AppDependencies): express.Application {
         sharedEventQuery,
       ),
     );
-    app.use('/api/v1/events', createPersonalEventRouter(eventCreator, eventRepo, auditLog));
+    app.use('/api/v1/events', createPersonalEventRouter(eventCreator, eventRepo, shareRepo, auditLog));
 
     const locationRepo = new KnexEventLocationRepository(db);
     const checklistRepo = new KnexEventChecklistRepository(db);

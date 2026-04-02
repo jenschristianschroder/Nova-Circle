@@ -82,4 +82,8 @@ export class KnexEventShareRepository implements EventShareRepositoryPort {
   async delete(shareId: string): Promise<void> {
     await this.db('event_shares').where({ id: shareId }).delete();
   }
+
+  async deleteByEvent(eventId: string): Promise<number> {
+    return this.db('event_shares').where({ event_id: eventId }).delete();
+  }
 }
