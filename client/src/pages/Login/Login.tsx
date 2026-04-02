@@ -37,7 +37,7 @@ export function Login() {
         <div className="mx-auto flex max-w-5xl items-center px-nc-md py-nc-sm md:px-nc-lg">
           <div className="flex items-center gap-nc-sm">
             <span className="text-2xl text-nc-accent-default" aria-hidden="true">
-              ◎
+              {'◎'}
             </span>
             <span className="text-nc-lg font-semibold tracking-tight">Nova-Circle</span>
           </div>
