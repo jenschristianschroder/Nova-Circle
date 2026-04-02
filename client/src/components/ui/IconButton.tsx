@@ -1,5 +1,5 @@
 /**
- * IconButton — icon-only button with tooltip.
+ * IconButton — icon-only button.
  *
  * Minimum 44×44px touch target for mobile accessibility.
  */

@@ -5,6 +5,7 @@
  * Full-screen centered card with ample whitespace.
  */
 
+import { type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { CalendarDays, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
@@ -110,7 +111,7 @@ function FeatureItem({
   title,
   description,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description: string;
 }) {
