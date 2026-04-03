@@ -204,6 +204,7 @@ export function GroupDetail() {
             <Button
               variant="primary"
               size="md"
+              aria-label="+ New Event"
               onClick={() => navigate(`/groups/${groupId}/events/new`)}
             >
               <CalendarPlus size={18} aria-hidden="true" />
