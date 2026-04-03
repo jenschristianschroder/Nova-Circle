@@ -105,7 +105,7 @@ export function GroupsList() {
         <Button
           variant="primary"
           size="md"
-          aria-label={showCreateForm ? 'Cancel' : '+ New Group'}
+          {...(!showCreateForm && { 'aria-label': '+ New Group' })}
           onClick={() => setShowCreateForm((v) => !v)}
         >
           {showCreateForm ? (
