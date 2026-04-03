@@ -290,33 +290,35 @@ export function EventDetail() {
 
       {/* Attendees */}
       {invitations.length > 0 && (
-        <Card>
-          <h2 id="attendees-heading" className="mb-nc-md text-nc-lg font-semibold">
-            Attendees ({invitations.filter((i) => i.status !== 'removed').length})
-          </h2>
-          <ul className="flex flex-col gap-nc-sm" role="list">
-            {invitations
-              .filter((i) => i.status !== 'removed')
-              .map((inv) => (
-                <li
-                  key={inv.userId}
-                  className="flex items-center gap-nc-md border-b border-nc-border-default py-nc-sm last:border-b-0"
-                >
-                  <UserCircle
-                    size={24}
-                    className="shrink-0 text-nc-content-secondary"
-                    aria-hidden="true"
-                  />
-                  <span className="flex-1 font-medium" title={inv.userId}>
-                    Member ({inv.userId.slice(0, 8)}…)
-                  </span>
-                  <Badge variant={RSVP_BADGE_VARIANT[inv.status] ?? 'default'}>
-                    {RSVP_LABELS[inv.status] ?? inv.status}
-                  </Badge>
-                </li>
-              ))}
-          </ul>
-        </Card>
+        <section aria-labelledby="attendees-heading">
+          <Card>
+            <h2 id="attendees-heading" className="mb-nc-md text-nc-lg font-semibold">
+              Attendees ({invitations.filter((i) => i.status !== 'removed').length})
+            </h2>
+            <ul className="flex flex-col gap-nc-sm" role="list">
+              {invitations
+                .filter((i) => i.status !== 'removed')
+                .map((inv) => (
+                  <li
+                    key={inv.userId}
+                    className="flex items-center gap-nc-md border-b border-nc-border-default py-nc-sm last:border-b-0"
+                  >
+                    <UserCircle
+                      size={24}
+                      className="shrink-0 text-nc-content-secondary"
+                      aria-hidden="true"
+                    />
+                    <span className="flex-1 font-medium" title={inv.userId}>
+                      Member ({inv.userId.slice(0, 8)}…)
+                    </span>
+                    <Badge variant={RSVP_BADGE_VARIANT[inv.status] ?? 'default'}>
+                      {RSVP_LABELS[inv.status] ?? inv.status}
+                    </Badge>
+                  </li>
+                ))}
+            </ul>
+          </Card>
+        </section>
       )}
 
       <ShareDialog

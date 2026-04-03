@@ -102,7 +102,12 @@ export function GroupsList() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-nc-md">
         <h1 className="text-nc-2xl font-bold">My Groups</h1>
-        <Button variant="primary" size="md" onClick={() => setShowCreateForm((v) => !v)}>
+        <Button
+          variant="primary"
+          size="md"
+          aria-label={showCreateForm ? 'Cancel' : '+ New Group'}
+          onClick={() => setShowCreateForm((v) => !v)}
+        >
           {showCreateForm ? (
             'Cancel'
           ) : (
