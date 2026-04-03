@@ -62,7 +62,7 @@ export function AppShell() {
                         : 'text-nc-content-secondary hover:bg-nc-surface-subtle hover:text-nc-content-primary',
                     )}
                   >
-                    <item.icon size={18} aria-hidden="true" />
+                    <item.icon size={18} aria-hidden="true" className="shrink-0" />
                     {item.label}
                   </Link>
                 </li>
@@ -82,7 +82,7 @@ export function AppShell() {
                   )}
                   aria-label="Sign out"
                 >
-                  <LogOut size={18} aria-hidden="true" />
+                  <LogOut size={18} aria-hidden="true" className="shrink-0" />
                   Sign out
                 </button>
               </li>
@@ -113,7 +113,7 @@ export function AppShell() {
                 )}
                 aria-current={isActive(item.to) ? 'page' : undefined}
               >
-                <item.icon size={22} aria-hidden="true" />
+                <item.icon size={22} aria-hidden="true" className="shrink-0" />
                 {item.label}
               </Link>
             </li>
