@@ -9,7 +9,7 @@
  */
 
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { CalendarDays, Users, UserCircle, LogOut } from 'lucide-react';
+import { CalendarDays, Users, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
 import { cn } from '../ui/cn';
 
@@ -21,7 +21,7 @@ export function AppShell() {
   const navItems = [
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
     { to: '/groups', label: 'Groups', icon: Users },
-    { to: '/profile', label: 'Profile', icon: UserCircle },
+    { to: '/profile', label: 'Profile', icon: Settings },
   ];
 
   function isActive(path: string) {
