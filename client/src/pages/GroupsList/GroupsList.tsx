@@ -105,7 +105,7 @@ export function GroupsList() {
         <Button
           variant="primary"
           size="md"
-          {...(!showCreateForm && { 'aria-label': '+ New Group' })}
+          aria-label={!showCreateForm ? '+ New Group' : undefined}
           onClick={() => setShowCreateForm((v) => !v)}
         >
           {showCreateForm ? (
